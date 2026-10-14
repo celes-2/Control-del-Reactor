@@ -13,7 +13,7 @@ using System.Reflection;
 [assembly: System.Reflection.AssemblyCompanyAttribute("Control-del-Reactor")]
 [assembly: System.Reflection.AssemblyConfigurationAttribute("Debug")]
 [assembly: System.Reflection.AssemblyFileVersionAttribute("1.0.0.0")]
-[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+b3bba6f87768400f9cf35e8c6af3703538d21d0a")]
+[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+d60158ebf3ab597edc6f3e6abc0c54e249d815cf")]
 [assembly: System.Reflection.AssemblyProductAttribute("Control-del-Reactor")]
 [assembly: System.Reflection.AssemblyTitleAttribute("Control-del-Reactor")]
 [assembly: System.Reflection.AssemblyVersionAttribute("1.0.0.0")]
