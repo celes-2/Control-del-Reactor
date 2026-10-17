@@ -29,7 +29,7 @@ public sealed record ConfigPartida
     /// <summary>Segundos que un jugador queda congelado cuando es inmovilizado (CA-08.5).</summary>
     public int SegundosCongelamiento { get; init; } = 3;
 
-    /// <summary>Reservado para el Sprint 3. Ya no decide el ganador: ahora gana quien tenga más puntos.</summary>
+    /// <summary>Reservado para el Sprint 3. No decide el ganador: ahora gana quien tenga más puntos.</summary>
     public int EnergiaObjetivo { get; init; } = 100;
 
     public int CapacidadReactor { get; init; } = 500;
