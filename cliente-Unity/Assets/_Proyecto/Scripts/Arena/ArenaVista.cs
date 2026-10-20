@@ -14,6 +14,17 @@ namespace Reactor.Cliente.Arena
     [RequireComponent(typeof(ArenaRenderer))]
     public sealed class ArenaVista : MonoBehaviour, IArenaVista
     {
+        [Header("Opcional: imágenes de los avatares")]
+        [Tooltip("Se asignan en orden de llegada (jugador 1, jugador 2...). Vacío = círculos con la inicial. " +
+                 "Cuando exista el API, la imagen vendrá del avatar que eligió cada usuario.")]
+        [SerializeField] Sprite[] spritesAvatar = new Sprite[0];
+
+        [Tooltip("Tamaño del avatar completo. 1 = casi una celda; más de 1 invade las celdas vecinas.")]
+        [SerializeField, Range(0.5f, 2.5f)] float tamanoAvatar = 1f;
+
+        [Tooltip("Tamaño de la imagen respecto al anillo de color. Más de 1 = la imagen sobresale del anillo.")]
+        [SerializeField, Range(0.3f, 2f)] float proporcionImagen = 0.76f;
+
         readonly Dictionary<string, AvatarVista> avatares = new Dictionary<string, AvatarVista>();
         ArenaRenderer mapa;
         ArenaHud hud;
@@ -22,7 +33,8 @@ namespace Reactor.Cliente.Arena
         void Awake()
         {
             mapa = GetComponent<ArenaRenderer>();
-            hud = gameObject.AddComponent<ArenaHud>();
+            hud = GetComponent<ArenaHud>();
+            if (hud == null) hud = gameObject.AddComponent<ArenaHud>();
             contenedorAvatares = new GameObject("Avatares").transform;
             contenedorAvatares.SetParent(transform, false);
         }
@@ -47,7 +59,10 @@ namespace Reactor.Cliente.Arena
                 existente.Colocar(posicion);
                 return;
             }
-            avatares[jugador.Id] = AvatarVista.Crear(contenedorAvatares, jugador, posicion);
+            var nuevo = AvatarVista.Crear(contenedorAvatares, jugador, posicion, tamanoAvatar, proporcionImagen);
+            if (spritesAvatar != null && spritesAvatar.Length > 0)
+                nuevo.PonerImagen(spritesAvatar[avatares.Count % spritesAvatar.Length]);
+            avatares[jugador.Id] = nuevo;
         }
 
         public void MoverJugador(string jugadorId, int x, int y)

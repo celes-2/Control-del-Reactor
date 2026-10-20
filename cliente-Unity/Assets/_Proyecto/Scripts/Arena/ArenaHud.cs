@@ -7,20 +7,35 @@ namespace Reactor.Cliente.Arena
 {
     /// <summary>
     /// Interfaz sobre la arena: temporizador (CA-09.9), estado de la partida (CA-09.7),
-    /// marcador (CA-15.2) y avisos. Se construye por código; luego se puede rediseñar.
+    /// marcador (CA-15.2) y avisos.
+    /// Si en el Inspector se asignan los cuatro textos (de un Canvas diseñado a mano),
+    /// se usan esos. Si se dejan vacíos, se genera un HUD básico por código.
     /// </summary>
     public sealed class ArenaHud : MonoBehaviour
     {
         const float DuracionAviso = 3f;
 
-        TextMeshProUGUI temporizador;
-        TextMeshProUGUI estado;
-        TextMeshProUGUI marcador;
-        TextMeshProUGUI aviso;
+        [Header("Opcional: textos de un Canvas diseñado en la escena")]
+        [SerializeField] TextMeshProUGUI temporizador;
+        [SerializeField] TextMeshProUGUI estado;
+        [SerializeField] TextMeshProUGUI marcador;
+        [SerializeField] TextMeshProUGUI aviso;
+
+        [Tooltip("Objeto que se enciende/apaga con el aviso (por ejemplo, un panel con fondo). Si está vacío se usa el texto.")]
+        [SerializeField] GameObject panelAviso;
+
         Coroutine rutinaAviso;
+
+        GameObject ContenedorAviso => panelAviso != null ? panelAviso : aviso.gameObject;
 
         void Awake()
         {
+            if (temporizador != null && estado != null && marcador != null && aviso != null)
+            {
+                ContenedorAviso.SetActive(false);
+                return;
+            }
+
             var canvasGo = new GameObject("HUD", typeof(Canvas), typeof(CanvasScaler));
             canvasGo.transform.SetParent(transform, false);
 
@@ -39,7 +54,7 @@ namespace Reactor.Cliente.Arena
             marcador = CrearTexto(raiz, "Marcador", new Vector2(1f, 1f), new Vector2(-32f, -32f), new Vector2(520f, 320f), 34, TextAlignmentOptions.TopRight);
             aviso = CrearTexto(raiz, "Aviso", new Vector2(0.5f, 0.5f), Vector2.zero, new Vector2(1400f, 140f), 72, TextAlignmentOptions.Center);
             aviso.color = new Color(1f, 0.92f, 0.3f);
-            aviso.gameObject.SetActive(false);
+            ContenedorAviso.SetActive(false);
         }
 
         public void MostrarTemporizador(string texto) => temporizador.text = texto;
@@ -56,9 +71,9 @@ namespace Reactor.Cliente.Arena
         IEnumerator RutinaAviso(string texto)
         {
             aviso.text = texto;
-            aviso.gameObject.SetActive(true);
+            ContenedorAviso.SetActive(true);
             yield return new WaitForSeconds(DuracionAviso);
-            aviso.gameObject.SetActive(false);
+            ContenedorAviso.SetActive(false);
             rutinaAviso = null;
         }
 
