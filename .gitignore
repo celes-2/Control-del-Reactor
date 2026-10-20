@@ -69,3 +69,4 @@ desktop.ini
 !.vscode/settings.json
 *.swp
 *~
+Hardware/config.py
