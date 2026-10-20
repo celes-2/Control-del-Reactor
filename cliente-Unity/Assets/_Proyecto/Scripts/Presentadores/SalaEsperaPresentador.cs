@@ -64,6 +64,7 @@ namespace Reactor.Cliente.Presentadores
         void AlRecibirEstado(EstadoPartidaMsg estado)
         {
             if (estado == null || yaEmpezo) return;
+            estado.AsignarColoresFaltantes();
 
             if (estado.Estado == EstadosPartida.EnCurso)
             {

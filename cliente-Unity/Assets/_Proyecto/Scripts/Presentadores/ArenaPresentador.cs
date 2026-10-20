@@ -70,6 +70,7 @@ namespace Reactor.Cliente.Presentadores
                 return;
             }
 
+            e.AsignarColoresFaltantes();
             modoFin = string.IsNullOrEmpty(e.ModoFin) ? ModosFin.Tiempo : e.ModoFin;
             vista.DibujarEscenario(e.Escenario);
 

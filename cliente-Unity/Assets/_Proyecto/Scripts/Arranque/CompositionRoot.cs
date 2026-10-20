@@ -46,6 +46,10 @@ namespace Reactor.Cliente.Arranque
             }
             else
             {
+                // Sin login todavía: el usuario sale de config.json ("usuarioId"). Con login, Sesion.Iniciar lo reemplaza.
+                if (!Sesion.EstaAutenticado && !string.IsNullOrEmpty(Config.UsuarioIdProvisional))
+                    Sesion.IniciarProvisional(Config.UsuarioIdProvisional, Config.NombreProvisional);
+
                 Socket = new GameSocket(Config.UrlWebSocket, Sesion);
             }
 

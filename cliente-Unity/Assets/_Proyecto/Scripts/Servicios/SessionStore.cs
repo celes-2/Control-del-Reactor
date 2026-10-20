@@ -28,6 +28,19 @@ namespace Reactor.Cliente.Servicios
             NombreUsuario = nombreUsuario;
         }
 
+        /// <summary>
+        /// SOLO desarrollo: identifica a este equipo sin login (sin token). El WebSocket usa entonces ?userId=.
+        /// Se reemplaza por Iniciar() cuando exista el login con JWT.
+        /// </summary>
+        public void IniciarProvisional(string usuarioId, string nombreUsuario)
+        {
+            if (string.IsNullOrWhiteSpace(usuarioId)) throw new ArgumentException("El usuario es obligatorio.", nameof(usuarioId));
+
+            Token = null;
+            UsuarioId = usuarioId;
+            NombreUsuario = nombreUsuario;
+        }
+
         public void Cerrar()
         {
             Token = null;
