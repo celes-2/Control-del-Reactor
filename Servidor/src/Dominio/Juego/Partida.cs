@@ -30,6 +30,9 @@ public sealed class Partida
     public EstadoPartida Estado { get; private set; } = EstadoPartida.Espera;
     public int SegundosRestantes { get; private set; }
 
+    /// <summary>Segundos jugados desde que inició. Avanza en cada Tick en cualquier modo de fin; no se reinicia en una prórroga.</summary>
+    public int SegundosTranscurridos { get; private set; }
+
     /// <summary>Segundos que se suman cuando el tiempo se acaba en empate.</summary>
     public const int SegundosPorEmpate = 120;
 
@@ -57,6 +60,9 @@ public sealed class Partida
     {
         ArgumentNullException.ThrowIfNull(config);
         ArgumentNullException.ThrowIfNull(arena);
+
+        if (config.MaxJugadores < 2 || config.MaxJugadores > Arena.MaxJugadores)
+            throw new DominioException($"La partida admite entre 2 y {Arena.MaxJugadores} jugadores.");
 
         Id = id;
         Config = config with
@@ -155,6 +161,7 @@ public sealed class Partida
         if (Estado != EstadoPartida.EnCurso)
             return;
 
+        SegundosTranscurridos += segundos;
         Reactor.Recargar(Config.RegeneracionPorSegundo * segundos);
         foreach (var jugador in _jugadores)
             jugador.AvanzarTiempo(segundos);
