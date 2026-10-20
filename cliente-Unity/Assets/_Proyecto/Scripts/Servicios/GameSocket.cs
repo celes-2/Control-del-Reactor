@@ -1,5 +1,4 @@
 using System;
-using System.Collections.Generic;
 using System.Text;
 using NativeWebSocket;
 using Newtonsoft.Json;
@@ -10,14 +9,16 @@ using UnityEngine;
 namespace Reactor.Cliente.Servicios
 {
     /// <summary>
-    /// Cliente WebSocket real contra el servidor ASP.NET Core.
+    /// Cliente WebSocket real contra el servidor ASP.NET Core (contrato en Docs/contratos-websocket.md).
     /// Todos los mensajes viajan en un sobre: { "type": "...", "data": { ... } }.
+    /// URL: ws://IP:8080/ws/partida?token=JWT  (provisional, sin login: ?userId=ID).
     /// </summary>
     public sealed class GameSocket : IGameSocket
     {
         readonly string url;
         readonly SessionStore sesion;
         WebSocket ws;
+        string partidaActual;
 
         public event Action Conectado;
         public event Action<EstadoPartidaMsg> EstadoRecibido;
@@ -37,17 +38,27 @@ namespace Reactor.Cliente.Servicios
 
         public void Conectar(string partidaId)
         {
+            // Al cambiar de escena (sala de espera -> arena) se vuelve a llamar con la misma partida:
+            // no se reconecta, solo se repite match:join y el servidor reenvía match:state.
+            if (ws != null && partidaActual == partidaId)
+            {
+                if (ws.State == WebSocketState.Open)
+                {
+                    Conectado?.Invoke();
+                    Enviar(TiposMensaje.Unirse, new UnirseMsg { PartidaId = partidaId });
+                    return;
+                }
+                if (ws.State == WebSocketState.Connecting) return; // al abrir enviará match:join
+            }
+
             Cerrar();
+            partidaActual = partidaId;
 
-            var cabeceras = new Dictionary<string, string>();
-            if (!string.IsNullOrEmpty(sesion.Token))
-                cabeceras["Authorization"] = "Bearer " + sesion.Token;
-
-            ws = new WebSocket($"{url}?partidaId={Uri.EscapeDataString(partidaId)}", cabeceras);
+            ws = new WebSocket(ConstruirUrl());
             ws.OnOpen += () =>
             {
                 Conectado?.Invoke();
-                Enviar(TiposMensaje.Unirse, new { partidaId });
+                Enviar(TiposMensaje.Unirse, new UnirseMsg { PartidaId = partidaId });
             };
             ws.OnMessage += datos => Procesar(Encoding.UTF8.GetString(datos));
             ws.OnError += _ => Error?.Invoke("Se perdió la conexión con el servidor.");
@@ -80,11 +91,21 @@ namespace Reactor.Cliente.Servicios
 
         public void Cerrar()
         {
+            partidaActual = null;
             if (ws == null) return;
             var actual = ws;
             ws = null;
             if (actual.State == WebSocketState.Open || actual.State == WebSocketState.Connecting)
                 _ = actual.Close();
+        }
+
+        string ConstruirUrl()
+        {
+            if (!string.IsNullOrEmpty(sesion.Token))
+                return $"{url}?token={Uri.EscapeDataString(sesion.Token)}";
+            if (!string.IsNullOrEmpty(sesion.UsuarioId))
+                return $"{url}?userId={Uri.EscapeDataString(sesion.UsuarioId)}"; // provisional, hasta que exista el login
+            return url;
         }
 
         void Procesar(string json)
@@ -119,7 +140,7 @@ namespace Reactor.Cliente.Servicios
                     case TiposMensaje.Tick: Tick?.Invoke(datos.ToObject<TickMsg>()); break;
                     case TiposMensaje.TiempoExtra: TiempoExtra?.Invoke(datos.ToObject<TiempoExtraMsg>()); break;
                     case TiposMensaje.PartidaFinalizada: PartidaFinalizada?.Invoke(datos.ToObject<PartidaFinalizadaMsg>()); break;
-                    case TiposMensaje.Error: Error?.Invoke((string)datos["mensaje"] ?? "Error del servidor."); break;
+                    case TiposMensaje.Error: Error?.Invoke(datos.ToObject<ErrorMsg>()?.Mensaje ?? "Error del servidor."); break;
                     default: Debug.LogWarning($"Tipo de mensaje desconocido: {tipo}"); break;
                 }
             }

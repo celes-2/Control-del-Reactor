@@ -13,6 +13,9 @@ namespace Reactor.Cliente.Servicios
         public string NombreUsuario { get; private set; }
         public string PartidaActualId { get; set; }
 
+        /// <summary>Resultado de la última partida terminada; lo lee la escena Victoria.</summary>
+        public ResultadoPartida UltimoResultado { get; set; }
+
         public bool EstaAutenticado => !string.IsNullOrEmpty(Token);
 
         public void Iniciar(string token, string usuarioId, string nombreUsuario)
@@ -25,12 +28,26 @@ namespace Reactor.Cliente.Servicios
             NombreUsuario = nombreUsuario;
         }
 
+        /// <summary>
+        /// SOLO desarrollo: identifica a este equipo sin login (sin token). El WebSocket usa entonces ?userId=.
+        /// Se reemplaza por Iniciar() cuando exista el login con JWT.
+        /// </summary>
+        public void IniciarProvisional(string usuarioId, string nombreUsuario)
+        {
+            if (string.IsNullOrWhiteSpace(usuarioId)) throw new ArgumentException("El usuario es obligatorio.", nameof(usuarioId));
+
+            Token = null;
+            UsuarioId = usuarioId;
+            NombreUsuario = nombreUsuario;
+        }
+
         public void Cerrar()
         {
             Token = null;
             UsuarioId = null;
             NombreUsuario = null;
             PartidaActualId = null;
+            UltimoResultado = null;
         }
     }
 }
