@@ -13,6 +13,9 @@ namespace Reactor.Cliente.Servicios
         public string NombreUsuario { get; private set; }
         public string PartidaActualId { get; set; }
 
+        /// <summary>Resultado de la última partida terminada; lo lee la escena Victoria.</summary>
+        public ResultadoPartida UltimoResultado { get; set; }
+
         public bool EstaAutenticado => !string.IsNullOrEmpty(Token);
 
         public void Iniciar(string token, string usuarioId, string nombreUsuario)
@@ -31,6 +34,7 @@ namespace Reactor.Cliente.Servicios
             UsuarioId = null;
             NombreUsuario = null;
             PartidaActualId = null;
+            UltimoResultado = null;
         }
     }
 }

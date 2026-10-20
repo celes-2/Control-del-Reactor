@@ -540,6 +540,7 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::Reactor.Cliente.Arranque.ArenaInstalador
   partidaIdDemo: partida-demo
+  segundosAntesDeVictoria: 2.5
 --- !u!114 &1273945523
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -554,7 +555,7 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::Reactor.Cliente.Arena.ArenaVista
   spritesAvatar:
   - {fileID: -3622983797445994069, guid: 1590446aa22fcea4fa404a06d5c2a611, type: 3}
-  - {fileID: -3622983797445994069, guid: 1590446aa22fcea4fa404a06d5c2a611, type: 3}
+  - {fileID: -8528869838068479385, guid: e0ab127bbf3ecd447a6d4abb2c90b552, type: 3}
   tamanoAvatar: 1.28
   proporcionImagen: 1
 --- !u!114 &1273945524

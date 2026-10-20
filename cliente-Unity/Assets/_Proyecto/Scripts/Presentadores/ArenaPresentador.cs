@@ -17,6 +17,9 @@ namespace Reactor.Cliente.Presentadores
         readonly Dictionary<string, JugadorMsg> jugadores = new Dictionary<string, JugadorMsg>();
         string modoFin = ModosFin.Tiempo;
 
+        /// <summary>Jugadores de la partida actual, con su último estado conocido.</summary>
+        public IReadOnlyCollection<JugadorMsg> Jugadores => jugadores.Values;
+
         /// <summary>Se dispara al terminar la partida (aquí se navegará a la escena Victoria).</summary>
         public event Action<PartidaFinalizadaMsg> PartidaTerminada;
 

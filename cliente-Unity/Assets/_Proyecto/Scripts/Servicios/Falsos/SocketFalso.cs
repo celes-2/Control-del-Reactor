@@ -36,9 +36,19 @@ namespace Reactor.Cliente.Servicios.Falsos
             "WWWWWWWWWWWWWWW",
         };
 
+        const float SegundosParaQueEntreBeto = 3f;
+
         readonly Dictionary<string, JugadorMsg> jugadores = new Dictionary<string, JugadorMsg>();
         EstadoPartidaMsg estado;
         float acumulado;
+        JugadorMsg betoEnEspera;
+        float esperaAcumulada;
+
+        /// <summary>
+        /// Activado: la partida empieza en Espera con Ana sola, Beto entra a los pocos segundos y la partida
+        /// arranca cuando la anfitriona envía match:start. Desactivado: empieza directo en curso con los dos.
+        /// </summary>
+        public bool EmpezarEnSalaDeEspera { get; set; }
 
         public event Action Conectado;
         public event Action<EstadoPartidaMsg> EstadoRecibido;
@@ -52,6 +62,15 @@ namespace Reactor.Cliente.Servicios.Falsos
 
         public void Conectar(string partidaId)
         {
+            // Idempotente: si ya hay una partida viva con ese id (por ejemplo al pasar de la sala de espera
+            // a la arena), solo se reenvía su estado actual.
+            if (estado != null && estado.PartidaId == partidaId && estado.Estado != EstadosPartida.Finalizada)
+            {
+                Conectado?.Invoke();
+                EmitirEstado();
+                return;
+            }
+
             var inicios = BuscarInicios();
             if (inicios.Count < 2)
             {
@@ -61,24 +80,30 @@ namespace Reactor.Cliente.Servicios.Falsos
 
             jugadores.Clear();
             jugadores[Jugador1] = new JugadorMsg { Id = Jugador1, Nombre = "Ana", Color = "#E74C3C", X = inicios[0].x, Y = inicios[0].y };
-            jugadores[Jugador2] = new JugadorMsg { Id = Jugador2, Nombre = "Beto", Color = "#3498DB", X = inicios[1].x, Y = inicios[1].y };
+            var beto = new JugadorMsg { Id = Jugador2, Nombre = "Beto", Color = "#3498DB", X = inicios[1].x, Y = inicios[1].y };
+            if (EmpezarEnSalaDeEspera) betoEnEspera = beto;
+            else
+            {
+                betoEnEspera = null;
+                jugadores[Jugador2] = beto;
+            }
 
             estado = new EstadoPartidaMsg
             {
                 PartidaId = partidaId,
-                Estado = EstadosPartida.EnCurso,
+                Estado = EmpezarEnSalaDeEspera ? EstadosPartida.Espera : EstadosPartida.EnCurso,
                 AnfitrionId = Jugador1,
                 ModoFin = ModosFin.Tiempo,
                 ValorFin = MinutosPartida,
                 SegundosRestantes = MinutosPartida * 60,
                 SegundosTranscurridos = 0,
                 Escenario = new EscenarioMsg { Ancho = Mapa[0].Length, Alto = Mapa.Length, Filas = Mapa.ToList() },
-                Jugadores = jugadores.Values.Select(Copiar).ToList(),
             };
             acumulado = 0f;
+            esperaAcumulada = 0f;
 
             Conectado?.Invoke();
-            EstadoRecibido?.Invoke(estado);
+            EmitirEstado();
         }
 
         /// <summary>Equivale a que llegue un evento MQTT de la Pico W del jugador.</summary>
@@ -117,12 +142,57 @@ namespace Reactor.Cliente.Servicios.Falsos
 
         public void Enviar(string tipo, object datos)
         {
+            if (tipo == TiposMensaje.Iniciar)
+            {
+                IniciarPartida();
+                return;
+            }
             Debug.Log($"[SocketFalso] Mensaje ignorado: {tipo}");
+        }
+
+        void IniciarPartida()
+        {
+            if (estado == null || estado.Estado != EstadosPartida.Espera) return;
+            if (jugadores.Count < 2)
+            {
+                Error?.Invoke("Se necesitan al menos 2 jugadores para iniciar la partida.");
+                return;
+            }
+
+            estado.Estado = EstadosPartida.EnCurso;
+            estado.SegundosRestantes = MinutosPartida * 60;
+            estado.SegundosTranscurridos = 0;
+            acumulado = 0f;
+            EmitirEstado();
+        }
+
+        void EmitirEstado()
+        {
+            estado.Jugadores = jugadores.Values.Select(Copiar).ToList();
+            EstadoRecibido?.Invoke(estado);
         }
 
         public void Despachar()
         {
-            if (estado == null || estado.Estado != EstadosPartida.EnCurso) return;
+            if (estado == null) return;
+
+            if (estado.Estado == EstadosPartida.Espera)
+            {
+                // Simula que otro usuario se une a la sala unos segundos después.
+                if (betoEnEspera != null)
+                {
+                    esperaAcumulada += Time.deltaTime;
+                    if (esperaAcumulada >= SegundosParaQueEntreBeto)
+                    {
+                        jugadores[Jugador2] = betoEnEspera;
+                        betoEnEspera = null;
+                        EmitirEstado();
+                    }
+                }
+                return;
+            }
+
+            if (estado.Estado != EstadosPartida.EnCurso) return;
 
             acumulado += Time.deltaTime;
             while (acumulado >= 1f && estado.Estado == EstadosPartida.EnCurso)
