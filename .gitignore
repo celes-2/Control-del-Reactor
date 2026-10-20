@@ -83,3 +83,4 @@ cliente-Unity/.vscode/
 cliente-Unity/*.csproj
 cliente-Unity/*.sln
 cliente-Unity/*.slnx
+Hardware/config.py
