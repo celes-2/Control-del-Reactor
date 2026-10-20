@@ -14,23 +14,28 @@ namespace Reactor.Cliente.Arena
     {
         const float Velocidad = 8f;          // unidades por segundo: movimiento perceptible (CA-11.2)
         const float DuracionBurbuja = 1.5f;
+        const float TamanoAnillo = 0.95f;    // fracción de la celda que ocupa el anillo con escala 1
 
         SpriteRenderer cuerpo;
         TextMeshPro inicial;
         TextMeshPro burbuja;
         Coroutine rutinaBurbuja;
         Vector3 destino;
+        float tamanoCuerpo;                  // tamaño final de la imagen, en unidades
 
         public string JugadorId { get; private set; }
 
-        public static AvatarVista Crear(Transform padre, JugadorMsg jugador, Vector3 posicion)
+        /// <param name="escala">1 = el anillo llena casi toda la celda.</param>
+        /// <param name="proporcionImagen">Tamaño de la imagen respecto al anillo (más de 1 = sobresale).</param>
+        public static AvatarVista Crear(Transform padre, JugadorMsg jugador, Vector3 posicion,
+                                        float escala = 1f, float proporcionImagen = 0.76f)
         {
             var go = new GameObject($"Avatar_{jugador.Nombre}");
             go.transform.SetParent(padre, false);
             go.transform.position = posicion;
 
             var avatar = go.AddComponent<AvatarVista>();
-            avatar.Construir(jugador, posicion);
+            avatar.Construir(jugador, posicion, Mathf.Max(0.1f, escala), Mathf.Max(0.1f, proporcionImagen));
             return avatar;
         }
 
@@ -54,6 +59,12 @@ namespace Reactor.Cliente.Arena
             if (imagen == null) return;
             cuerpo.sprite = imagen;
             cuerpo.color = Color.white;
+
+            // Ajusta cualquier tamaño de imagen para que quepa dentro del anillo de color.
+            var tamano = imagen.bounds.size;
+            var mayor = Mathf.Max(tamano.x, tamano.y);
+            if (mayor > 0f) cuerpo.transform.localScale = Vector3.one * (tamanoCuerpo / mayor);
+
             inicial.gameObject.SetActive(false);
         }
 
@@ -62,19 +73,23 @@ namespace Reactor.Cliente.Arena
             transform.position = Vector3.MoveTowards(transform.position, destino, Velocidad * Time.deltaTime);
         }
 
-        void Construir(JugadorMsg jugador, Vector3 posicion)
+        void Construir(JugadorMsg jugador, Vector3 posicion, float escala, float proporcionImagen)
         {
             JugadorId = jugador.Id;
             destino = posicion;
 
+            float anillo = TamanoAnillo * escala;
+            tamanoCuerpo = anillo * proporcionImagen;
+            float borde = Mathf.Max(anillo, tamanoCuerpo) / 2f;   // dónde termina el avatar hacia arriba
+
             var color = Colores.Desde(jugador.Color, Color.white);
             var circulo = GeneradorSprites.Circulo();
 
-            CrearSprite("Anillo", circulo, color, 0.95f, 10);
-            cuerpo = CrearSprite("Cuerpo", circulo, Color.Lerp(color, Color.white, 0.55f), 0.72f, 11);
-            inicial = CrearTexto("Inicial", Inicial(jugador.Nombre), Vector3.zero, 5f, new Color(0.1f, 0.1f, 0.12f), 12, false, new Vector2(1f, 1f));
-            CrearTexto("Nombre", jugador.Nombre, new Vector3(0f, 0.75f, 0f), 3f, Color.white, 13, true, new Vector2(4f, 0.6f));
-            burbuja = CrearTexto("Burbuja", "", new Vector3(0f, 1.3f, 0f), 3.5f, new Color(1f, 0.92f, 0.3f), 14, true, new Vector2(6f, 0.8f));
+            CrearSprite("Anillo", circulo, color, anillo, 10);
+            cuerpo = CrearSprite("Cuerpo", circulo, Color.Lerp(color, Color.white, 0.55f), tamanoCuerpo, 11);
+            inicial = CrearTexto("Inicial", Inicial(jugador.Nombre), Vector3.zero, 5f * escala, new Color(0.1f, 0.1f, 0.12f), 12, false, new Vector2(anillo, anillo));
+            CrearTexto("Nombre", jugador.Nombre, new Vector3(0f, borde + 0.25f, 0f), 3f, Color.white, 13, true, new Vector2(4f, 0.6f));
+            burbuja = CrearTexto("Burbuja", "", new Vector3(0f, borde + 0.8f, 0f), 3.5f, new Color(1f, 0.92f, 0.3f), 14, true, new Vector2(6f, 0.8f));
             burbuja.gameObject.SetActive(false);
         }
 
