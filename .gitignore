@@ -69,4 +69,18 @@ desktop.ini
 !.vscode/settings.json
 *.swp
 *~
+// Cliente Unity
+# Unity
+cliente-Unity/[Ll]ibrary/
+cliente-Unity/[Tt]emp/
+cliente-Unity/[Oo]bj/
+cliente-Unity/[Bb]uild/
+cliente-Unity/[Bb]uilds/
+cliente-Unity/[Ll]ogs/
+cliente-Unity/[Uu]ser[Ss]ettings/
+cliente-Unity/.vs/
+cliente-Unity/.vscode/
+cliente-Unity/*.csproj
+cliente-Unity/*.sln
+cliente-Unity/*.slnx
 Hardware/config.py
