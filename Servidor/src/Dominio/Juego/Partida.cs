@@ -58,6 +58,9 @@ public sealed class Partida
         ArgumentNullException.ThrowIfNull(config);
         ArgumentNullException.ThrowIfNull(arena);
 
+                if (config.MaxJugadores < 2 || config.MaxJugadores > Arena.MaxJugadores)
+            throw new DominioException($"La partida admite entre 2 y {Arena.MaxJugadores} jugadores.");
+
         Id = id;
         Config = config with
         {
