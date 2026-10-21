@@ -18,7 +18,9 @@ public static class PersistenciaServicios
 
         // Singleton: cada archivo debe tener una sola instancia para que el candado sirva.
         servicios.AddSingleton<IUsuarioRepo>(_ =>
-            new JsonUsuarioRepositorio(Path.Combine(carpetaDatos, "usuarios.json")));
+            new JsonUsuarioRepositorio(
+                Path.Combine(carpetaDatos, "usuarios.json"),
+                Path.Combine(carpetaSemilla, "usuarios.json")));
 
         servicios.AddSingleton<IAvatarRepo>(_ =>
             new JsonAvatarRepositorio(

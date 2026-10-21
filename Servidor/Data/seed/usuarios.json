@@ -1,0 +1,6 @@
+[
+  { "id": "11111111-1111-1111-1111-111111111111", "nombre": "Ana",   "correo": "ana@prueba.local",   "hashContrasena": "SEMILLA-SIN-LOGIN", "verificado": true, "avatarId": "cc2ec6b9-97f9-41ca-8985-2fc3280f7e62" },
+  { "id": "22222222-2222-2222-2222-222222222222", "nombre": "Beto",  "correo": "beto@prueba.local",  "hashContrasena": "SEMILLA-SIN-LOGIN", "verificado": true, "avatarId": "a26fe6bc-94c8-44ee-a6c7-3ef34f66442b" },
+  { "id": "33333333-3333-3333-3333-333333333333", "nombre": "Carla", "correo": "carla@prueba.local", "hashContrasena": "SEMILLA-SIN-LOGIN", "verificado": true, "avatarId": "96337b54-24be-4f32-bfc9-0bd8a13a92f5" },
+  { "id": "44444444-4444-4444-4444-444444444444", "nombre": "Dani",  "correo": "dani@prueba.local",  "hashContrasena": "SEMILLA-SIN-LOGIN", "verificado": true, "avatarId": "c4ab2c3c-700d-4918-be03-7df0682380f0" }
+]

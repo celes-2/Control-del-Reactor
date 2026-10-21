@@ -30,8 +30,9 @@ public sealed class JsonUsuarioRepositorio : IUsuarioRepo
 {
     private readonly JsonFileStore<UsuarioRegistro> _almacen;
 
-    public JsonUsuarioRepositorio(string rutaArchivo) =>
-        _almacen = new JsonFileStore<UsuarioRegistro>(rutaArchivo);
+    /// <param name="rutaSemilla">Si "usuarios.json" todavía no existe, parte de este archivo (usuarios de prueba).</param>
+    public JsonUsuarioRepositorio(string rutaArchivo, string? rutaSemilla = null) =>
+        _almacen = new JsonFileStore<UsuarioRegistro>(rutaArchivo, rutaSemilla);
 
     public async Task<Usuario?> ObtenerPorIdAsync(Guid id, CancellationToken ct = default)
     {
