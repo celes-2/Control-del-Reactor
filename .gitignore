@@ -84,3 +84,6 @@ cliente-Unity/*.csproj
 cliente-Unity/*.sln
 cliente-Unity/*.slnx
 Hardware/config.py
+
+# Claves de Mosquitto (no se versionan)
+mosquitto/passwd
