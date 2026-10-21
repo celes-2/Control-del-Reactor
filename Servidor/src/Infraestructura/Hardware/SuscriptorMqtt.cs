@@ -37,10 +37,15 @@ public sealed class SuscriptorMqtt(OpcionesMqtt opciones, ILogger<SuscriptorMqtt
             }
         };
 
-        var opcionesCliente = new MqttClientOptionsBuilder()
-            .WithTcpServer(opciones.Host, opciones.Puerto)
-            .WithClientId(opciones.ClientId)
-            .Build();
+        var constructor = new MqttClientOptionsBuilder()
+            .WithTcpServer(opciones.Host, opciones.Port)
+            .WithClientId(opciones.ClientId);
+
+        // Solo usa usuario y clave si estan configurados (Mosquitto con allow_anonymous false).
+        if (!string.IsNullOrWhiteSpace(opciones.Username))
+            constructor = constructor.WithCredentials(opciones.Username, opciones.Password);
+
+        var opcionesCliente = constructor.Build();
 
         var suscripcion = fabrica.CreateSubscribeOptionsBuilder()
             .WithTopicFilter(TraductorEventoBoton.TopicSuscripcion, MqttQualityOfServiceLevel.AtLeastOnce)
@@ -55,7 +60,7 @@ public sealed class SuscriptorMqtt(OpcionesMqtt opciones, ILogger<SuscriptorMqtt
                 {
                     await cliente.ConnectAsync(opcionesCliente, ct);
                     await cliente.SubscribeAsync(suscripcion, ct);
-                    log.LogInformation("Conectado a MQTT en {Host}:{Puerto}", opciones.Host, opciones.Puerto);
+                    log.LogInformation("Conectado a MQTT en {Host}:{Port}", opciones.Host, opciones.Port);
                 }
             }
             catch (OperationCanceledException)
