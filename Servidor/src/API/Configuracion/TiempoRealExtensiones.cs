@@ -17,6 +17,7 @@ public static class TiempoRealExtensiones
         services.AddSingleton<PublicadorPartida>();
         services.AddSingleton<ManejadorWebSocket>();
         services.AddHostedService<ServicioControles>();
+        services.AddHostedService<ServicioReloj>();
 
         return services;
     }
