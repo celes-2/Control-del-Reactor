@@ -15,8 +15,18 @@ public static class TiempoRealExtensiones
         services.AddSingleton<AdministradorSalas>();
         services.AddSingleton<IEmparejamientoControles, EmparejamientoPorOrden>();
         services.AddSingleton<PublicadorPartida>();
+        services.AddSingleton<ManejadorWebSocket>();
         services.AddHostedService<ServicioControles>();
 
         return services;
+    }
+
+    /// <summary>Activa los WebSockets y la ruta /ws/partida.</summary>
+    public static WebApplication UseTiempoReal(this WebApplication app)
+    {
+        app.UseWebSockets(new WebSocketOptions { KeepAliveInterval = TimeSpan.FromSeconds(30) });
+        app.Map("/ws/partida", contexto =>
+            contexto.RequestServices.GetRequiredService<ManejadorWebSocket>().AtenderAsync(contexto));
+        return app;
     }
 }

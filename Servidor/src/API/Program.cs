@@ -13,6 +13,7 @@ builder.Services.AddTiempoReal(builder.Configuration);       // WebSocket y adap
 var app = builder.Build();
 
 app.UseMiddleware<ManejadorErrores>();
+app.UseTiempoReal();                                         // WebSocket /ws/partida (Palma)
 app.MapControllers();
 
 app.Run();
