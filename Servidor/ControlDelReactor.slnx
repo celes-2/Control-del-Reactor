@@ -1,6 +1,7 @@
 <Solution>
   <Folder Name="/Pruebas/">
     <Project Path="Pruebas/Pruebas.Dominio/Pruebas.Dominio.csproj" />
+    <Project Path="Pruebas/Pruebas.Infraestructura/Pruebas.Infraestructura.csproj" />
   </Folder>
   <Folder Name="/src/">
     <Project Path="src/API/API.csproj" />
