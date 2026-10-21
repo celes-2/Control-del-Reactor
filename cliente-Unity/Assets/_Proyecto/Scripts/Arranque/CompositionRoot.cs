@@ -16,11 +16,15 @@ namespace Reactor.Cliente.Arranque
         [SerializeField] bool usarServidorFalso = true;
 
         [Tooltip("Escena que se abre después del arranque. Con el servidor falso: Arena (directo a jugar) o SalaEspera (flujo completo). Luego será Login.")]
-        [SerializeField] string escenaInicial = Escenas.Arena;
+        [SerializeField] string escenaInicial = Escenas.Configuracion;
 
         public ConfigCliente Config { get; private set; }
         public SessionStore Sesion { get; private set; }
         public IGameSocket Socket { get; private set; }
+        public IApiPartidas Api { get; private set; }
+
+        /// <summary>Música de fondo. Se agrega como componente a este mismo objeto para asignar las pistas en el Inspector.</summary>
+        public AudioService Audio { get; private set; }
 
         void Awake()
         {
@@ -33,14 +37,17 @@ namespace Reactor.Cliente.Arranque
 
             Config = ConfigCliente.Cargar();
             Sesion = new SessionStore();
+            Audio = GetComponent<AudioService>();
+            if (Audio == null) Audio = gameObject.AddComponent<AudioService>();
 
             if (usarServidorFalso)
             {
                 var falso = new SocketFalso();
                 // Si el flujo empieza en la sala de espera, la partida falsa también espera y luego se inicia.
-                falso.EmpezarEnSalaDeEspera = escenaInicial == Escenas.SalaEspera;
+                falso.EmpezarEnSalaDeEspera = escenaInicial == Escenas.SalaEspera || escenaInicial == Escenas.Configuracion;
                 Sesion.Iniciar("token-falso", SocketFalso.Jugador1, "Ana"); // en modo falso, el jugador local es Ana (anfitriona)
                 Socket = falso;
+                Api = new ApiPartidasFalsa();
                 gameObject.AddComponent<TecladoFalso>().Iniciar(falso);
                 Debug.Log("Modo desarrollo: servidor falso. Jugador 1: WASD + Espacio. Jugador 2: flechas + Enter.");
             }
@@ -51,6 +58,7 @@ namespace Reactor.Cliente.Arranque
                     Sesion.IniciarProvisional(Config.UsuarioIdProvisional, Config.NombreProvisional);
 
                 Socket = new GameSocket(Config.UrlWebSocket, Sesion);
+                Api = new ApiPartidas(Config.Servidor, Sesion);
             }
 
             SceneManager.LoadScene(escenaInicial);

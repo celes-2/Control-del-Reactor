@@ -129,6 +129,7 @@ GameObject:
   m_Component:
   - component: {fileID: 702676005}
   - component: {fileID: 702676004}
+  - component: {fileID: 702676006}
   m_Layer: 0
   m_Name: CompositionRoot
   m_TagString: Untagged
@@ -149,7 +150,7 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::Reactor.Cliente.Arranque.CompositionRoot
   usarServidorFalso: 1
-  escenaInicial: SalaEspera
+  escenaInicial: Configuracion
 --- !u!4 &702676005
 Transform:
   m_ObjectHideFlags: 0
@@ -165,6 +166,23 @@ Transform:
   m_Children: []
   m_Father: {fileID: 0}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!114 &702676006
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 702676003}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 02d46d574e567be478f26d6505f2286d, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::Reactor.Cliente.Servicios.AudioService
+  musicaMenu: {fileID: 8300000, guid: d3a4ab1606c7e1545a63215d1548faff, type: 3}
+  musicaArena: {fileID: 8300000, guid: e4d177746d50ea14a99f51542963a9d8, type: 3}
+  musicaVictoria: {fileID: 8300000, guid: 166de668a70d84641ad1f27839844d5a, type: 3}
+  volumen: 0.5
+  repetirVictoria: 1
 --- !u!1 &1218453503
 GameObject:
   m_ObjectHideFlags: 0

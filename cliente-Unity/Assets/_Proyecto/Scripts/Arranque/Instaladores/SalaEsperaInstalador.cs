@@ -1,5 +1,6 @@
 using Reactor.Cliente.Presentadores;
 using Reactor.Cliente.SalaEspera;
+using Reactor.Cliente.Servicios;
 using UnityEngine;
 using UnityEngine.SceneManagement;
 
@@ -25,6 +26,8 @@ namespace Reactor.Cliente.Arranque
                 SceneManager.LoadScene(Escenas.Arranque);
                 return;
             }
+
+            raiz.Audio.Reproducir(Pista.Menu);
 
             var sesion = raiz.Sesion;
             if (string.IsNullOrEmpty(sesion.PartidaActualId)) sesion.PartidaActualId = partidaIdDemo;

@@ -34,6 +34,8 @@ namespace Reactor.Cliente.Arranque
                 return;
             }
 
+            raiz.Audio.Reproducir(Pista.Arena);
+
             presentador = new ArenaPresentador(GetComponent<ArenaVista>(), raiz.Socket);
             presentador.PartidaTerminada += AlTerminarPartida;
 

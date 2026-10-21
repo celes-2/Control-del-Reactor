@@ -22,7 +22,10 @@ public sealed record CrearPartidaSolicitud(
     int? RegeneracionPorSegundo = null,
     int? VidaInicial = null,
     int? DanoTrampa = null,
-    IReadOnlyList<ObstaculoSolicitud>? Obstaculos = null);
+    IReadOnlyList<ObstaculoSolicitud>? Obstaculos = null,
+    string? ModoFin = null,                 // "Tiempo" o "Puntos" (US-08)
+    int? PuntosObjetivo = null,             // meta del modo "Puntos"
+    int? SegundosCongelamiento = null);     // CA-08.5
 
 public sealed record UnirsePartidaSolicitud(Guid UsuarioId);
 
