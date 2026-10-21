@@ -6,7 +6,7 @@ namespace Aplicacion.CasosDeUso;
 // Así la API y el tiempo real nunca reciben (ni modifican) las entidades del dominio.
 
 public sealed record JugadorVista(
-    Guid Id, string Nombre, Guid AvatarId, int X, int Y, int Vida, int Energia, bool Eliminado);
+    Guid Id, string Nombre, Guid AvatarId, int X, int Y, int Vida, int Energia, bool Eliminado, int Puntaje);
 
 public sealed record ObstaculoVista(int X, int Y, TipoObstaculo Tipo);
 
@@ -25,7 +25,12 @@ public sealed record PartidaVista(
     int EnergiaObjetivo,
     IReadOnlyList<JugadorVista> Jugadores,
     IReadOnlyList<ObstaculoVista> Obstaculos,
-    IReadOnlyList<string> Escenario)
+    IReadOnlyList<string> Escenario,
+    Guid AnfitrionId,
+    ModoFin ModoFin,
+    int PuntosObjetivo,
+    int SegundosTranscurridos,
+    int Prorrogas)
 {
     public static PartidaVista Desde(Partida p) => new(
         p.Id,
@@ -42,12 +47,17 @@ public sealed record PartidaVista(
         p.Config.EnergiaObjetivo,
         p.Jugadores
             .Select(j => new JugadorVista(
-                j.Id, j.Nombre, j.AvatarId, j.Posicion.X, j.Posicion.Y, j.Vida, j.Energia, j.Eliminado))
+                j.Id, j.Nombre, j.AvatarId, j.Posicion.X, j.Posicion.Y, j.Vida, j.Energia, j.Eliminado, j.Puntaje))
             .ToList(),
         p.Arena.Obstaculos
             .Select(o => new ObstaculoVista(o.Posicion.X, o.Posicion.Y, o.Tipo))
             .ToList(),
-        p.Arena.ComoFilas());
+        p.Arena.ComoFilas(),
+        p.Jugadores.Count > 0 ? p.Jugadores[0].Id : Guid.Empty, // el anfitrión es el primero que entró
+        p.Config.ModoFin,
+        p.Config.PuntosObjetivo,
+        p.SegundosTranscurridos,
+        p.Prorrogas);
 }
 
 /// <summary>Línea de la lista de partidas abiertas.</summary>
