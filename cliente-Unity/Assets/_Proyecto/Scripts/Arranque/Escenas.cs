@@ -5,6 +5,8 @@ namespace Reactor.Cliente.Arranque
     {
         public const string Arranque = "Arranque";
         public const string Arena = "Arena";
+        public const string Configuracion = "Configuracion";
+        public const string Unirse = "Unirse";
         public const string SalaEspera = "SalaEspera";
         public const string Victoria = "Victoria";
     }

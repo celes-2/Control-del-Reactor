@@ -22,8 +22,22 @@ internal static class PartidaMapeo
             EnergiaPorExtraccion = s.EnergiaPorExtraccion ?? porDefecto.EnergiaPorExtraccion,
             RegeneracionPorSegundo = s.RegeneracionPorSegundo ?? porDefecto.RegeneracionPorSegundo,
             VidaInicial = s.VidaInicial ?? porDefecto.VidaInicial,
-            DanoTrampa = s.DanoTrampa ?? porDefecto.DanoTrampa
+            DanoTrampa = s.DanoTrampa ?? porDefecto.DanoTrampa,
+            ModoFin = AModoFin(s.ModoFin) ?? porDefecto.ModoFin,
+            PuntosObjetivo = s.PuntosObjetivo ?? porDefecto.PuntosObjetivo,
+            SegundosCongelamiento = s.SegundosCongelamiento ?? porDefecto.SegundosCongelamiento
         };
+    }
+
+    private static ModoFin? AModoFin(string? texto)
+    {
+        if (string.IsNullOrWhiteSpace(texto))
+            return null;
+
+        if (!Enum.TryParse<ModoFin>(texto.Trim(), ignoreCase: true, out var modo) || !Enum.IsDefined(modo))
+            throw new DominioException($"Modo de fin desconocido: '{texto}'. Use Tiempo o Puntos.");
+
+        return modo;
     }
 
     public static IReadOnlyList<Obstaculo>? AObstaculos(IReadOnlyList<ObstaculoSolicitud>? solicitud)

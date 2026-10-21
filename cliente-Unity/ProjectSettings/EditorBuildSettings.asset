@@ -9,6 +9,12 @@ EditorBuildSettings:
     path: Assets/_Proyecto/Escenas/Arranque.unity
     guid: 84488fae8a029174bbee91ff8d020047
   - enabled: 1
+    path: Assets/_Proyecto/Escenas/Unirse.unity
+    guid: 91e5c20d84330f7438b951830bb9c8f6
+  - enabled: 1
+    path: Assets/_Proyecto/Escenas/Configuracion.unity
+    guid: 4340451aaed48424ab1a0d396c310623
+  - enabled: 1
     path: Assets/_Proyecto/Escenas/SalaEspera.unity
     guid: 2c75cd4bc153b1e4982d8d7cb2370825
   - enabled: 1

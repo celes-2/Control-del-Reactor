@@ -16,7 +16,7 @@ namespace Reactor.Cliente.Arranque
     public sealed class VictoriaInstalador : MonoBehaviour
     {
         [Tooltip("Escena a la que se vuelve con el botón. Cuando exista la Sala de espera, cambiarla aquí.")]
-        [SerializeField] string escenaAlVolver = Escenas.Arena;
+        [SerializeField] string escenaAlVolver = Escenas.Configuracion;
 
         [Tooltip("SOLO desarrollo: si no hay un resultado real, muestra uno de ejemplo para ver la pantalla.")]
         [SerializeField] bool usarResultadoDeEjemplo;
@@ -31,6 +31,8 @@ namespace Reactor.Cliente.Arranque
                 SceneManager.LoadScene(Escenas.Arranque);
                 return;
             }
+
+            raiz.Audio.Reproducir(Pista.Victoria);
 
             var resultado = raiz.Sesion.UltimoResultado;
             if (resultado == null && usarResultadoDeEjemplo) resultado = Ejemplo();

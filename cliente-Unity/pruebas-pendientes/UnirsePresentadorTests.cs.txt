@@ -1,0 +1,102 @@
+using System;
+using System.Collections;
+using System.Collections.Generic;
+using System.Threading.Tasks;
+using NUnit.Framework;
+using Reactor.Cliente.Presentadores;
+using Reactor.Cliente.Servicios;
+using UnityEngine.TestTools;
+
+namespace Reactor.Cliente.Tests
+{
+    public class UnirsePresentadorTests
+    {
+        sealed class VistaFalsa : IUnirseVista
+        {
+            public event Action<string> UnirsePulsado;
+            public event Action ActualizarPulsado;
+            public event Action VolverPulsado;
+            public int Filas = -1;
+            public string Estado, Aviso;
+
+            public void MostrarPartidas(IReadOnlyList<PartidaAbierta> partidas) => Filas = partidas.Count;
+            public void MostrarEstado(string texto) => Estado = texto;
+            public void MostrarAviso(string texto) => Aviso = texto;
+            public void Unirse(string id) => UnirsePulsado?.Invoke(id);
+            public void Actualizar() => ActualizarPulsado?.Invoke();
+            public void Volver() => VolverPulsado?.Invoke();
+        }
+
+        sealed class ApiFalsa : IApiPartidas
+        {
+            public List<PartidaAbierta> Partidas = new List<PartidaAbierta>();
+            public Exception Fallo;
+
+            public Task<string> CrearPartidaAsync(string usuarioId, AjustesPartida ajustes) => Task.FromResult("p-1");
+
+            public Task<IReadOnlyList<PartidaAbierta>> ListarAbiertasAsync() =>
+                Fallo != null
+                    ? Task.FromException<IReadOnlyList<PartidaAbierta>>(Fallo)
+                    : Task.FromResult<IReadOnlyList<PartidaAbierta>>(Partidas);
+        }
+
+        [UnityTest]
+        public IEnumerator ConPartidasAbiertas_LasMuestra()
+        {
+            var api = new ApiFalsa();
+            api.Partidas.Add(new PartidaAbierta { Id = "p1", Anfitrion = "Ana", Jugadores = 1, MaxJugadores = 4 });
+            var vista = new VistaFalsa();
+            new UnirsePresentador(vista, api, _ => { }, () => { }).Iniciar();
+            yield return null;
+
+            Assert.AreEqual(1, vista.Filas);
+            Assert.AreEqual("Elige una partida", vista.Estado);
+        }
+
+        [UnityTest]
+        public IEnumerator SinPartidas_AvisaQueNoHay()
+        {
+            var vista = new VistaFalsa();
+            new UnirsePresentador(vista, new ApiFalsa(), _ => { }, () => { }).Iniciar();
+            yield return null;
+
+            Assert.AreEqual(0, vista.Filas);
+            StringAssert.StartsWith("No hay partidas abiertas", vista.Estado);
+        }
+
+        [Test]
+        public void AlPulsarUnirse_EntregaElIdDeLaPartida()
+        {
+            var vista = new VistaFalsa();
+            string elegida = null;
+            new UnirsePresentador(vista, new ApiFalsa(), id => elegida = id, () => { });
+
+            vista.Unirse("p1");
+
+            Assert.AreEqual("p1", elegida);
+        }
+
+        [UnityTest]
+        public IEnumerator SiElServidorFalla_MuestraElMensaje()
+        {
+            var api = new ApiFalsa { Fallo = new ApiException("No se pudo conectar con el servidor.") };
+            var vista = new VistaFalsa();
+            new UnirsePresentador(vista, api, _ => { }, () => { }).Iniciar();
+            yield return null;
+
+            Assert.AreEqual("No se pudo conectar con el servidor.", vista.Aviso);
+        }
+
+        [Test]
+        public void AlPulsarVolver_AvisaAlInstalador()
+        {
+            var vista = new VistaFalsa();
+            var volvio = false;
+            new UnirsePresentador(vista, new ApiFalsa(), _ => { }, () => volvio = true);
+
+            vista.Volver();
+
+            Assert.IsTrue(volvio);
+        }
+    }
+}
