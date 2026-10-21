@@ -15,7 +15,7 @@ namespace Reactor.Cliente.Arranque
         [Tooltip("Activado: usa el servidor falso y el teclado. Desactivar para conectarse al servidor real.")]
         [SerializeField] bool usarServidorFalso = true;
 
-        [Tooltip("Escena que se abre después del arranque (luego será Login).")]
+        [Tooltip("Escena que se abre después del arranque. Con el servidor falso: Arena (directo a jugar) o SalaEspera (flujo completo). Luego será Login.")]
         [SerializeField] string escenaInicial = Escenas.Arena;
 
         public ConfigCliente Config { get; private set; }
@@ -37,12 +37,19 @@ namespace Reactor.Cliente.Arranque
             if (usarServidorFalso)
             {
                 var falso = new SocketFalso();
+                // Si el flujo empieza en la sala de espera, la partida falsa también espera y luego se inicia.
+                falso.EmpezarEnSalaDeEspera = escenaInicial == Escenas.SalaEspera;
+                Sesion.Iniciar("token-falso", SocketFalso.Jugador1, "Ana"); // en modo falso, el jugador local es Ana (anfitriona)
                 Socket = falso;
                 gameObject.AddComponent<TecladoFalso>().Iniciar(falso);
                 Debug.Log("Modo desarrollo: servidor falso. Jugador 1: WASD + Espacio. Jugador 2: flechas + Enter.");
             }
             else
             {
+                // Sin login todavía: el usuario sale de config.json ("usuarioId"). Con login, Sesion.Iniciar lo reemplaza.
+                if (!Sesion.EstaAutenticado && !string.IsNullOrEmpty(Config.UsuarioIdProvisional))
+                    Sesion.IniciarProvisional(Config.UsuarioIdProvisional, Config.NombreProvisional);
+
                 Socket = new GameSocket(Config.UrlWebSocket, Sesion);
             }
 

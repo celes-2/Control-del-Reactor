@@ -30,6 +30,9 @@ public sealed class Partida
     public EstadoPartida Estado { get; private set; } = EstadoPartida.Espera;
     public int SegundosRestantes { get; private set; }
 
+    /// <summary>Segundos jugados desde que inició. Avanza en cada Tick en cualquier modo de fin; no se reinicia en una prórroga.</summary>
+    public int SegundosTranscurridos { get; private set; }
+
     /// <summary>Segundos que se suman cuando el tiempo se acaba en empate.</summary>
     public const int SegundosPorEmpate = 120;
 
@@ -53,8 +56,36 @@ public sealed class Partida
         SegundosRestantes = config.DuracionSegundos;
     }
 
+    public Partida(Guid id, ConfigPartida config, Arena arena)
+    {
+        ArgumentNullException.ThrowIfNull(config);
+        ArgumentNullException.ThrowIfNull(arena);
+
+        if (config.MaxJugadores < 2 || config.MaxJugadores > Arena.MaxJugadores)
+            throw new DominioException($"La partida admite entre 2 y {Arena.MaxJugadores} jugadores.");
+
+        Id = id;
+        Config = config with
+        {
+            Ancho = arena.Ancho,
+            Alto = arena.Alto,
+            MaxJugadores = Math.Min(config.MaxJugadores, arena.CantidadPuntosDeAparicion)
+        };
+        Config.Validar();
+        Arena = arena;
+        Reactor = new Reactor(arena.PosicionReactor, Config.CapacidadReactor);
+        SegundosRestantes = Config.DuracionSegundos;
+    }
+
     public static Partida Crear(ConfigPartida config, IEnumerable<Obstaculo>? obstaculos = null) =>
         new(Guid.NewGuid(), config, obstaculos);
+
+    /// <summary>
+    /// Crea la partida sobre una arena ya construida (por ejemplo desde un escenario con <see cref="Arena.DesdeFilas"/>).
+    /// El tamaño de la configuración se toma de la arena, y MaxJugadores no puede pasar de sus puntos de inicio.
+    /// </summary>
+    public static Partida Crear(ConfigPartida config, Arena arena) =>
+        new(Guid.NewGuid(), config, arena);
 
     public Jugador Unirse(Guid usuarioId, string nombre, Guid avatarId)
     {
@@ -130,6 +161,7 @@ public sealed class Partida
         if (Estado != EstadoPartida.EnCurso)
             return;
 
+        SegundosTranscurridos += segundos;
         Reactor.Recargar(Config.RegeneracionPorSegundo * segundos);
         foreach (var jugador in _jugadores)
             jugador.AvanzarTiempo(segundos);

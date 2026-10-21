@@ -149,7 +149,7 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::Reactor.Cliente.Arranque.CompositionRoot
   usarServidorFalso: 1
-  escenaInicial: Arena
+  escenaInicial: SalaEspera
 --- !u!4 &702676005
 Transform:
   m_ObjectHideFlags: 0
