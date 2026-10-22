@@ -10,8 +10,11 @@ public interface IUsuarioRepo
 {
     Task<Usuario?> ObtenerPorIdAsync(Guid id, CancellationToken ct = default);
 
+    /// <summary>Busca por nombre de usuario sin distinguir mayúsculas.</summary>
+    Task<Usuario?> ObtenerPorUsernameAsync(string username, CancellationToken ct = default);
+
     Task<Usuario?> ObtenerPorCorreoAsync(string correo, CancellationToken ct = default);
 
-    /// <summary>Crea el usuario o actualiza el que tenga el mismo Id. Rechaza un correo ya usado por otro usuario.</summary>
+    /// <summary>Crea el usuario o actualiza el que tenga el mismo Id. Rechaza un correo o nombre ya usado por otro usuario.</summary>
     Task GuardarAsync(Usuario usuario, CancellationToken ct = default);
 }

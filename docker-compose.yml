@@ -13,7 +13,7 @@ services:
       Mqtt__Password: ${MQTT_PASSWORD}
       Smtp__Host: ${SMTP_HOST}
       Smtp__Port: ${SMTP_PORT}
-      Smtp__User: ${SMTP_USER}
+      Smtp__Username: ${SMTP_USER}
       Smtp__Password: ${SMTP_PASSWORD}
       Smtp__From: ${SMTP_FROM}
       PublicBaseUrl: ${PUBLIC_BASE_URL}

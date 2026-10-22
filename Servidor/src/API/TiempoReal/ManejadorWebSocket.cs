@@ -31,11 +31,10 @@ public sealed class ManejadorWebSocket(
             return;
         }
 
-        // PROVISIONAL (igual que la API REST): el usuario viaja en ?userId=. Con JWT saldra de ?token=.
-        if (!Guid.TryParse(contexto.Request.Query["userId"].ToString(), out var usuarioId))
-        {
+        var identidad = contexto.RequestServices.GetRequiredService<API.Seguridad.ResolutorIdentidad>();
+        if (identidad.Resolver(contexto) is not { } usuarioId)        {
             contexto.Response.StatusCode = StatusCodes.Status401Unauthorized;
-            await contexto.Response.WriteAsync("Falta ?userId= (provisional mientras no exista el login con JWT).");
+            await contexto.Response.WriteAsync("No autorizado o credenciales inválidas.");
             return;
         }
 

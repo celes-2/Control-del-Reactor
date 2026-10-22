@@ -19,6 +19,9 @@ public class PartidaCasosDeUsoTests
         public Task<Usuario?> ObtenerPorIdAsync(Guid id, CancellationToken ct = default) =>
             Task.FromResult(_usuarios.GetValueOrDefault(id));
 
+        public Task<Usuario?> ObtenerPorUsernameAsync(string username, CancellationToken ct = default) =>
+            Task.FromResult(_usuarios.Values.FirstOrDefault(u => string.Equals(u.Nombre, username?.Trim(), StringComparison.OrdinalIgnoreCase)));
+
         public Task<Usuario?> ObtenerPorCorreoAsync(string correo, CancellationToken ct = default) =>
             Task.FromResult(_usuarios.Values.FirstOrDefault(u => u.Correo == correo.ToLowerInvariant()));
 
