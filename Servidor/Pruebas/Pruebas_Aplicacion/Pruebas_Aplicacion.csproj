@@ -20,6 +20,7 @@
 
   <ItemGroup>
     <ProjectReference Include="..\..\src\Infraestructura\Infraestructura.csproj" />
+    <ProjectReference Include="..\..\src\Contratos\Contratos.csproj" />
   </ItemGroup>
 
 </Project>

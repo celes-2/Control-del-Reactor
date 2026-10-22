@@ -40,6 +40,12 @@ public sealed class JsonUsuarioRepositorio : IUsuarioRepo
         return todos.FirstOrDefault(u => u.Id == id)?.ADominio();
     }
 
+    public async Task<Usuario?> ObtenerPorUsernameAsync(string username, CancellationToken ct = default)
+    {
+        var todos = await _almacen.LeerAsync(ct);
+        return todos.FirstOrDefault(u => MismoTexto(u.Nombre, username))?.ADominio();
+    }
+
     public async Task<Usuario?> ObtenerPorCorreoAsync(string correo, CancellationToken ct = default)
     {
         var todos = await _almacen.LeerAsync(ct);
@@ -55,6 +61,9 @@ public sealed class JsonUsuarioRepositorio : IUsuarioRepo
             if (lista.Any(u => u.Id != usuario.Id && MismoCorreo(u.Correo, usuario.Correo)))
                 throw new DominioException("Ya existe una cuenta con ese correo.");
 
+            if (lista.Any(u => u.Id != usuario.Id && MismoTexto(u.Nombre, usuario.Nombre)))
+                throw new DominioException("Ya existe una cuenta con ese nombre de usuario.");
+
             var registro = UsuarioRegistro.Desde(usuario);
             var indice = lista.FindIndex(u => u.Id == usuario.Id);
             if (indice >= 0)
@@ -64,6 +73,8 @@ public sealed class JsonUsuarioRepositorio : IUsuarioRepo
         }, ct);
     }
 
-    private static bool MismoCorreo(string a, string b) =>
+    private static bool MismoCorreo(string a, string b) => MismoTexto(a, b);
+
+    private static bool MismoTexto(string a, string b) =>
         string.Equals(a.Trim(), b.Trim(), StringComparison.OrdinalIgnoreCase);
 }

@@ -9,10 +9,14 @@ builder.Services.AddControllers();
 builder.Services.AddPersistenciaJson(builder.Configuration); // usuarios y avatares en archivos JSON
 builder.Services.AddPartidas();                              // casos de uso de partidas (en memoria)
 builder.Services.AddTiempoReal(builder.Configuration);       // WebSocket y adaptador MQTT (Palma)
+builder.Services.AddRegistroUsuarios(builder.Configuration, builder.Environment.IsDevelopment());
+builder.Services.AddAutenticacionJwt();
 
 var app = builder.Build();
 
 app.UseMiddleware<ManejadorErrores>();
+app.UseAuthentication();
+app.UseAuthorization();
 app.UseTiempoReal();                                         // WebSocket /ws/partida (Palma)
 app.MapControllers();
 
