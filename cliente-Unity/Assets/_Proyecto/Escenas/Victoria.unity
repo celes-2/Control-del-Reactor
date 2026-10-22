@@ -241,7 +241,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 1f3795b75be41854e8af2f0f59fbe95a, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::Reactor.Cliente.Arranque.VictoriaInstalador
-  escenaAlVolver: Arena
+  escenaAlVolver: Configuracion
   usarResultadoDeEjemplo: 0
 --- !u!114 &1569920521
 MonoBehaviour:
