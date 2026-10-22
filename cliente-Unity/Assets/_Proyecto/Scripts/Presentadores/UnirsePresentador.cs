@@ -58,9 +58,10 @@ namespace Reactor.Cliente.Presentadores
             {
                 if (!liberado) vista.MostrarAviso(e.Message);
             }
-            catch (Exception)
+            catch (Exception e)
             {
-                if (!liberado) vista.MostrarAviso("No se pudo obtener la lista de partidas.");
+                UnityEngine.Debug.LogException(e);
+                if (!liberado) vista.MostrarAviso("No se pudo obtener la lista: " + e.Message);
             }
             finally
             {
