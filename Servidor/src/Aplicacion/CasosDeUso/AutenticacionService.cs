@@ -15,7 +15,8 @@ public sealed class AutenticacionService(
     ITokenService jwt,
     IMailSender correo,
     IClock reloj,
-    IAvatarRepo avatares)
+    IAvatarRepo avatares,
+    IAvatarPropioRepo propios)
 {
     private const string MensajeContrasenaDebil =
         "La contraseña debe tener 8 caracteres e incluir mayúscula, minúscula, número y símbolo.";
@@ -103,13 +104,21 @@ public sealed class AutenticacionService(
     public async Task<UsuarioDto> PerfilAsync(Guid userId, CancellationToken ct = default) =>
         Mapear(await usuarios.ObtenerPorIdAsync(userId, ct) ?? throw UsuarioNoEncontrado());
 
-    public async Task<IReadOnlyList<AvatarDto>> ListarAvataresAsync(CancellationToken ct = default) =>
-        (await avatares.ListarAsync(ct)).Select(a => new AvatarDto(a.Id, a.Nombre, a.Color)).ToList();
+    /// <summary>Avatares predeterminados y, si se indica el jugador, también su imagen propia (si la cargó).</summary>
+    public async Task<IReadOnlyList<AvatarDto>> ListarAvataresAsync(Guid? userId = null, CancellationToken ct = default)
+    {
+        var lista = (await avatares.ListarAsync(ct)).Select(a => new AvatarDto(a.Id, a.Nombre, a.Color)).ToList();
+        if (userId is { } id && await propios.ObtenerDeUsuarioAsync(id, ct) is { } propio)
+            lista.Add(new AvatarDto(propio.Id, "Mi imagen", "#FFFFFF", true));
+        return lista;
+    }
 
     public async Task<UsuarioDto> ElegirAvatarAsync(Guid userId, Guid avatarId, CancellationToken ct = default)
     {
-        if (await avatares.ObtenerPorIdAsync(avatarId, ct) is null)
-            throw new AuthException("AVATAR_INVALIDO", "Debes seleccionar uno de los avatares predeterminados.");
+        var delCatalogo = await avatares.ObtenerPorIdAsync(avatarId, ct) is not null;
+        var propio = delCatalogo ? null : await propios.ObtenerAsync(avatarId, ct);
+        if (!delCatalogo && propio?.DuenoId != userId)
+            throw new AuthException("AVATAR_INVALIDO", "Debes seleccionar uno de los avatares disponibles.");
 
         var usuario = await usuarios.ObtenerPorIdAsync(userId, ct) ?? throw UsuarioNoEncontrado();
         usuario.ElegirAvatar(avatarId);

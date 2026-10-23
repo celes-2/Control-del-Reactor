@@ -8,7 +8,7 @@ using Microsoft.AspNetCore.Mvc;
 namespace API.Controllers;
 
 [ApiController, Route("api/auth")]
-public sealed class AuthController(AutenticacionService auth, IDispositivoRepo dispositivos) : ControllerBase
+public sealed class AuthController(AutenticacionService auth, AvatarPropioService avataresPropios, IDispositivoRepo dispositivos) : ControllerBase
 {
     [HttpPost("register")]
     public async Task<ActionResult> Register(RegistroRequest req, CancellationToken ct) =>
@@ -45,7 +45,34 @@ public sealed class AuthController(AutenticacionService auth, IDispositivoRepo d
 
     [HttpGet("/api/avatares")]
     public async Task<ActionResult<IReadOnlyList<AvatarDto>>> Avatares(CancellationToken ct) =>
-        Ok(await auth.ListarAvataresAsync(ct));
+        Ok(await auth.ListarAvataresAsync(UserIdOpcional(), ct));
+
+    /// <summary>Recibe los bytes de una imagen PNG o JPG (máximo 1 MB) en el cuerpo y la deja como avatar del jugador.</summary>
+    [Authorize, HttpPost("profile/avatar/upload"), RequestSizeLimit(2_000_000)]
+    public async Task<ActionResult<UsuarioDto>> SubirAvatar(CancellationToken ct)
+    {
+        using var memoria = new MemoryStream();
+        var buffer = new byte[16 * 1024];
+        int leidos;
+        while ((leidos = await Request.Body.ReadAsync(buffer, ct)) > 0)
+        {
+            memoria.Write(buffer, 0, leidos);
+            if (memoria.Length > AvatarPropioService.MaxBytes)
+                throw new AuthException("IMAGEN_MUY_GRANDE", "La imagen no puede pesar más de 1 MB.");
+        }
+
+        var userId = UserId();
+        await avataresPropios.SubirAsync(userId, memoria.ToArray(), ct);
+        return Ok(await auth.PerfilAsync(userId, ct));
+    }
+
+    /// <summary>Imagen de un avatar propio. Es pública para que los demás jugadores vean tu avatar en la partida.</summary>
+    [AllowAnonymous, HttpGet("/api/avatares/{id:guid}/imagen")]
+    public async Task<IActionResult> Imagen(Guid id, CancellationToken ct)
+    {
+        var imagen = await avataresPropios.ObtenerImagenAsync(id, ct);
+        return imagen is null ? NotFound() : File(imagen.Contenido, imagen.TipoContenido);
+    }
 
     [Authorize, HttpPut("profile/avatar")]
     public async Task<ActionResult<UsuarioDto>> Avatar(ElegirAvatarRequest req, CancellationToken ct) =>
@@ -56,6 +83,12 @@ public sealed class AuthController(AutenticacionService auth, IDispositivoRepo d
     {
         await dispositivos.AsignarAsync(req.DeviceId, UserId(), ct);
         return Ok(new { mensaje = "Dispositivo asociado correctamente." });
+    }
+
+    private Guid? UserIdOpcional()
+    {
+        var valor = User.FindFirstValue(ClaimTypes.NameIdentifier) ?? User.FindFirstValue("nameid") ?? User.FindFirstValue("sub");
+        return Guid.TryParse(valor, out var id) ? id : null;
     }
 
     private Guid UserId()

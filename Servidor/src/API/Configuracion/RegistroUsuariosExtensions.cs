@@ -26,6 +26,7 @@ public static class RegistroUsuariosExtensions
         // Aquí solo se agregan los archivos propios de autenticación: un JsonFileStore (Singleton) por archivo.
         services.AddSingleton(new JsonFileStore<TokenRegistro>(Path.Combine(carpetaDatos, "tokens.json")));
         services.AddSingleton(new JsonFileStore<DispositivoRegistro>(Path.Combine(carpetaDatos, "dispositivos.json")));
+        services.AddSingleton<IAvatarPropioRepo>(_ => new ArchivoAvatarPropioRepositorio(carpetaDatos));
         services.AddSingleton<ITokenUsuarioRepo, JsonTokenUsuarioRepositorio>();
         services.AddSingleton<IDispositivoRepo, JsonDispositivoRepositorio>();
 
@@ -37,6 +38,7 @@ public static class RegistroUsuariosExtensions
         services.AddSingleton<IClock, RelojSistema>();
         services.AddSingleton<IMailSender>(_ => CrearMailSender(config, carpetaDatos));
         services.AddScoped<AutenticacionService>();
+        services.AddScoped<AvatarPropioService>();
         return services;
     }
 
