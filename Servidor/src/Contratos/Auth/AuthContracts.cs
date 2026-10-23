@@ -9,6 +9,6 @@ public sealed record CambiarContrasenaRequest(string Token, string NewPassword, 
 public sealed record ElegirAvatarRequest(Guid AvatarId);
 public sealed record EmparejarDispositivoRequest(string DeviceId);
 public sealed record UsuarioDto(Guid Id, string Username, string Email, bool EmailVerified, Guid? AvatarId);
-public sealed record AvatarDto(Guid Id, string Nombre, string Color);
+public sealed record AvatarDto(Guid Id, string Nombre, string Color, bool Propio = false);
 public sealed record LoginResponse(string AccessToken, UsuarioDto User);
 public sealed record ErrorResponse(string Codigo, string Mensaje);

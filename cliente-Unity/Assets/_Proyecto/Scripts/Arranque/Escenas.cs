@@ -4,6 +4,8 @@ namespace Reactor.Cliente.Arranque
     public static class Escenas
     {
         public const string Arranque = "Arranque";
+        public const string Acceso = "Acceso";
+        public const string Perfil = "Perfil";
         public const string Arena = "Arena";
         public const string Configuracion = "Configuracion";
         public const string Unirse = "Unirse";

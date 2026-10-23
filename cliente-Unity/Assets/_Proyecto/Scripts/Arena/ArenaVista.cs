@@ -4,6 +4,7 @@ using System.Text;
 using Reactor.Cliente.Contratos;
 using Reactor.Cliente.Presentadores;
 using UnityEngine;
+using Reactor.Cliente.Ui;
 
 namespace Reactor.Cliente.Arena
 {
@@ -51,17 +52,25 @@ namespace Reactor.Cliente.Arena
             avatares.Clear();
         }
 
-        public void MostrarJugador(JugadorMsg jugador)
+public void MostrarJugador(JugadorMsg jugador)
         {
+            Debug.Log($"Arena: {jugador.Nombre} avatarId='{jugador.AvatarId}'");
             var posicion = mapa.CentroDeCelda(jugador.X, jugador.Y);
             if (avatares.TryGetValue(jugador.Id, out var existente))
             {
                 existente.Colocar(posicion);
                 return;
             }
+            
             var nuevo = AvatarVista.Crear(contenedorAvatares, jugador, posicion, tamanoAvatar, proporcionImagen);
-            if (spritesAvatar != null && spritesAvatar.Length > 0)
-                nuevo.PonerImagen(spritesAvatar[avatares.Count % spritesAvatar.Length]);
+            
+            // Nueva lógica de asignación de imagen
+            var img = AvatarImagenes.DePredeterminado(jugador.AvatarId);
+            if (img == null && spritesAvatar != null && spritesAvatar.Length > 0)
+                img = spritesAvatar[avatares.Count % spritesAvatar.Length];
+            if (img != null)
+                nuevo.PonerImagen(img);
+
             avatares[jugador.Id] = nuevo;
         }
 

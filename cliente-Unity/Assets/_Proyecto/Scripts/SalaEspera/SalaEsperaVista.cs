@@ -8,6 +8,7 @@ using TMPro;
 using UnityEngine;
 using UnityEngine.UI;
 
+
 namespace Reactor.Cliente.SalaEspera
 {
     /// <summary>
@@ -35,7 +36,10 @@ namespace Reactor.Cliente.SalaEspera
         public void MostrarEstado(string texto) => estado.text = texto;
 
         public void MostrarJugadores(IReadOnlyList<JugadorMsg> jugadores, string anfitrionId, string usuarioId)
+        
         {
+            foreach (var j in jugadores) Debug.Log($"Jugador {j.Nombre} avatarId='{j.AvatarId}'");
+            
             for (var i = contenedorFilas.childCount - 1; i >= 0; i--)
                 Destroy(contenedorFilas.GetChild(i).gameObject);
 
@@ -45,8 +49,13 @@ namespace Reactor.Cliente.SalaEspera
                 var color = ConstructorUI.ParseColor(jugador.Color, Color.white);
                 var y = -i * 90f;
 
-                var punto = ConstructorUI.CrearImagen(contenedorFilas, "Color", ConstructorUI.Circulo(), color);
-                ConstructorUI.Colocar(punto.rectTransform, new Vector2(-300f, y), new Vector2(56f, 56f));
+                // Imagen del avatar predeterminado; si no hay, el círculo de color de antes.
+                var imagenAvatar = AvatarImagenes.DePredeterminado(jugador.AvatarId);
+                var punto = imagenAvatar != null
+                    ? ConstructorUI.CrearImagen(contenedorFilas, "Avatar", imagenAvatar, Color.white)
+                    : ConstructorUI.CrearImagen(contenedorFilas, "Color", ConstructorUI.Circulo(), color);
+                punto.preserveAspect = true;
+                ConstructorUI.Colocar(punto.rectTransform, new Vector2(-300f, y), new Vector2(72f, 72f));
 
                 var etiquetas = "";
                 if (jugador.Id == anfitrionId) etiquetas += "   <size=60%><color=#FFD133>ANFITRIÓN</color></size>";

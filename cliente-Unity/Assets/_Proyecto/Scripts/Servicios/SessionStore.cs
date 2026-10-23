@@ -11,12 +11,19 @@ namespace Reactor.Cliente.Servicios
         public string Token { get; private set; }
         public string UsuarioId { get; private set; }
         public string NombreUsuario { get; private set; }
+
+        /// <summary>Avatar elegido (id del catálogo o de la imagen propia). Null si todavía no eligió.</summary>
+        public string AvatarId { get; private set; }
+
         public string PartidaActualId { get; set; }
 
         /// <summary>Resultado de la última partida terminada; lo lee la escena Victoria.</summary>
         public ResultadoPartida UltimoResultado { get; set; }
 
         public bool EstaAutenticado => !string.IsNullOrEmpty(Token);
+
+        /// <summary>Sube cada vez que cambia quién es el jugador o su avatar; la barra de usuario lo observa.</summary>
+        public int Version { get; private set; }
 
         public void Iniciar(string token, string usuarioId, string nombreUsuario)
         {
@@ -26,6 +33,8 @@ namespace Reactor.Cliente.Servicios
             Token = token;
             UsuarioId = usuarioId;
             NombreUsuario = nombreUsuario;
+            AvatarId = null;
+            Version++;
         }
 
         /// <summary>
@@ -39,6 +48,14 @@ namespace Reactor.Cliente.Servicios
             Token = null;
             UsuarioId = usuarioId;
             NombreUsuario = nombreUsuario;
+            AvatarId = null;
+            Version++;
+        }
+
+        public void CambiarAvatar(string avatarId)
+        {
+            AvatarId = string.IsNullOrEmpty(avatarId) ? null : avatarId;
+            Version++;
         }
 
         public void Cerrar()
@@ -46,8 +63,10 @@ namespace Reactor.Cliente.Servicios
             Token = null;
             UsuarioId = null;
             NombreUsuario = null;
+            AvatarId = null;
             PartidaActualId = null;
             UltimoResultado = null;
+            Version++;
         }
     }
 }

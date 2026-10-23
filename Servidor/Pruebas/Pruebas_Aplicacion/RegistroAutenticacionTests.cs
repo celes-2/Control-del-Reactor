@@ -32,7 +32,8 @@ public sealed class Pruebas_Registro : IDisposable
         return new AutenticacionService(
             new JsonUsuarioRepositorio(Path.Combine(carpeta, "usuarios.json")),
             new JsonTokenUsuarioRepositorio(new JsonFileStore<TokenRegistro>(Path.Combine(carpeta, "tokens.json"))),
-            new BCryptPasswordHasher(), seguridad, correo, reloj, new AvatarRepoFalso());
+            new BCryptPasswordHasher(), seguridad, correo, reloj, new AvatarRepoFalso(),
+            new ArchivoAvatarPropioRepositorio(carpeta));
     }
 
     private static RegistroRequest Registro(string usuario = "ana", string email = "ana@correo.com", string clave = Clave, string? confirmar = null) =>
@@ -229,6 +230,25 @@ public sealed class Pruebas_Registro : IDisposable
 
         Assert.Equal("AVATAR_INVALIDO", error.Codigo);
     }
+
+    [Fact]
+    public async Task Avatar_Propio_SePuedeElegirSoloPorSuDueno()
+    {
+        var servicio = await UsuarioVerificadoAsync();
+        var id = (await servicio.LoginAsync(new LoginRequest("ana", Clave))).User.Id;
+        var propios = new ArchivoAvatarPropioRepositorio(carpeta);
+        var subida = new AvatarPropioService(new JsonUsuarioRepositorio(Path.Combine(carpeta, "usuarios.json")), propios);
+        var avatarId = await subida.SubirAsync(id, PngMinimo());
+
+        await servicio.ElegirAvatarAsync(id, AvatarRepoFalso.Cuarto);
+        await servicio.ElegirAvatarAsync(id, avatarId);          // vuelve a su imagen propia
+        Assert.Equal(avatarId, (await NuevoServicio().PerfilAsync(id)).AvatarId);
+
+        var otro = await Assert.ThrowsAsync<AuthException>(() => servicio.ElegirAvatarAsync(Guid.NewGuid(), avatarId));
+        Assert.Equal("AVATAR_INVALIDO", otro.Codigo);
+    }
+
+    private static byte[] PngMinimo() => [0x89, 0x50, 0x4E, 0x47, 0x0D, 0x0A, 0x1A, 0x0A, 1, 2, 3, 4];
 
     // ---------- US-05 Recuperación de contraseña ----------
 
