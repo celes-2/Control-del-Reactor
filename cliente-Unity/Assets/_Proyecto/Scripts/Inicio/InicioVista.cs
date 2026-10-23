@@ -352,7 +352,7 @@ namespace Reactor.Cliente.Inicio
             // ----- Botones de abajo -----
             ConstructorUI.CrearBoton(raiz, "Elegir avatar", new Vector2(-420f, -470f), new Vector2(380f, 90f),
                 ConstructorUI.Azul, () => ElegirAvatarPulsado?.Invoke());
-            ConstructorUI.CrearBoton(raiz, "Configuración", new Vector2(0f, -470f), new Vector2(380f, 90f),
+            ConstructorUI.CrearBoton(raiz, "Iniciar Partida", new Vector2(0f, -470f), new Vector2(380f, 90f),
                 ConstructorUI.Verde, () => ConfiguracionPulsado?.Invoke());
             ConstructorUI.CrearBoton(raiz, "Cerrar sesión", new Vector2(420f, -470f), new Vector2(380f, 90f),
                 ConstructorUI.Gris, () => CerrarSesionPulsado?.Invoke());
