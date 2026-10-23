@@ -40,6 +40,7 @@ public sealed class AutenticacionService(
             throw new AuthException("CORREO_EXISTE", "El correo electrónico ya está registrado.");
 
         var usuario = new Usuario(Guid.NewGuid(), username, email, contrasenas.Hash(request.Password));
+        await AsignarAvatarPorDefectoAsync(usuario, ct);   // todo jugador nace con un avatar (US-06, CA-06.1)
         await usuarios.GuardarAsync(usuario, ct);
 
         await CrearYEnviarTokenAsync(usuario, TipoToken.EMAIL_VERIFY, TimeSpan.FromHours(24),
@@ -70,6 +71,10 @@ public sealed class AutenticacionService(
             throw new AuthException("CREDENCIALES_INVALIDAS", "Usuario/correo o contraseña incorrectos.");
         if (!usuario.Verificado)
             throw new AuthException("CORREO_NO_VERIFICADO", "Tu correo está pendiente de verificación.");
+
+        // Cuentas creadas antes de que existiera el avatar por defecto.
+        if (usuario.AvatarId is null && await AsignarAvatarPorDefectoAsync(usuario, ct))
+            await usuarios.GuardarAsync(usuario, ct);
 
         return new LoginResponse(jwt.CrearJwt(usuario), Mapear(usuario));
     }
@@ -124,6 +129,15 @@ public sealed class AutenticacionService(
         usuario.ElegirAvatar(avatarId);
         await usuarios.GuardarAsync(usuario, ct);
         return Mapear(usuario);
+    }
+
+    /// <summary>Le da al usuario un avatar al azar del catálogo. Devuelve false si el catálogo está vacío.</summary>
+    private async Task<bool> AsignarAvatarPorDefectoAsync(Usuario usuario, CancellationToken ct)
+    {
+        var catalogo = await avatares.ListarAsync(ct);
+        if (catalogo.Count == 0) return false;
+        usuario.ElegirAvatar(catalogo[System.Security.Cryptography.RandomNumberGenerator.GetInt32(catalogo.Count)].Id);
+        return true;
     }
 
     private async Task CrearYEnviarTokenAsync(Usuario usuario, TipoToken tipo, TimeSpan duracion,
