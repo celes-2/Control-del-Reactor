@@ -12,6 +12,7 @@ namespace Reactor.Cliente.Servicios
         public string Nombre { get; set; }
         public string Color { get; set; }
         public string AvatarUrl { get; set; }
+        public string AvatarId { get; set; }
         public int Puntaje { get; set; }
 
         /// <summary>Posición en que llegó a la partida; sirve para elegir su imagen igual que en la arena.</summary>
@@ -66,6 +67,7 @@ namespace Reactor.Cliente.Servicios
                     Nombre = string.IsNullOrEmpty(p.Nombre) ? conocido?.Nombre : p.Nombre,
                     Color = conocido?.Color,
                     AvatarUrl = conocido?.AvatarUrl,
+                    AvatarId = conocido?.AvatarId,
                     Puntaje = p.Puntaje,
                     OrdenLlegada = orden.TryGetValue(id, out var o) ? o : lista.Count,
                     EsGanador = !string.IsNullOrEmpty(mensaje.GanadorId) && id == mensaje.GanadorId,

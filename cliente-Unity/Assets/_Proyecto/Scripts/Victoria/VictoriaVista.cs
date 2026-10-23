@@ -60,7 +60,7 @@ namespace Reactor.Cliente.Victoria
         public void MostrarGanador(JugadorResultado ganador, string textoTitulo, string textoSubtitulo)
         {
             titulo.text = textoTitulo;
-            titulo.color = ConstructorUI.Dorado;
+            titulo.color = ConstructorUI.Arena;
             subtitulo.text = textoSubtitulo;
 
             var color = ConstructorUI.ParseColor(ganador.Color, Color.white);
@@ -160,6 +160,9 @@ namespace Reactor.Cliente.Victoria
 
         Sprite ImagenDe(JugadorResultado jugador)
         {
+            var img = AvatarImagenes.DePredeterminado(jugador.AvatarId);
+            if (img != null) return img;
+
             if (spritesAvatar == null || spritesAvatar.Length == 0) return null;
             return spritesAvatar[jugador.OrdenLlegada % spritesAvatar.Length];
         }

@@ -9,6 +9,12 @@ EditorBuildSettings:
     path: Assets/_Proyecto/Escenas/Arranque.unity
     guid: 84488fae8a029174bbee91ff8d020047
   - enabled: 1
+    path: Assets/_Proyecto/Escenas/Acceso.unity
+    guid: 15f57a5a819e0a348825061c5e02e4de
+  - enabled: 1
+    path: Assets/_Proyecto/Escenas/Perfil.unity
+    guid: be6ee01e84b31b4479e1e39ba2eae115
+  - enabled: 1
     path: Assets/_Proyecto/Escenas/Unirse.unity
     guid: 91e5c20d84330f7438b951830bb9c8f6
   - enabled: 1

@@ -93,27 +93,31 @@ namespace Reactor.Cliente.Unirse
             var fondo = ConstructorUI.CrearImagen(raiz, "Fondo", null, ConstructorUI.Fondo);
             ConstructorUI.Estirar(fondo.rectTransform);
 
-            ConstructorUI.CrearTexto(raiz, "Titulo", 100, FontStyles.Bold, ConstructorUI.Dorado,
+            ConstructorUI.CrearTexto(raiz, "Titulo", 100, FontStyles.Bold, ConstructorUI.Arena,
                 new Vector2(0f, 400f), new Vector2(1500f, 130f)).text = "PARTIDAS ABIERTAS";
 
             estado = ConstructorUI.CrearTexto(raiz, "Estado", 48, FontStyles.Bold, Color.white,
                 new Vector2(0f, 300f), new Vector2(1500f, 80f));
             estado.text = "Buscando partidas...";
 
+            // Panel bajado de Y: 30f a Y: -10f
             var panel = ConstructorUI.CrearImagen(raiz, "Panel", null, ConstructorUI.Panel);
-            ConstructorUI.Colocar(panel.rectTransform, new Vector2(0f, 30f), new Vector2(1500f, 560f));
+            ConstructorUI.Colocar(panel.rectTransform, new Vector2(0f, -10f), new Vector2(1500f, 560f));
 
+            // Contenedor de filas bajado de Y: 220f a Y: 180f (o ajusta proporcionalmente)
             contenedorFilas = new GameObject("Partidas", typeof(RectTransform)).GetComponent<RectTransform>();
             contenedorFilas.SetParent(raiz, false);
-            ConstructorUI.Colocar(contenedorFilas, new Vector2(0f, 220f), new Vector2(1400f, 500f));
+            ConstructorUI.Colocar(contenedorFilas, new Vector2(0f, 180f), new Vector2(1400f, 500f));
 
-            ConstructorUI.CrearBoton(raiz, "Actualizar", new Vector2(-290f, -340f), new Vector2(520f, 100f),
+            // Botones bajados de Y: -340f a Y: -390f
+            ConstructorUI.CrearBoton(raiz, "Actualizar", new Vector2(-290f, -390f), new Vector2(520f, 100f),
                 ConstructorUI.Azul, () => ActualizarPulsado?.Invoke());
-            ConstructorUI.CrearBoton(raiz, "Volver", new Vector2(290f, -340f), new Vector2(520f, 100f),
+            ConstructorUI.CrearBoton(raiz, "Volver", new Vector2(290f, -390f), new Vector2(520f, 100f),
                 ConstructorUI.Gris, () => VolverPulsado?.Invoke());
 
+            // Aviso bajado de Y: -440f a Y: -480f
             aviso = ConstructorUI.CrearTexto(raiz, "Aviso", 40, FontStyles.Bold, new Color(1f, 0.55f, 0.45f),
-                new Vector2(0f, -440f), new Vector2(1500f, 70f));
+                new Vector2(0f, -480f), new Vector2(1500f, 70f));
         }
     }
 }
