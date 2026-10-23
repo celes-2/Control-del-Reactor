@@ -38,7 +38,7 @@ namespace Reactor.Cliente.Arranque
                 raiz.PreparadorImagen,
                 raiz.Avatares,
                 avatarId => raiz.Sesion.CambiarAvatar(avatarId),
-                () => SceneManager.LoadScene(Escenas.Configuracion),
+                () => SceneManager.LoadScene(Escenas.Inicio),
                 () =>
                 {
                     raiz.Sesion.Cerrar();

@@ -11,5 +11,6 @@ namespace Reactor.Cliente.Arranque
         public const string Unirse = "Unirse";
         public const string SalaEspera = "SalaEspera";
         public const string Victoria = "Victoria";
+        public const string Inicio = "Inicio";
     }
 }

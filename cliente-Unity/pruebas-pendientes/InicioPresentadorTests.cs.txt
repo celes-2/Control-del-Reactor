@@ -1,0 +1,125 @@
+using System;
+using System.Collections;
+using System.Collections.Generic;
+using System.Threading.Tasks;
+using NUnit.Framework;
+using Reactor.Cliente.Presentadores;
+using Reactor.Cliente.Servicios;
+using Reactor.Cliente.Servicios.Falsos;
+using UnityEngine;
+using UnityEngine.TestTools;
+
+namespace Reactor.Cliente.Tests
+{
+    // Usa ApiPerfilFalsa: el jugador local ("Ana") tiene 5 partidas, 3 victorias y 96 puntos.
+    public class InicioPresentadorTests
+    {
+        sealed class VistaFalsa : IInicioVista
+        {
+            public event Action ElegirAvatarPulsado;
+            public event Action ConfiguracionPulsado;
+            public event Action CerrarSesionPulsado;
+            public bool Cargando = true;
+            public PerfilJugador Perfil;
+            public IReadOnlyList<PartidaHistorial> Historial;
+            public IReadOnlyList<EntradaRankingJugador> RankingVictorias, RankingPuntos;
+            public string ErrorHistorial, ErrorRanking, Aviso;
+
+            public void MostrarCargando(bool cargando) => Cargando = cargando;
+            public void MostrarPerfil(PerfilJugador perfil, Sprite avatar) => Perfil = perfil;
+            public void MostrarHistorial(IReadOnlyList<PartidaHistorial> partidas) => Historial = partidas;
+            public void MostrarRanking(IReadOnlyList<EntradaRankingJugador> v, IReadOnlyList<EntradaRankingJugador> p, string usuarioId)
+            { RankingVictorias = v; RankingPuntos = p; }
+            public void MostrarErrorSeccion(SeccionInicio seccion, string mensaje)
+            { if (seccion == SeccionInicio.Historial) ErrorHistorial = mensaje; else ErrorRanking = mensaje; }
+            public void MostrarAviso(string texto, bool exito) => Aviso = texto;
+            public void PulsarElegirAvatar() => ElegirAvatarPulsado?.Invoke();
+            public void PulsarConfiguracion() => ConfiguracionPulsado?.Invoke();
+            public void PulsarCerrarSesion() => CerrarSesionPulsado?.Invoke();
+        }
+
+        sealed class ApiQueFalla : IApiPerfil
+        {
+            readonly IApiPerfil bueno = new ApiPerfilFalsa("id-local");
+            public bool FallaHistorial, SesionInvalida;
+
+            public Task<PerfilJugador> ObtenerPerfilAsync() =>
+                SesionInvalida ? Task.FromException<PerfilJugador>(new ApiAuthException("NO_AUTORIZADO", "Sesión inválida."))
+                               : bueno.ObtenerPerfilAsync();
+
+            public Task<IReadOnlyList<PartidaHistorial>> ObtenerHistorialAsync(int limite = 10) =>
+                FallaHistorial ? Task.FromException<IReadOnlyList<PartidaHistorial>>(new ApiAuthException("X", "Sin conexión."))
+                               : bueno.ObtenerHistorialAsync(limite);
+
+            public Task<IReadOnlyList<EntradaRankingJugador>> ObtenerRankingAsync(string criterio, int limite = 8) =>
+                bueno.ObtenerRankingAsync(criterio, limite);
+        }
+
+        static IEnumerator Esperar()
+        {
+            for (var i = 0; i < 6; i++) yield return null;
+        }
+
+        static InicioPresentador Crear(VistaFalsa vista, IApiPerfil api, Action<string> avatar = null,
+            Action elegir = null, Action configuracion = null, Action cerrar = null) =>
+            new InicioPresentador(vista, api, new AvatarCacheFalsa(), "id-local",
+                avatar ?? (_ => { }), elegir ?? (() => { }), configuracion ?? (() => { }), cerrar ?? (() => { }));
+
+        [UnityTest]
+        public IEnumerator Iniciar_CargaPerfilHistorialYRankings()
+        {
+            var vista = new VistaFalsa();
+            string avatarConocido = null;
+            Crear(vista, new ApiPerfilFalsa("id-local"), a => avatarConocido = a).Iniciar();
+            yield return Esperar();
+
+            Assert.AreEqual("Ana", vista.Perfil.Nombre);
+            Assert.AreEqual(3, vista.Perfil.Estadisticas.Victorias);
+            Assert.IsNotEmpty(vista.Historial);
+            Assert.IsNotEmpty(vista.RankingVictorias);
+            Assert.IsNotEmpty(vista.RankingPuntos);
+            Assert.AreEqual(vista.Perfil.AvatarId, avatarConocido);
+            Assert.IsFalse(vista.Cargando);
+        }
+
+        [UnityTest]
+        public IEnumerator Iniciar_SiFallaElHistorial_SoloEsaSeccionMuestraElError()
+        {
+            var vista = new VistaFalsa();
+            Crear(vista, new ApiQueFalla { FallaHistorial = true }).Iniciar();
+            yield return Esperar();
+
+            Assert.AreEqual("Sin conexión.", vista.ErrorHistorial);
+            Assert.IsNull(vista.Historial);
+            Assert.NotNull(vista.Perfil);            // el perfil sí se ve
+            Assert.IsNotEmpty(vista.RankingVictorias); // y el ranking también
+        }
+
+        [UnityTest]
+        public IEnumerator Iniciar_ConSesionInvalida_CierraSesionYNoMuestraNada()
+        {
+            var vista = new VistaFalsa();
+            var cerro = false;
+            Crear(vista, new ApiQueFalla { SesionInvalida = true }, cerrar: () => cerro = true).Iniciar();
+            yield return Esperar();
+
+            Assert.IsTrue(cerro);
+            Assert.IsNull(vista.Perfil);
+        }
+
+        [Test]
+        public void LosBotones_LlamanASusAcciones()
+        {
+            var vista = new VistaFalsa();
+            string pulsado = "";
+            Crear(vista, new ApiPerfilFalsa("id-local"),
+                elegir: () => pulsado += "A", configuracion: () => pulsado += "C", cerrar: () => pulsado += "S");
+
+            vista.PulsarElegirAvatar();
+            vista.PulsarConfiguracion();
+            vista.PulsarCerrarSesion();
+
+            Assert.AreEqual("ACS", pulsado);
+        }
+    }
+}
