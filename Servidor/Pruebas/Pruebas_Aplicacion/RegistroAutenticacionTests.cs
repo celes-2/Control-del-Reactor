@@ -1,5 +1,6 @@
 using Aplicacion.CasosDeUso;
 using Dominio.Avatares;
+using Dominio.Usuarios;
 using Xunit;
 using Aplicacion.Puertos;
 using Contratos.Auth;
@@ -57,7 +58,7 @@ public sealed class Pruebas_Registro : IDisposable
         var usuario = await NuevoServicio().RegistrarAsync(Registro());
 
         Assert.False(usuario.EmailVerified);
-        Assert.Null(usuario.AvatarId);   // sin elegir todavía
+        Assert.NotNull(usuario.AvatarId);   // nace con un avatar por defecto del catálogo
         var json = await File.ReadAllTextAsync(Path.Combine(carpeta, "usuarios.json"));
         Assert.Contains("\"nombre\": \"ana\"", json);
         Assert.DoesNotContain(Clave, json);
@@ -205,6 +206,21 @@ public sealed class Pruebas_Registro : IDisposable
         var error = await Assert.ThrowsAsync<AuthException>(() => servicio.LoginAsync(new LoginRequest("ana", Clave)));
 
         Assert.Equal("CORREO_NO_VERIFICADO", error.Codigo);
+    }
+
+    [Fact]
+    public async Task Login_CuentaSinAvatar_LeAsignaUnoPorDefectoYLoConserva()
+    {
+        // Cuenta creada antes de que existiera el avatar por defecto.
+        var repo = new JsonUsuarioRepositorio(Path.Combine(carpeta, "usuarios.json"));
+        var viejo = new Usuario(Guid.NewGuid(), "viejo", "viejo@correo.com", new BCryptPasswordHasher().Hash(Clave));
+        viejo.MarcarVerificado();
+        await repo.GuardarAsync(viejo);
+
+        var respuesta = await NuevoServicio().LoginAsync(new LoginRequest("viejo", Clave));
+
+        Assert.NotNull(respuesta.User.AvatarId);
+        Assert.Equal(respuesta.User.AvatarId, (await NuevoServicio().PerfilAsync(viejo.Id)).AvatarId);
     }
 
     // ---------- US-04 Perfil / avatar ----------
