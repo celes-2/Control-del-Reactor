@@ -4,6 +4,7 @@ using Reactor.Cliente.Ui;
 using UnityEngine;
 using UnityEngine.SceneManagement;
 
+
 namespace Reactor.Cliente.Arranque
 {
     /// <summary>
@@ -60,6 +61,7 @@ namespace Reactor.Cliente.Arranque
                 Auth = new ApiAuthFalsa(SocketFalso.Jugador1);
                 PerfilApi = new ApiPerfilFalsa(SocketFalso.Jugador1);
                 Avatares = new AvatarCacheFalsa();
+                AvatarImagenes.Cache = Avatares;
                 PreparadorImagen = new PreparadorImagenFalso();
                 gameObject.AddComponent<TecladoFalso>().Iniciar(falso);
                 Debug.Log("Modo desarrollo: servidor falso. Jugador 1: WASD + Espacio. Jugador 2: flechas + Enter.");
@@ -76,6 +78,7 @@ namespace Reactor.Cliente.Arranque
                 Auth = new ApiAuth(Config.Servidor, Sesion);
                 PerfilApi = new ApiPerfil(Config.Servidor, Sesion);
                 Avatares = new AvatarCache(Config.Servidor);
+                AvatarImagenes.Cache = Avatares;
                 PreparadorImagen = new PreparadorImagenAvatar();
             }
 

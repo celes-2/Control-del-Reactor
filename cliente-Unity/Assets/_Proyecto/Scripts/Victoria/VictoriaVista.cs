@@ -82,6 +82,16 @@ namespace Reactor.Cliente.Victoria
                 inicial.text = string.IsNullOrEmpty(ganador.Nombre) ? "?" : ganador.Nombre.Substring(0, 1).ToUpperInvariant();
                 inicial.color = color;
             }
+
+            // Avatar propio: se pide SIEMPRE (haya o no imagen de reserva) y reemplaza lo que se vea al llegar.
+            AvatarImagenes.CargarPropio(ganador.AvatarId, sprite =>
+            {
+                if (avatar == null) return;
+                avatar.sprite = sprite;
+                avatar.color = Color.white;
+                avatar.preserveAspect = true;
+                inicial.text = "";
+            });
         }
 
         public void MostrarSinGanador(string textoTitulo, string textoSubtitulo)
