@@ -54,7 +54,6 @@ namespace Reactor.Cliente.Arena
 
 public void MostrarJugador(JugadorMsg jugador)
         {
-            Debug.Log($"Arena: {jugador.Nombre} avatarId='{jugador.AvatarId}'");
             var posicion = mapa.CentroDeCelda(jugador.X, jugador.Y);
             if (avatares.TryGetValue(jugador.Id, out var existente))
             {
@@ -70,6 +69,12 @@ public void MostrarJugador(JugadorMsg jugador)
                 img = spritesAvatar[avatares.Count % spritesAvatar.Length];
             if (img != null)
                 nuevo.PonerImagen(img);
+
+            // Avatar propio (subido por el jugador): se descarga y reemplaza a la imagen de reserva al llegar.
+            AvatarImagenes.CargarPropio(jugador.AvatarId, sprite =>
+            {
+                if (nuevo != null) nuevo.PonerImagen(sprite);
+            });
 
             avatares[jugador.Id] = nuevo;
         }

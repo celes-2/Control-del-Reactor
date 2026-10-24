@@ -36,7 +36,6 @@ namespace Reactor.Cliente.SalaEspera
         public void MostrarEstado(string texto) => estado.text = texto;
 
         public void MostrarJugadores(IReadOnlyList<JugadorMsg> jugadores, string anfitrionId, string usuarioId)
-        
         {
             foreach (var j in jugadores) Debug.Log($"Jugador {j.Nombre} avatarId='{j.AvatarId}'");
             
@@ -49,11 +48,8 @@ namespace Reactor.Cliente.SalaEspera
                 var color = ConstructorUI.ParseColor(jugador.Color, Color.white);
                 var y = -i * 90f;
 
-                // Imagen del avatar predeterminado; si no hay, el círculo de color de antes.
-                var imagenAvatar = AvatarImagenes.DePredeterminado(jugador.AvatarId);
-                var punto = imagenAvatar != null
-                    ? ConstructorUI.CrearImagen(contenedorFilas, "Avatar", imagenAvatar, Color.white)
-                    : ConstructorUI.CrearImagen(contenedorFilas, "Color", ConstructorUI.Circulo(), color);
+                var punto = ConstructorUI.CrearImagen(contenedorFilas, "Color", ConstructorUI.Circulo(), color);
+                AvatarImagenes.Aplicar(punto, jugador.AvatarId);
                 punto.preserveAspect = true;
                 ConstructorUI.Colocar(punto.rectTransform, new Vector2(-300f, y), new Vector2(72f, 72f));
 
