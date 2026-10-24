@@ -27,6 +27,9 @@ public sealed class JwtTokenService(JwtOpciones opciones) : ITokenService
     public string GenerarTokenSeguro() =>
         Convert.ToBase64String(RandomNumberGenerator.GetBytes(32)).Replace('+', '-').Replace('/', '_').TrimEnd('=');
 
+    public string GenerarCodigoNumerico() =>
+        RandomNumberGenerator.GetInt32(0, 1_000_000).ToString("D6");
+
     public string Hash(string valor) => Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(valor)));
 
     public string CrearJwt(Usuario usuario)

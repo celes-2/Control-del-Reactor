@@ -27,6 +27,8 @@ public interface IPasswordHasher
 public interface ITokenService
 {
     string GenerarTokenSeguro();
+    /// <summary>Código de 6 dígitos (con ceros a la izquierda) para escribir a mano.</summary>
+    string GenerarCodigoNumerico();
     string Hash(string valor);
     string CrearJwt(Usuario usuario);
 }
