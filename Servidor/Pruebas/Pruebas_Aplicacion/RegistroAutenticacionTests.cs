@@ -72,7 +72,42 @@ public sealed class Pruebas_Registro : IDisposable
         Assert.Single(correo.Enviados);
         Assert.Equal("ana@correo.com", correo.Enviados[0].Destinatario);
         var tokens = await File.ReadAllTextAsync(Path.Combine(carpeta, "tokens.json"));
-        Assert.DoesNotContain(UltimoCodigo(), tokens);
+        Assert.DoesNotContain($"\"{UltimoCodigo()}\"", tokens);
+    }
+
+    [Fact]
+    public async Task Registro_ElCodigoDeVerificacionTiene6Digitos()
+    {
+        await NuevoServicio().RegistrarAsync(Registro());
+
+        var codigo = UltimoCodigo();
+        Assert.Matches("^[0-9]{6}$", codigo);
+    }
+
+    [Fact]
+    public async Task Verificacion_CodigoVencidoALos30Minutos_Falla()
+    {
+        var servicio = NuevoServicio();
+        await servicio.RegistrarAsync(Registro());
+        var codigo = UltimoCodigo();
+        reloj.Avanzar(TimeSpan.FromMinutes(31));
+
+        var error = await Assert.ThrowsAsync<AuthException>(() => servicio.VerificarCorreoAsync(codigo));
+        Assert.Equal("TOKEN_INVALIDO", error.Codigo);
+    }
+
+    [Fact]
+    public async Task Registro_SiFallaElEnvioDelCorreo_NoDejaLaCuentaGuardada()
+    {
+        var servicio = NuevoServicio();
+        correo.Falla = true;
+
+        var error = await Assert.ThrowsAsync<AuthException>(() => servicio.RegistrarAsync(Registro()));
+        Assert.Equal("CORREO_NO_ENVIADO", error.Codigo);
+
+        correo.Falla = false;   // el SMTP vuelve: el mismo usuario y correo se pueden registrar
+        await servicio.RegistrarAsync(Registro());
+        Assert.Matches("^[0-9]{6}$", UltimoCodigo());
     }
 
     [Fact]
@@ -362,9 +397,11 @@ public sealed class Pruebas_Registro : IDisposable
     private sealed class CorreoCapturado : IMailSender
     {
         public List<(string Destinatario, string Asunto, string Cuerpo)> Enviados { get; } = [];
+        public bool Falla { get; set; }
 
         public Task EnviarAsync(string destinatario, string asunto, string cuerpo, CancellationToken ct = default)
         {
+            if (Falla) throw new InvalidOperationException("SMTP caído");
             Enviados.Add((destinatario, asunto, cuerpo));
             return Task.CompletedTask;
         }

@@ -41,10 +41,12 @@ public sealed class AutenticacionService(
 
         var usuario = new Usuario(Guid.NewGuid(), username, email, contrasenas.Hash(request.Password));
         await AsignarAvatarPorDefectoAsync(usuario, ct);   // todo jugador nace con un avatar (US-06, CA-06.1)
-        await usuarios.GuardarAsync(usuario, ct);
 
-        await CrearYEnviarTokenAsync(usuario, TipoToken.EMAIL_VERIFY, TimeSpan.FromHours(24),
-            "Verifica tu cuenta", "Tu código de verificación es", ct);
+        // Primero se envía el correo y recién después se guarda la cuenta: si el envío falla
+        // no queda un usuario registrado que nunca podrá verificarse.
+        await CrearYEnviarTokenAsync(usuario, TipoToken.EMAIL_VERIFY, TimeSpan.FromMinutes(30),
+            "Verifica tu cuenta", "Tu código de verificación es", ct, numerico: true);
+        await usuarios.GuardarAsync(usuario, ct);
         return Mapear(usuario);
     }
 
@@ -84,8 +86,8 @@ public sealed class AutenticacionService(
         // Misma respuesta exista o no la cuenta, para no revelar qué correos están registrados.
         var usuario = await usuarios.ObtenerPorCorreoAsync((email ?? "").Trim().ToLowerInvariant(), ct);
         if (usuario is not null)
-            await CrearYEnviarTokenAsync(usuario, TipoToken.PASSWORD_RESET, TimeSpan.FromHours(1),
-                "Recupera tu contraseña", "Tu código de recuperación es", ct);
+            await CrearYEnviarTokenAsync(usuario, TipoToken.PASSWORD_RESET, TimeSpan.FromMinutes(30),
+                "Recupera tu contraseña", "Tu código de recuperación es", ct, numerico: true);
     }
 
     public async Task CambiarContrasenaAsync(CambiarContrasenaRequest request, CancellationToken ct = default)
@@ -141,11 +143,35 @@ public sealed class AutenticacionService(
     }
 
     private async Task CrearYEnviarTokenAsync(Usuario usuario, TipoToken tipo, TimeSpan duracion,
-        string asunto, string introduccion, CancellationToken ct)
+        string asunto, string introduccion, CancellationToken ct, bool numerico = false)
     {
-        var codigo = jwt.GenerarTokenSeguro();
+        var codigo = await GenerarCodigoLibreAsync(tipo, numerico, ct);
+        try
+        {
+            await correo.EnviarAsync(usuario.Correo, asunto, $"{introduccion}: {codigo}", ct);
+        }
+        catch (Exception ex) when (ex is not OperationCanceledException)
+        {
+            throw new AuthException("CORREO_NO_ENVIADO",
+                "No se pudo enviar el correo de verificación. Revisa que el correo sea correcto e inténtalo de nuevo en unos minutos.");
+        }
         await tokens.GuardarAsync(new TokenUsuario(usuario.Id, tipo, jwt.Hash(codigo), reloj.UtcNow.Add(duracion)), ct);
-        await correo.EnviarAsync(usuario.Correo, asunto, $"{introduccion}: {codigo}", ct);
+    }
+
+    /// <summary>
+    /// Los códigos de 6 dígitos se buscan solo por su hash, así que dos códigos vigentes iguales
+    /// confundirían a dos usuarios: se repite el sorteo hasta que no haya uno vigente igual.
+    /// </summary>
+    private async Task<string> GenerarCodigoLibreAsync(TipoToken tipo, bool numerico, CancellationToken ct)
+    {
+        for (var intento = 0; intento < 20; intento++)
+        {
+            var codigo = numerico ? jwt.GenerarCodigoNumerico() : jwt.GenerarTokenSeguro();
+            var existente = await tokens.ObtenerAsync(jwt.Hash(codigo), tipo, ct);
+            if (existente is null || !existente.EstaVigente(reloj.UtcNow))
+                return codigo;
+        }
+        throw new InvalidOperationException("No se pudo generar un código de verificación único.");
     }
 
     private static AuthException UsuarioNoEncontrado() =>

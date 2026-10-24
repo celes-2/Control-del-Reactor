@@ -86,7 +86,7 @@ public static class RegistroUsuariosExtensions
             host,
             config.GetValue("Smtp:Port", 1025),
             config["Smtp:From"] ?? "noreply@controlreactor.local",
-            config["Smtp:Username"],
+            config["Smtp:Username"] ?? config["Smtp:User"],
             config["Smtp:Password"]));
     }
 }
