@@ -151,7 +151,7 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::Reactor.Cliente.Arranque.CompositionRoot
   usarServidorFalso: 0
   iniciarEnAcceso: 0
-  escenaInicial: Configuracion
+  escenaInicial: Inicio
 --- !u!4 &702676005
 Transform:
   m_ObjectHideFlags: 0

@@ -16,7 +16,7 @@ namespace Reactor.Cliente.Arranque
     public sealed class VictoriaInstalador : MonoBehaviour
     {
         [Tooltip("Escena a la que se vuelve con el botón. Cuando exista la Sala de espera, cambiarla aquí.")]
-        [SerializeField] string escenaAlVolver = Escenas.Configuracion;
+        [SerializeField] string escenaAlVolver = Escenas.Inicio;
 
         [Tooltip("SOLO desarrollo: si no hay un resultado real, muestra uno de ejemplo para ver la pantalla.")]
         [SerializeField] bool usarResultadoDeEjemplo;

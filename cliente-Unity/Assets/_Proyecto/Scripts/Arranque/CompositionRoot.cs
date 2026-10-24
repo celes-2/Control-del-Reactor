@@ -29,6 +29,7 @@ namespace Reactor.Cliente.Arranque
         public IApiAuth Auth { get; private set; }
         public IAvatarCache Avatares { get; private set; }
         public IPreparadorImagen PreparadorImagen { get; private set; }
+        public IApiPerfil PerfilApi { get; private set; }
 
         /// <summary>Música de fondo. Se agrega como componente a este mismo objeto para asignar las pistas en el Inspector.</summary>
         public AudioService Audio { get; private set; }
@@ -51,12 +52,13 @@ namespace Reactor.Cliente.Arranque
             {
                 var falso = new SocketFalso();
                 // Si el flujo empieza en la sala de espera, la partida falsa también espera y luego se inicia.
-                falso.EmpezarEnSalaDeEspera = escenaInicial == Escenas.SalaEspera || escenaInicial == Escenas.Configuracion;
+                falso.EmpezarEnSalaDeEspera = escenaInicial == Escenas.SalaEspera || escenaInicial == Escenas.Configuracion || escenaInicial == Escenas.Inicio;
                 if (!iniciarEnAcceso)
                     Sesion.Iniciar("token-falso", SocketFalso.Jugador1, "Ana"); // en modo falso, el jugador local es Ana (anfitriona)
                 Socket = falso;
                 Api = new ApiPartidasFalsa();
                 Auth = new ApiAuthFalsa(SocketFalso.Jugador1);
+                PerfilApi = new ApiPerfilFalsa(SocketFalso.Jugador1);
                 Avatares = new AvatarCacheFalsa();
                 PreparadorImagen = new PreparadorImagenFalso();
                 gameObject.AddComponent<TecladoFalso>().Iniciar(falso);
@@ -72,6 +74,7 @@ namespace Reactor.Cliente.Arranque
                 Socket = new GameSocket(Config.UrlWebSocket, Sesion);
                 Api = new ApiPartidas(Config.Servidor, Sesion);
                 Auth = new ApiAuth(Config.Servidor, Sesion);
+                PerfilApi = new ApiPerfil(Config.Servidor, Sesion);
                 Avatares = new AvatarCache(Config.Servidor);
                 PreparadorImagen = new PreparadorImagenAvatar();
             }

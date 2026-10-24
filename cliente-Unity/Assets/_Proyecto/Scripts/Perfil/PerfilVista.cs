@@ -150,7 +150,7 @@ namespace Reactor.Cliente.Perfil
             botonSubir = ConstructorUI.CrearBoton(raiz, "Subir imagen", new Vector2(560f, -340f), new Vector2(380f, 80f),
                 ConstructorUI.Azul, () => SubirImagenPulsado?.Invoke(campoRuta.text));
 
-            botonContinuar = ConstructorUI.CrearBoton(raiz, "Continuar", new Vector2(-290f, -440f), new Vector2(520f, 90f),
+            botonContinuar = ConstructorUI.CrearBoton(raiz, "Volver", new Vector2(-290f, -440f), new Vector2(520f, 90f),
                 ConstructorUI.Verde, () => ContinuarPulsado?.Invoke());
             ConstructorUI.CrearBoton(raiz, "Cerrar sesión", new Vector2(290f, -440f), new Vector2(520f, 90f),
                 ConstructorUI.Gris, () => CerrarSesionPulsado?.Invoke());

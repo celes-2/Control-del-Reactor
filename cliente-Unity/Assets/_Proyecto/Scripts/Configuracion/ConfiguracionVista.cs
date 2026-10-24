@@ -72,8 +72,8 @@ namespace Reactor.Cliente.Configuracion
             var fondo = ConstructorUI.CrearImagen(raiz, "Fondo", null, ConstructorUI.Fondo);
             ConstructorUI.Estirar(fondo.rectTransform);
 
-            ConstructorUI.CrearTexto(raiz, "Titulo", 100, FontStyles.Bold, ConstructorUI.Dorado,
-                new Vector2(0f, 400f), new Vector2(1500f, 130f)).text = "CONFIGURACIÓN";
+            ConstructorUI.CrearTexto(raiz, "Titulo", 100, FontStyles.Bold, ConstructorUI.Arena,
+                new Vector2(0f, 400f), new Vector2(1500f, 130f)).text = "CONFIGURACION";
 
             var panel = ConstructorUI.CrearImagen(raiz, "Panel", null, ConstructorUI.Panel);
             ConstructorUI.Colocar(panel.rectTransform, new Vector2(0f, 60f), new Vector2(1500f, 560f));
