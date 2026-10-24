@@ -149,9 +149,9 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 227a7dda60dd2034d80527875dbdda45, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::Reactor.Cliente.Arranque.CompositionRoot
-  usarServidorFalso: 1
-  iniciarEnAcceso: 1
-  escenaInicial: Configuracion
+  usarServidorFalso: 0
+  iniciarEnAcceso: 0
+  escenaInicial: Inicio
 --- !u!4 &702676005
 Transform:
   m_ObjectHideFlags: 0
