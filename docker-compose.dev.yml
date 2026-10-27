@@ -1,0 +1,20 @@
+# Se usa junto con el archivo base:
+#   docker compose -f docker-compose.yml -f docker-compose.dev.yml up --build
+# Agrega MailHog, un servidor SMTP falso: los correos de verificación y de
+# recuperación de contraseña se ven en http://localhost:8025 sin enviar nada real.
+services:
+  mailhog:
+    image: mailhog/mailhog
+    ports:
+      - "1025:1025"       # SMTP
+      - "8025:8025"       # interfaz web para leer los correos
+
+  backend:
+    depends_on:
+      - mailhog
+    environment:
+      Smtp__Host: mailhog
+      Smtp__Port: 1025
+      Smtp__User: ""
+      Smtp__Password: ""
+      ASPNETCORE_ENVIRONMENT: Development

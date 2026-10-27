@@ -1,0 +1,79 @@
+# Pipeline de CI (Azure Pipelines). Va en la raíz de Control-del-Reactor.
+# Se ejecuta en cada push a develop, main y ramas de módulo (feature/*),
+# y en cada Pull Request hacia develop o main.
+trigger:
+  branches:
+    include:
+      - develop
+      - main
+      - feature/*
+
+pr:
+  branches:
+    include:
+      - develop
+      - main
+
+pool:
+  vmImage: ubuntu-latest
+
+variables:
+  buildConfiguration: Release
+  serverPath: Servidor   # Linux distingue mayúsculas: debe coincidir EXACTO con el nombre de la carpeta
+
+stages:
+  - stage: BuildTest
+    displayName: Compilar y probar
+    jobs:
+      - job: build_test
+        displayName: build-test
+        steps:
+          - task: UseDotNet@2
+            displayName: Instalar .NET 10
+            inputs:
+              packageType: sdk
+              version: 10.0.x
+
+          - task: DotNetCoreCLI@2
+            displayName: Restaurar paquetes
+            inputs:
+              command: restore
+              projects: $(serverPath)/**/*.csproj
+
+          - task: DotNetCoreCLI@2
+            displayName: Compilar
+            inputs:
+              command: build
+              projects: $(serverPath)/**/*.csproj
+              arguments: --configuration $(buildConfiguration) --no-restore
+
+          # Necesita al menos un proyecto de pruebas dentro de Servidor/Pruebas.
+          # Los resultados se publican en la pestaña "Tests" de la ejecución.
+          - task: DotNetCoreCLI@2
+            displayName: Ejecutar pruebas
+            inputs:
+              command: test
+              projects: $(serverPath)/Pruebas/**/*.csproj
+              arguments: --configuration $(buildConfiguration) --no-build
+              publishTestResults: true
+
+  - stage: Docker
+    displayName: Imagen Docker
+    dependsOn: BuildTest
+    condition: succeeded()
+    jobs:
+      - job: docker
+        displayName: docker
+        steps:
+          - script: |
+              docker build \
+                -f $(serverPath)/src/API/Dockerfile \
+                -t reactor-backend:$(Build.BuildId) \
+                $(serverPath)
+            displayName: Construir la imagen del backend
+
+          - script: |
+              cp .env.example .env
+              docker compose config --quiet
+              docker compose -f docker-compose.yml -f docker-compose.dev.yml config --quiet
+            displayName: Validar los archivos de Docker Compose

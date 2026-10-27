@@ -1,10 +1,89 @@
-# Archivos generados por .NET
-**/bin/
-**/obj/
+# ============================================================
+# Control del Reactor - .gitignore (raíz del repositorio)
+# ============================================================
 
-# Configuración local
-.vs/
-*.user
-*.suo
+# ---------- .NET (Servidor) ----------
 bin/
 obj/
+[Dd]ebug/
+[Rr]elease/
+TestResults/
+*.user
+*.suo
+*.userprefs
+.vs/
+.idea/
+*.log
+*.nupkg
+publish/
+
+# ---------- Secretos y entorno ----------
+.env
+*.env.local
+appsettings.Local.json
+appsettings.Secrets.json
+
+# ---------- Datos de ejecución (JSON de persistencia) ----------
+# Los datos iniciales viven en Servidor/Data/seed y SÍ se versionan.
+Servidor/Data/*.json
+Servidor/Data/*.bak
+Servidor/Data/*.tmp
+
+# ---------- Unity (cliente-Unity) ----------
+cliente-Unity/[Ll]ibrary/
+cliente-Unity/[Tt]emp/
+cliente-Unity/[Oo]bj/
+cliente-Unity/[Bb]uild/
+cliente-Unity/[Bb]uilds/
+cliente-Unity/[Ll]ogs/
+cliente-Unity/[Uu]ser[Ss]ettings/
+cliente-Unity/[Mm]emoryCaptures/
+cliente-Unity/.vs/
+cliente-Unity/.gradle/
+# Archivos que Unity regenera para el IDE
+cliente-Unity/**/*.csproj
+cliente-Unity/**/*.sln
+cliente-Unity/**/*.slnx
+cliente-Unity/**/*.pidb
+cliente-Unity/**/*.booproj
+cliente-Unity/**/*.apk
+cliente-Unity/**/*.aab
+cliente-Unity/**/*.unitypackage
+# OJO: los archivos .meta SÍ se versionan (Unity los necesita).
+
+# ---------- Hardware (Raspberry Pi Pico W / MicroPython) ----------
+__pycache__/
+*.pyc
+.venv/
+venv/
+# Credenciales Wi-Fi/MQTT del dispositivo: nunca al repositorio
+Hardware/**/secrets.py
+Hardware/**/config_local.py
+
+# ---------- Sistema operativo y editores ----------
+.DS_Store
+Thumbs.db
+desktop.ini
+.vscode/*
+!.vscode/extensions.json
+!.vscode/settings.json
+*.swp
+*~
+// Cliente Unity
+# Unity
+cliente-Unity/[Ll]ibrary/
+cliente-Unity/[Tt]emp/
+cliente-Unity/[Oo]bj/
+cliente-Unity/[Bb]uild/
+cliente-Unity/[Bb]uilds/
+cliente-Unity/[Ll]ogs/
+cliente-Unity/[Uu]ser[Ss]ettings/
+cliente-Unity/.vs/
+cliente-Unity/.vscode/
+cliente-Unity/*.csproj
+cliente-Unity/*.sln
+cliente-Unity/*.slnx
+Hardware/config.py
+
+# Claves de Mosquitto (no se versionan)
+mosquitto/passwd

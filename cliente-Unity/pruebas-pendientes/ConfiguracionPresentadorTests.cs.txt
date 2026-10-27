@@ -1,0 +1,152 @@
+using System;
+using System.Collections;
+using System.Threading.Tasks;
+using NUnit.Framework;
+using Reactor.Cliente.Presentadores;
+using Reactor.Cliente.Servicios;
+using UnityEngine.TestTools;
+
+namespace Reactor.Cliente.Tests
+{
+    public class ConfiguracionPresentadorTests
+    {
+        sealed class VistaFalsa : IConfiguracionVista
+        {
+            public event Action<CampoAjuste, int> AjusteCambiado;
+            public event Action<ModoFin> ModoElegido;
+            public event Action CrearPulsado;
+            public event Action UnirsePulsado;
+            public ModoFin Modo;
+            public string Etiqueta, Valor, Congelamiento, Jugadores, Aviso;
+            public bool Bloqueado;
+
+            public void MostrarModo(ModoFin modo) => Modo = modo;
+            public void MostrarValor(string etiqueta, string valor) { Etiqueta = etiqueta; Valor = valor; }
+            public void MostrarCongelamiento(string valor) => Congelamiento = valor;
+            public void MostrarJugadores(string valor) => Jugadores = valor;
+            public void BloquearCrear(bool bloqueado) => Bloqueado = bloqueado;
+            public void MostrarAviso(string texto) => Aviso = texto;
+
+            public void Cambiar(CampoAjuste campo, int direccion) => AjusteCambiado?.Invoke(campo, direccion);
+            public void Elegir(ModoFin modo) => ModoElegido?.Invoke(modo);
+            public void Crear() => CrearPulsado?.Invoke();
+            public void Unirse() => UnirsePulsado?.Invoke();
+        }
+
+        sealed class ApiFalsa : IApiPartidas
+        {
+            public Exception Fallo;
+            public AjustesPartida Recibidos;
+            public Task<string> CrearPartidaAsync(string usuarioId, AjustesPartida ajustes)
+            {
+                Recibidos = ajustes;
+                return Fallo != null ? Task.FromException<string>(Fallo) : Task.FromResult("p-1");
+            }
+            public Task<System.Collections.Generic.IReadOnlyList<PartidaAbierta>> ListarAbiertasAsync() =>
+                Task.FromResult<System.Collections.Generic.IReadOnlyList<PartidaAbierta>>(new System.Collections.Generic.List<PartidaAbierta>());
+        }
+
+        sealed class AlmacenFalso : IAlmacenAjustes
+        {
+            public AjustesPartida Guardado = new AjustesPartida();
+            public bool SeGuardo;
+            public AjustesPartida Cargar() => Guardado.Copia();
+            public void Guardar(AjustesPartida ajustes) { Guardado = ajustes.Copia(); SeGuardo = true; }
+        }
+
+        [Test]
+        public void AlIniciar_MuestraLosAjustesGuardadosDeLaUltimaPartida()
+        {
+            var almacen = new AlmacenFalso { Guardado = new AjustesPartida { Modo = ModoFin.Puntos, PuntosObjetivo = 40 } };
+            var vista = new VistaFalsa();
+            new ConfiguracionPresentador(vista, new ApiFalsa(), almacen, "u1", _ => { }).Iniciar();
+
+            Assert.AreEqual(ModoFin.Puntos, vista.Modo);
+            Assert.AreEqual("40 puntos", vista.Valor);
+        }
+
+        [Test]
+        public void ElModoPorTiempo_MuestraLaDuracionEnMinutos()
+        {
+            var vista = new VistaFalsa();
+            new ConfiguracionPresentador(vista, new ApiFalsa(), new AlmacenFalso(), "u1", _ => { }).Iniciar();
+
+            Assert.AreEqual("3:00", vista.Valor);
+            vista.Cambiar(CampoAjuste.Valor, 1);
+            Assert.AreEqual("3:30", vista.Valor);
+        }
+
+        [Test]
+        public void LosValoresNoSalenDeSusLimites()
+        {
+            var vista = new VistaFalsa();
+            var presentador = new ConfiguracionPresentador(vista, new ApiFalsa(), new AlmacenFalso(), "u1", _ => { });
+            presentador.Iniciar();
+
+            for (var i = 0; i < 30; i++) vista.Cambiar(CampoAjuste.Congelamiento, -1);
+            for (var i = 0; i < 30; i++) vista.Cambiar(CampoAjuste.Jugadores, 1);
+
+            Assert.AreEqual(AjustesPartida.MinCongelamiento, presentador.Ajustes.SegundosCongelamiento);
+            Assert.AreEqual(AjustesPartida.MaxJugadoresPermitidos, presentador.Ajustes.MaxJugadores);
+        }
+
+        [UnityTest]
+        public IEnumerator CrearPartida_EnviaLosAjustes_GuardaYAvisaElId()
+        {
+            var api = new ApiFalsa();
+            var almacen = new AlmacenFalso();
+            string creada = null;
+            var vista = new VistaFalsa();
+            new ConfiguracionPresentador(vista, api, almacen, "u1", id => creada = id).Iniciar();
+            vista.Elegir(ModoFin.Puntos);
+
+            vista.Crear();
+            yield return null;
+
+            Assert.AreEqual("p-1", creada);
+            Assert.AreEqual(ModoFin.Puntos, api.Recibidos.Modo);
+            Assert.IsTrue(almacen.SeGuardo);
+        }
+
+        [UnityTest]
+        public IEnumerator SiElServidorRechaza_MuestraElMensajeYNoAvanza()
+        {
+            var api = new ApiFalsa { Fallo = new ApiException("Debe elegir un avatar antes de jugar.") };
+            string creada = null;
+            var vista = new VistaFalsa();
+            new ConfiguracionPresentador(vista, api, new AlmacenFalso(), "u1", id => creada = id).Iniciar();
+
+            vista.Crear();
+            yield return null;
+
+            Assert.IsNull(creada);
+            Assert.AreEqual("Debe elegir un avatar antes de jugar.", vista.Aviso);
+            Assert.IsFalse(vista.Bloqueado);
+        }
+
+        [Test]
+        public void AlPulsarUnirse_AbreLaPantallaDeUnirse()
+        {
+            var vista = new VistaFalsa();
+            var abierta = false;
+            new ConfiguracionPresentador(vista, new ApiFalsa(), new AlmacenFalso(), "u1", _ => { }, () => abierta = true).Iniciar();
+
+            vista.Unirse();
+
+            Assert.IsTrue(abierta);
+        }
+
+        [Test]
+        public void SinUsuario_NoCreaYPideIniciarSesion()
+        {
+            var vista = new VistaFalsa();
+            var api = new ApiFalsa();
+            new ConfiguracionPresentador(vista, api, new AlmacenFalso(), null, _ => { }).Iniciar();
+
+            vista.Crear();
+
+            Assert.IsNull(api.Recibidos);
+            Assert.AreEqual("Primero debes iniciar sesión.", vista.Aviso);
+        }
+    }
+}

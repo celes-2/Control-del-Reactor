@@ -1,0 +1,134 @@
+using System;
+using System.Collections;
+using NUnit.Framework;
+using Reactor.Cliente.Presentadores;
+using Reactor.Cliente.Servicios;
+using Reactor.Cliente.Servicios.Falsos;
+using UnityEngine.TestTools;
+
+namespace Reactor.Cliente.Tests
+{
+    // Usa ApiAuthFalsa: ya existe la cuenta "ana" / "Clave#1234" (verificada); el código de verificación es 123456.
+    public class AccesoPresentadorTests
+    {
+        sealed class VistaFalsa : IAccesoVista
+        {
+            public event Action<string, string> LoginPulsado;
+            public event Action<string, string, string, string> RegistroPulsado;
+            public event Action<string> VerificarPulsado;
+            public event Action<string> OlvidePulsado;
+            public event Action<string, string, string> RestablecerPulsado;
+            public event Action<ModoAcceso> ModoPulsado;
+            public ModoAcceso Modo;
+            public string Aviso;
+            public bool AvisoEsExito;
+
+            public void MostrarModo(ModoAcceso modo) => Modo = modo;
+            public void MostrarAviso(string texto, bool exito) { Aviso = texto; AvisoEsExito = exito; }
+            public void Bloquear(bool bloqueado) { }
+            public void LimpiarClaves() { }
+            public void Prellenar(string usuarioOCorreo) { }
+            public void Login(string u, string c) => LoginPulsado?.Invoke(u, c);
+            public void Registro(string u, string e, string c, string f) => RegistroPulsado?.Invoke(u, e, c, f);
+            public void Verificar(string codigo) => VerificarPulsado?.Invoke(codigo);
+        }
+
+        static IEnumerator Esperar()
+        {
+            for (var i = 0; i < 4; i++) yield return null;
+        }
+
+        [UnityTest]
+        public IEnumerator Login_Correcto_EntregaLaSesion()
+        {
+            var vista = new VistaFalsa();
+            SesionIniciada sesion = null;
+            new AccesoPresentador(vista, new ApiAuthFalsa("id-local"), s => sesion = s).Iniciar();
+
+            vista.Login("ana", "Clave#1234");
+            yield return Esperar();
+
+            Assert.NotNull(sesion);
+            Assert.AreEqual("ana", sesion.Nombre);
+        }
+
+        [UnityTest]
+        public IEnumerator Login_ContrasenaIncorrecta_MuestraElErrorYNoEntra()
+        {
+            var vista = new VistaFalsa();
+            var entro = false;
+            new AccesoPresentador(vista, new ApiAuthFalsa("id-local"), _ => entro = true).Iniciar();
+
+            vista.Login("ana", "otra");
+            yield return Esperar();
+
+            Assert.IsFalse(entro);
+            Assert.IsFalse(vista.AvisoEsExito);
+            StringAssert.Contains("incorrectos", vista.Aviso);
+        }
+
+        [UnityTest]
+        public IEnumerator Login_CamposVacios_NoLlamaAlServidor()
+        {
+            var vista = new VistaFalsa();
+            var entro = false;
+            new AccesoPresentador(vista, new ApiAuthFalsa("id-local"), _ => entro = true).Iniciar();
+
+            vista.Login("", "");
+            yield return Esperar();
+
+            Assert.IsFalse(entro);
+            Assert.IsFalse(vista.AvisoEsExito);
+        }
+
+        [UnityTest]
+        public IEnumerator Registro_Valido_PasaALaVerificacion()
+        {
+            var vista = new VistaFalsa();
+            new AccesoPresentador(vista, new ApiAuthFalsa("id-local"), _ => { }).Iniciar();
+
+            vista.Registro("beto", "beto@correo.com", "Clave#1234", "Clave#1234");
+            yield return Esperar();
+
+            Assert.AreEqual(ModoAcceso.Verificar, vista.Modo);
+        }
+
+        [UnityTest]
+        public IEnumerator Registro_ContrasenaDebil_MuestraElError()
+        {
+            var vista = new VistaFalsa();
+            new AccesoPresentador(vista, new ApiAuthFalsa("id-local"), _ => { }).Iniciar();
+
+            vista.Registro("beto", "beto@correo.com", "debil", "debil");
+            yield return Esperar();
+
+            Assert.AreNotEqual(ModoAcceso.Verificar, vista.Modo);
+            Assert.IsFalse(vista.AvisoEsExito);
+        }
+
+        [UnityTest]
+        public IEnumerator Verificar_CodigoCorrecto_VuelveAlLogin()
+        {
+            var vista = new VistaFalsa();
+            new AccesoPresentador(vista, new ApiAuthFalsa("id-local"), _ => { }).Iniciar();
+
+            vista.Verificar(ApiAuthFalsa.CodigoFalso);
+            yield return Esperar();
+
+            Assert.AreEqual(ModoAcceso.Login, vista.Modo);
+            Assert.IsTrue(vista.AvisoEsExito);
+        }
+
+        [UnityTest]
+        public IEnumerator Verificar_CodigoIncorrecto_MuestraElError()
+        {
+            var vista = new VistaFalsa();
+            new AccesoPresentador(vista, new ApiAuthFalsa("id-local"), _ => { }).Iniciar();
+
+            vista.Verificar("000000");
+            yield return Esperar();
+
+            Assert.IsFalse(vista.AvisoEsExito);
+        }
+    }
+}

@@ -1,0 +1,36 @@
+services:
+  backend:
+    build:
+      context: ./Servidor
+      dockerfile: src/API/Dockerfile
+    depends_on:
+      - mosquitto
+    environment:
+      Jwt__Secret: ${JWT_SECRET}
+      Mqtt__Host: mosquitto
+      Mqtt__Port: 1883
+      Mqtt__Username: ${MQTT_USER}
+      Mqtt__Password: ${MQTT_PASSWORD}
+      Smtp__Host: ${SMTP_HOST}
+      Smtp__Port: ${SMTP_PORT}
+      Smtp__Username: ${SMTP_USER}
+      Smtp__Password: ${SMTP_PASSWORD}
+      Smtp__From: ${SMTP_FROM}
+      PublicBaseUrl: ${PUBLIC_BASE_URL}
+    ports:
+      - "8080:8080"       # REST y WebSocket (Unity se conecta aquí)
+    volumes:
+      - reactor-data:/app/data   # archivos JSON y avatares: sobreviven a reinicios
+    restart: unless-stopped
+
+  mosquitto:
+    image: eclipse-mosquitto:2
+    ports:
+      - "1883:1883"       # la Pico W publica aquí
+    volumes:
+      - ./mosquitto/mosquitto.conf:/mosquitto/config/mosquitto.conf:ro
+      - ./mosquitto/passwd:/mosquitto/config/passwd:ro
+    restart: unless-stopped
+
+volumes:
+  reactor-data:

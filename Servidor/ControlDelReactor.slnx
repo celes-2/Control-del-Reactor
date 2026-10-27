@@ -1,0 +1,15 @@
+<Solution>
+  <Folder Name="/Pruebas/">
+    <Project Path="Pruebas/Pruebas.API/Pruebas.API.csproj" />
+    <Project Path="Pruebas/Pruebas.Dominio/Pruebas.Dominio.csproj" />
+    <Project Path="Pruebas/Pruebas.Infraestructura/Pruebas.Infraestructura.csproj" />
+    <Project Path="Pruebas/Pruebas_Aplicacion/Pruebas_Aplicacion.csproj" />
+  </Folder>
+  <Folder Name="/src/">
+    <Project Path="src/API/API.csproj" />
+    <Project Path="src/Aplicacion/Aplicacion.csproj" />
+    <Project Path="src/Contratos/Contratos.csproj" />
+    <Project Path="src/Dominio/Dominio.csproj" />
+    <Project Path="src/Infraestructura/Infraestructura.csproj" />
+  </Folder>
+</Solution>
