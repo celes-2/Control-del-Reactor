@@ -119,6 +119,7 @@ namespace Reactor.Cliente.Presentadores
             if (m == null || !jugadores.TryGetValue(m.JugadorId ?? "", out var j)) return;
             j.Puntaje = m.Puntaje;
             vista.ActualizarMarcador(jugadores.Values);
+            vista.OcultarRechazo(); // una extracción válida borra el "Espera un momento" anterior
             if (m.Puntos > 0) vista.MostrarAccion(m.JugadorId, $"+{m.Puntos}");
             vista.MostrarReactor(m.EnergiaReactor, capacidadReactor, m.EstadoReactor);
         }
@@ -127,7 +128,7 @@ namespace Reactor.Cliente.Presentadores
         void AlRechazar(JugadorRechazadoMsg m)
         {
             if (m == null) return;
-            vista.MostrarAviso(TextosRechazo.Para(m.Codigo));
+            vista.MostrarRechazo(TextosRechazo.Para(m.Codigo));
         }
 
         void AlCambiarPuntaje(PuntajeMsg m)

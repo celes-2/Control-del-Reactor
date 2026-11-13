@@ -108,6 +108,10 @@ public void MostrarJugador(JugadorMsg jugador)
 
         public void MostrarAviso(string texto) => hud.MostrarAviso(texto);
 
+        public void MostrarRechazo(string texto) => hud.MostrarRechazo(texto);
+
+        public void OcultarRechazo() => hud.OcultarRechazo();
+
         public void MostrarReactor(int energia, int capacidad, string estado) => hud.MostrarReactor(energia, capacidad, estado);
     }
 }

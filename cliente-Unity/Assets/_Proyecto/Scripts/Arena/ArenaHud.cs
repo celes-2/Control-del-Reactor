@@ -15,6 +15,7 @@ namespace Reactor.Cliente.Arena
     public sealed class ArenaHud : MonoBehaviour
     {
         const float DuracionAviso = 3f;
+        const float DuracionRechazo = 1.2f;
 
         [Header("Opcional: textos de un Canvas diseñado en la escena")]
         [SerializeField] TextMeshProUGUI temporizador;
@@ -29,6 +30,7 @@ namespace Reactor.Cliente.Arena
         [SerializeField] GameObject panelAviso;
 
         Coroutine rutinaAviso;
+        bool avisoEsRechazo;
 
         GameObject ContenedorAviso => panelAviso != null ? panelAviso : aviso.gameObject;
 
@@ -83,10 +85,26 @@ namespace Reactor.Cliente.Arena
             reactor.color = color;
         }
 
-        public void MostrarAviso(string texto, float duracion = DuracionAviso)
+        public void MostrarAviso(string texto, float duracion = DuracionAviso) => Mostrar(texto, duracion, false);
+
+        /// <summary>Rechazo de una acción (player:rejected): aviso corto que se quita solo.</summary>
+        public void MostrarRechazo(string texto) => Mostrar(texto, DuracionRechazo, true);
+
+        /// <summary>Quita el aviso solo si es un rechazo (por ejemplo, cuando la siguiente extracción sí funciona).</summary>
+        public void OcultarRechazo()
+        {
+            if (!avisoEsRechazo) return;
+            if (rutinaAviso != null) StopCoroutine(rutinaAviso);
+            rutinaAviso = null;
+            avisoEsRechazo = false;
+            ContenedorAviso.SetActive(false);
+        }
+
+        void Mostrar(string texto, float duracion, bool esRechazo)
         {
             if (string.IsNullOrWhiteSpace(texto)) return;
             if (rutinaAviso != null) StopCoroutine(rutinaAviso);
+            avisoEsRechazo = esRechazo;
             rutinaAviso = StartCoroutine(RutinaAviso(texto, duracion));
         }
 
@@ -96,6 +114,7 @@ namespace Reactor.Cliente.Arena
             ContenedorAviso.SetActive(true);
             yield return new WaitForSeconds(duracion);
             ContenedorAviso.SetActive(false);
+            avisoEsRechazo = false;
             rutinaAviso = null;
         }
 
