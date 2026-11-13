@@ -2,6 +2,7 @@ using System.Collections;
 using TMPro;
 using UnityEngine;
 using UnityEngine.UI;
+using Reactor.Cliente.Contratos;
 
 namespace Reactor.Cliente.Arena
 {
@@ -20,6 +21,9 @@ namespace Reactor.Cliente.Arena
         [SerializeField] TextMeshProUGUI estado;
         [SerializeField] TextMeshProUGUI marcador;
         [SerializeField] TextMeshProUGUI aviso;
+
+        [Tooltip("Opcional: indicador de energia y estado del reactor (Sprint 3). Si esta vacio y el HUD se genera por codigo, se crea uno.")]
+        [SerializeField] TextMeshProUGUI reactor;
 
         [Tooltip("Objeto que se enciende/apaga con el aviso (por ejemplo, un panel con fondo). Si está vacío se usa el texto.")]
         [SerializeField] GameObject panelAviso;
@@ -54,6 +58,7 @@ namespace Reactor.Cliente.Arena
             marcador = CrearTexto(raiz, "Marcador", new Vector2(1f, 1f), new Vector2(-32f, -32f), new Vector2(520f, 320f), 34, TextAlignmentOptions.TopRight);
             aviso = CrearTexto(raiz, "Aviso", new Vector2(0.5f, 0.5f), Vector2.zero, new Vector2(1400f, 140f), 72, TextAlignmentOptions.Center);
             aviso.color = new Color(1f, 0.92f, 0.3f);
+            reactor = CrearTexto(raiz, "Reactor", new Vector2(0.5f, 0f), new Vector2(0f, 32f), new Vector2(700f, 70f), 40, TextAlignmentOptions.Center);
             ContenedorAviso.SetActive(false);
         }
 
@@ -61,18 +66,35 @@ namespace Reactor.Cliente.Arena
         public void MostrarEstado(string texto) => estado.text = texto;
         public void MostrarMarcador(string texto) => marcador.text = texto;
 
-        public void MostrarAviso(string texto)
+        public void MostrarReactor(int energia, int capacidad, string estado)
+        {
+            if (reactor == null) return;
+
+            string etiqueta;
+            Color color;
+            switch (estado)
+            {
+                case EstadosReactor.Desactivado: etiqueta = "SOBRECARGA"; color = new Color(1f, 0.35f, 0.3f); break;
+                case EstadosReactor.Vacio: etiqueta = "VACÍO"; color = new Color(0.7f, 0.7f, 0.7f); break;
+                default: etiqueta = "ACTIVO"; color = new Color(0.4f, 1f, 0.5f); break;
+            }
+
+            reactor.text = $"REACTOR {energia}/{capacidad}  {etiqueta}";
+            reactor.color = color;
+        }
+
+        public void MostrarAviso(string texto, float duracion = DuracionAviso)
         {
             if (string.IsNullOrWhiteSpace(texto)) return;
             if (rutinaAviso != null) StopCoroutine(rutinaAviso);
-            rutinaAviso = StartCoroutine(RutinaAviso(texto));
+            rutinaAviso = StartCoroutine(RutinaAviso(texto, duracion));
         }
 
-        IEnumerator RutinaAviso(string texto)
+        IEnumerator RutinaAviso(string texto, float duracion)
         {
             aviso.text = texto;
             ContenedorAviso.SetActive(true);
-            yield return new WaitForSeconds(DuracionAviso);
+            yield return new WaitForSeconds(duracion);
             ContenedorAviso.SetActive(false);
             rutinaAviso = null;
         }

@@ -9,7 +9,8 @@ namespace Reactor.Cliente.Servicios.Falsos
     /// <summary>
     /// Imita al servidor autoritativo para desarrollar la arena sin backend ni hardware.
     /// Aplica las mismas reglas que el dominio: bordes, muros, reactor y otros jugadores
-    /// bloquean; cada movimiento válido suma 1 punto; en empate se suman 2 minutos.
+    /// bloquean; moverse NO da puntos (Sprint 3); ACCIÓN extrae energía si el jugador está junto al reactor
+    /// (+1 punto por unidad, 10 por extracción, enfriamiento de 1 s); en empate se suman 2 minutos.
     /// SOLO para desarrollo: en la versión real esto lo decide el servidor.
     /// </summary>
     public sealed class SocketFalso : IGameSocket
@@ -27,9 +28,9 @@ namespace Reactor.Cliente.Servicios.Falsos
             "WS...........SW",
             "W..WW.....WW..W",
             "W..W.......W..W",
-            "W......W......W",
-            "W.....WRW.....W",
-            "W......W......W",
+            "W.............W",
+            "W......R......W",
+            "W.............W",
             "W..W.......W..W",
             "W..WW.....WW..W",
             "WS...........SW",
@@ -37,6 +38,15 @@ namespace Reactor.Cliente.Servicios.Falsos
         };
 
         const float SegundosParaQueEntreBeto = 3f;
+
+        // Reactor (mismos valores que ConfigPartida del servidor).
+        const int CapacidadReactor = 500;
+        const int EnergiaPorExtraccion = 10;
+        const int RegeneracionPorSegundo = 5;
+        const int SegundosEnfriamiento = 1;
+
+        int energiaReactor = CapacidadReactor;
+        readonly Dictionary<string, int> ultimaExtraccion = new Dictionary<string, int>();
 
         readonly Dictionary<string, JugadorMsg> jugadores = new Dictionary<string, JugadorMsg>();
         EstadoPartidaMsg estado;
@@ -57,6 +67,8 @@ namespace Reactor.Cliente.Servicios.Falsos
         public event Action<PuntajeMsg> PuntajeCambiado;
         public event Action<TickMsg> Tick;
         public event Action<TiempoExtraMsg> TiempoExtra;
+        public event Action<JugadorExtrajoMsg> JugadorExtrajo;
+        public event Action<JugadorRechazadoMsg> JugadorRechazado;
         public event Action<PartidaFinalizadaMsg> PartidaFinalizada;
         public event Action<string> Error;
 
@@ -101,6 +113,8 @@ namespace Reactor.Cliente.Servicios.Falsos
             };
             acumulado = 0f;
             esperaAcumulada = 0f;
+            energiaReactor = CapacidadReactor;
+            ultimaExtraccion.Clear();
 
             Conectado?.Invoke();
             EmitirEstado();
@@ -119,7 +133,7 @@ namespace Reactor.Cliente.Servicios.Falsos
 
             if (boton == Botones.Accion)
             {
-                JugadorActuo?.Invoke(new JugadorActuoMsg { JugadorId = jugadorId, Mensaje = "¡Acción!" });
+                Extraer(jugador);
                 return;
             }
 
@@ -132,13 +146,54 @@ namespace Reactor.Cliente.Servicios.Falsos
 
             jugador.X = nx;
             jugador.Y = ny;
-            jugador.Puntaje++;
+            // Moverse ya no da puntos: solo extraer energía del reactor los da.
 
             JugadorMovido?.Invoke(new JugadorMovidoMsg { JugadorId = jugadorId, X = nx, Y = ny, Puntaje = jugador.Puntaje });
-            PuntajeCambiado?.Invoke(new PuntajeMsg { JugadorId = jugadorId, Puntaje = jugador.Puntaje });
+        }
+
+        /// <summary>Imita Partida.Extraer del servidor: mismas condiciones, mismos códigos de rechazo.</summary>
+        void Extraer(JugadorMsg jugador)
+        {
+            var reactor = BuscarReactor();
+            var distancia = Math.Abs(jugador.X - reactor.x) + Math.Abs(jugador.Y - reactor.y);
+
+            if (distancia != 1) { Rechazar(jugador.Id, "LEJOS_DEL_REACTOR"); return; }
+            if (energiaReactor <= 0) { Rechazar(jugador.Id, "REACTOR_VACIO"); return; }
+            if (ultimaExtraccion.TryGetValue(jugador.Id, out var ultima) &&
+                estado.SegundosTranscurridos - ultima < SegundosEnfriamiento)
+            {
+                Rechazar(jugador.Id, "ENFRIAMIENTO");
+                return;
+            }
+
+            var energia = Math.Min(EnergiaPorExtraccion, energiaReactor);
+            energiaReactor -= energia;
+            jugador.Puntaje += energia; // 1 punto por unidad de energía
+            ultimaExtraccion[jugador.Id] = estado.SegundosTranscurridos;
+
+            JugadorExtrajo?.Invoke(new JugadorExtrajoMsg
+            {
+                JugadorId = jugador.Id,
+                Puntos = energia,
+                Puntaje = jugador.Puntaje,
+                EnergiaJugador = energia,
+                EnergiaReactor = energiaReactor,
+                EstadoReactor = EstadoDelReactor(),
+                IdEvento = "falso:" + estado.SegundosTranscurridos,
+            });
 
             if (EsModo(ModosFin.Puntos) && jugador.Puntaje >= estado.ValorFin) Finalizar();
         }
+
+        void Rechazar(string jugadorId, string codigo) =>
+            JugadorRechazado?.Invoke(new JugadorRechazadoMsg
+            {
+                JugadorId = jugadorId,
+                Codigo = codigo,
+                Mensaje = TextosRechazo.Para(codigo),
+            });
+
+        string EstadoDelReactor() => energiaReactor <= 0 ? EstadosReactor.Vacio : EstadosReactor.Disponible;
 
         public void Enviar(string tipo, object datos)
         {
@@ -169,6 +224,7 @@ namespace Reactor.Cliente.Servicios.Falsos
         void EmitirEstado()
         {
             estado.Jugadores = jugadores.Values.Select(Copiar).ToList();
+            estado.Reactor = new ReactorMsg { Energia = energiaReactor, Capacidad = CapacidadReactor, Estado = EstadoDelReactor() };
             EstadoRecibido?.Invoke(estado);
         }
 
@@ -199,6 +255,7 @@ namespace Reactor.Cliente.Servicios.Falsos
             {
                 acumulado -= 1f;
                 estado.SegundosTranscurridos++;
+                energiaReactor = Math.Min(CapacidadReactor, energiaReactor + RegeneracionPorSegundo);
                 if (EsModo(ModosFin.Tiempo)) estado.SegundosRestantes = Math.Max(0, estado.SegundosRestantes - 1);
 
                 Tick?.Invoke(new TickMsg { SegundosRestantes = estado.SegundosRestantes, SegundosTranscurridos = estado.SegundosTranscurridos });
@@ -256,6 +313,14 @@ namespace Reactor.Cliente.Servicios.Falsos
 
         bool EstaOcupada(int x, int y, string excepto) =>
             jugadores.Values.Any(j => j.Id != excepto && j.X == x && j.Y == y);
+
+        static (int x, int y) BuscarReactor()
+        {
+            for (int y = 0; y < Mapa.Length; y++)
+                for (int x = 0; x < Mapa[y].Length; x++)
+                    if (Mapa[y][x] == Celdas.Reactor) return (x, y);
+            return (-1, -1);
+        }
 
         static List<Vector2Int> BuscarInicios()
         {

@@ -24,6 +24,8 @@ namespace Reactor.Cliente.Servicios
         public event Action<EstadoPartidaMsg> EstadoRecibido;
         public event Action<JugadorMovidoMsg> JugadorMovido;
         public event Action<JugadorActuoMsg> JugadorActuo;
+        public event Action<JugadorExtrajoMsg> JugadorExtrajo;
+        public event Action<JugadorRechazadoMsg> JugadorRechazado;
         public event Action<PuntajeMsg> PuntajeCambiado;
         public event Action<TickMsg> Tick;
         public event Action<TiempoExtraMsg> TiempoExtra;
@@ -136,6 +138,8 @@ namespace Reactor.Cliente.Servicios
                     case TiposMensaje.Estado: EstadoRecibido?.Invoke(datos.ToObject<EstadoPartidaMsg>()); break;
                     case TiposMensaje.JugadorMovido: JugadorMovido?.Invoke(datos.ToObject<JugadorMovidoMsg>()); break;
                     case TiposMensaje.JugadorActuo: JugadorActuo?.Invoke(datos.ToObject<JugadorActuoMsg>()); break;
+                    case TiposMensaje.JugadorExtrajo: JugadorExtrajo?.Invoke(datos.ToObject<JugadorExtrajoMsg>()); break;
+                    case TiposMensaje.JugadorRechazado: JugadorRechazado?.Invoke(datos.ToObject<JugadorRechazadoMsg>()); break;
                     case TiposMensaje.PuntajeCambiado: PuntajeCambiado?.Invoke(datos.ToObject<PuntajeMsg>()); break;
                     case TiposMensaje.Tick: Tick?.Invoke(datos.ToObject<TickMsg>()); break;
                     case TiposMensaje.TiempoExtra: TiempoExtra?.Invoke(datos.ToObject<TiempoExtraMsg>()); break;

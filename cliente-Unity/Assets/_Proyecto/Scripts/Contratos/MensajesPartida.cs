@@ -19,7 +19,9 @@ namespace Reactor.Cliente.Contratos
         // Servidor -> cliente
         public const string Estado = "match:state";
         public const string JugadorMovido = "player:moved";
-        public const string JugadorActuo = "player:acted";
+        public const string JugadorActuo = "player:acted"; // ya no lo envia el servidor desde el Sprint 3 (ACTION ahora es Extraer)
+        public const string JugadorExtrajo = "player:extracted";
+        public const string JugadorRechazado = "player:rejected";
         public const string PuntajeCambiado = "score:changed";
         public const string Tick = "match:tick";
         public const string TiempoExtra = "match:overtime";
@@ -49,6 +51,14 @@ namespace Reactor.Cliente.Contratos
     {
         public const string Tiempo = "TIME";
         public const string Puntos = "POINTS";
+    }
+
+    /// <summary>Estado del reactor (reactorState / state en el cable).</summary>
+    public static class EstadosReactor
+    {
+        public const string Disponible = "AVAILABLE";
+        public const string Vacio = "EMPTY";
+        public const string Desactivado = "DISABLED";
     }
 
     /// <summary>Caracteres de las filas del escenario.</summary>
@@ -87,6 +97,7 @@ namespace Reactor.Cliente.Contratos
         [JsonProperty("timeLeft", NullValueHandling = NullValueHandling.Ignore)] public int SegundosRestantes { get; set; }
         [JsonProperty("timeElapsed")] public int SegundosTranscurridos { get; set; }
         [JsonProperty("scenario")] public EscenarioMsg Escenario { get; set; }
+        [JsonProperty("reactor")] public ReactorMsg Reactor { get; set; } // null si el servidor aun no lo manda
         [JsonProperty("players")] public List<JugadorMsg> Jugadores { get; set; } = new List<JugadorMsg>();
 
         /// <summary>Si el servidor no envía color, se asigna uno por orden de llegada.</summary>
@@ -130,6 +141,52 @@ namespace Reactor.Cliente.Contratos
     {
         [JsonProperty("userId")] public string JugadorId { get; set; }
         [JsonProperty("message")] public string Mensaje { get; set; }
+    }
+
+    public class ReactorMsg
+    {
+        [JsonProperty("energy")] public int Energia { get; set; }
+        [JsonProperty("capacity")] public int Capacidad { get; set; }
+        [JsonProperty("state")] public string Estado { get; set; }
+    }
+
+    /// <summary>player:extracted: a toda la sala cuando una extraccion es valida.</summary>
+    public class JugadorExtrajoMsg
+    {
+        [JsonProperty("userId")] public string JugadorId { get; set; }
+        [JsonProperty("points")] public int Puntos { get; set; }
+        [JsonProperty("score")] public int Puntaje { get; set; }
+        [JsonProperty("playerEnergy")] public int EnergiaJugador { get; set; }
+        [JsonProperty("reactorEnergy")] public int EnergiaReactor { get; set; }
+        [JsonProperty("reactorState")] public string EstadoReactor { get; set; }
+        [JsonProperty("eventId")] public string IdEvento { get; set; }
+    }
+
+    /// <summary>player:rejected: solo al jugador que causo el rechazo.</summary>
+    public class JugadorRechazadoMsg
+    {
+        [JsonProperty("userId")] public string JugadorId { get; set; }
+        [JsonProperty("code")] public string Codigo { get; set; }
+        [JsonProperty("message")] public string Mensaje { get; set; }
+    }
+
+    /// <summary>Textos cortos por codigo de rechazo, para mostrar al jugador.</summary>
+    public static class TextosRechazo
+    {
+        public static string Para(string codigo)
+        {
+            switch (codigo)
+            {
+                case "LEJOS_DEL_REACTOR": return "Acércate al reactor";
+                case "JUGADOR_CONGELADO": return "Estás congelado";
+                case "ENFRIAMIENTO": return "Espera un momento";
+                case "REACTOR_VACIO": return "El reactor está vacío";
+                case "REACTOR_DESACTIVADO": return "El reactor está en sobrecarga";
+                case "PARTIDA_NO_ACTIVA": return "La partida no está en curso";
+                case "JUGADOR_ELIMINADO": return "Estás fuera de la partida";
+                default: return "Acción no válida";
+            }
+        }
     }
 
     public class PuntajeMsg
