@@ -5,6 +5,9 @@ public sealed record EscenarioData(int Width, int Height, IReadOnlyList<string> 
 
 public sealed record JugadorData(Guid UserId, string Username, Guid AvatarId, int X, int Y, int Score);
 
+/// <summary>Reactor dentro de "match:state". State: AVAILABLE | EMPTY | DISABLED.</summary>
+public sealed record ReactorData(int Energy, int Capacity, string State);
+
 /// <summary>"match:state". TimeLeft es null en modo POINTS (no hay tiempo límite).</summary>
 public sealed record EstadoPartidaData(
     Guid MatchId,
@@ -15,7 +18,8 @@ public sealed record EstadoPartidaData(
     int? TimeLeft,
     int TimeElapsed,
     EscenarioData Scenario,
-    IReadOnlyList<JugadorData> Players);
+    IReadOnlyList<JugadorData> Players,
+    ReactorData? Reactor = null);
 
 /// <summary>"player:moved"</summary>
 public sealed record JugadorMovidoData(Guid UserId, int X, int Y, int Score);

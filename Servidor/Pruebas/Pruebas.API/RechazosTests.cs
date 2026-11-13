@@ -33,4 +33,28 @@ public class RechazosTests
     {
         Assert.Null(Rechazos.Desde(Guid.NewGuid(), resultado));
     }
+
+    [Theory]
+    [InlineData("PARTIDA_NO_ACTIVA")]
+    [InlineData("JUGADOR_ELIMINADO")]
+    public void CodigoDeExcepcion_SeTraduceARechazo(string codigo)
+    {
+        var usuario = Guid.NewGuid();
+
+        var rechazo = Rechazos.DesdeCodigo(usuario, codigo);
+
+        Assert.NotNull(rechazo);
+        Assert.Equal(usuario, rechazo.UserId);
+        Assert.Equal(codigo, rechazo.Code);
+        Assert.False(string.IsNullOrWhiteSpace(rechazo.Message));
+    }
+
+    [Theory]
+    [InlineData(null)]
+    [InlineData("JUGADOR_AJENO")]
+    [InlineData("OTRO")]
+    public void CodigoQueNoSeMuestra_DevuelveNull(string? codigo)
+    {
+        Assert.Null(Rechazos.DesdeCodigo(Guid.NewGuid(), codigo));
+    }
 }

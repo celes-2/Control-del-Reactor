@@ -22,8 +22,12 @@ public sealed class PublicadorPartida(AdministradorSalas salas, IPartidaRepo par
         await salas.EnviarATodosAsync(partidaId, TiposMensaje.MatchState, estado, ct);
     }
 
-    /// <summary>Traduce el resultado de un boton en mensajes para los jugadores de la partida.</summary>
-    public async Task EnviarResultadoAsync(ResultadoEjecucion r, Accion accion, CancellationToken ct = default)
+    /// <summary>
+    /// Traduce el resultado de un boton en mensajes para los jugadores de la partida.
+    /// eventoId ("deviceId:seq") solo viaja en player:extracted, para poder seguir cada evento.
+    /// </summary>
+    public async Task EnviarResultadoAsync(
+        ResultadoEjecucion r, Accion accion, string? eventoId = null, CancellationToken ct = default)
     {
         switch (r.Resultado)
         {
@@ -36,7 +40,7 @@ public sealed class PublicadorPartida(AdministradorSalas salas, IPartidaRepo par
                 break;
 
             case ResultadoAccion.EnergiaExtraida:
-                // player:extracted llega en el paso 6B (falta PuntosGanados). Por ahora se actualiza el marcador.
+                await salas.EnviarATodosAsync(r.PartidaId, TiposMensaje.PlayerExtracted, r.AExtraccion(eventoId), ct);
                 await salas.EnviarATodosAsync(r.PartidaId, TiposMensaje.ScoreChanged,
                     new PuntajeCambiadoData(r.UsuarioId, r.Puntaje), ct);
                 break;
@@ -48,6 +52,17 @@ public sealed class PublicadorPartida(AdministradorSalas salas, IPartidaRepo par
 
         if (r.Estado == EstadoPartida.Finalizada)
             await EnviarFinAsync(r.PartidaId, ct);
+    }
+
+    /// <summary>
+    /// Rechazo que no viene de un resultado sino de una excepcion (por ejemplo, partida no activa).
+    /// Se busca la partida del jugador para mandarselo solo a el.
+    /// </summary>
+    public async Task EnviarRechazoAsync(Guid usuarioId, RechazoData rechazo, CancellationToken ct = default)
+    {
+        var partidaId = await partidas.BuscarPartidaDeJugadorAsync(usuarioId, ct);
+        if (partidaId is not null)
+            await salas.EnviarAJugadorAsync(partidaId.Value, usuarioId, TiposMensaje.PlayerRejected, rechazo, ct);
     }
 
     public async Task EnviarFinAsync(Guid partidaId, CancellationToken ct = default)

@@ -1,6 +1,7 @@
 using Aplicacion;
 using Aplicacion.CasosDeUso;
 using Dominio.Comun;
+using Dominio.Juego;
 using Infraestructura.Hardware;
 
 namespace API.TiempoReal;
@@ -51,6 +52,8 @@ public sealed class ServicioControles(
             return;
         }
 
+        var eventoId = $"{evento.DeviceId}:{evento.Seq}";
+
         using var scope = scopes.CreateScope();
         var ejecutarAccion = scope.ServiceProvider.GetRequiredService<EjecutarAccion>();
 
@@ -60,16 +63,25 @@ public sealed class ServicioControles(
             resultado = await ejecutarAccion.EjecutarAsync(
                 new EjecutarAccionComando(usuarioId.Value, evento.Accion), ct);
         }
-        catch (Exception ex) when (ex is NoEncontradoException or DominioException)
+        catch (NoEncontradoException ex)
         {
-            // Acordado con Celeste: si el jugador no esta en partida o la partida no esta en curso, se descarta.
+            // El jugador no esta en ninguna partida activa: no hay a quien avisarle.
             log.LogInformation("Boton de {DeviceId} descartado: {Motivo}", evento.DeviceId, ex.Message);
             return;
         }
+        catch (DominioException ex)
+        {
+            log.LogInformation("Boton de {DeviceId} descartado ({Codigo}): {Motivo}", evento.DeviceId, ex.Codigo, ex.Message);
 
-        log.LogInformation("{DeviceId} -> {Accion} (seq {Seq}): {Resultado} en ({X},{Y}), puntaje {Puntaje}",
-            evento.DeviceId, evento.Accion, evento.Seq, resultado.Resultado, resultado.X, resultado.Y, resultado.Puntaje);
+            // CA-18.5: si intentaba extraer, se le explica el motivo (solo a el).
+            if (evento.Accion == Accion.Extraer && Rechazos.DesdeCodigo(usuarioId.Value, ex.Codigo) is { } rechazo)
+                await publicador.EnviarRechazoAsync(usuarioId.Value, rechazo, ct);
+            return;
+        }
 
-        await publicador.EnviarResultadoAsync(resultado, evento.Accion, ct);
+        log.LogInformation("{EventoId} -> {Accion}: {Resultado} en ({X},{Y}), puntaje {Puntaje} ({Puntos} puntos)",
+            eventoId, evento.Accion, resultado.Resultado, resultado.X, resultado.Y, resultado.Puntaje, resultado.PuntosGanados);
+
+        await publicador.EnviarResultadoAsync(resultado, evento.Accion, eventoId, ct);
     }
 }

@@ -1,4 +1,5 @@
 using Contratos.TiempoReal;
+using Dominio.Comun;
 using Dominio.Juego;
 
 namespace API.TiempoReal;
@@ -17,6 +18,16 @@ public static class Rechazos
         ResultadoAccion.ReactorDesactivado => new RechazoData(usuarioId, "REACTOR_DESACTIVADO", "El reactor está en sobrecarga."),
         ResultadoAccion.ReactorVacio => new RechazoData(usuarioId, "REACTOR_VACIO", "El reactor está vacío, espera la recarga."),
         ResultadoAccion.Enfriamiento => new RechazoData(usuarioId, "ENFRIAMIENTO", "Espera un momento."),
+        _ => null
+    };
+
+    /// <summary>
+    /// Rechazo para una DominioException (por su Codigo), o null si ese codigo no se le muestra al jugador.
+    /// </summary>
+    public static RechazoData? DesdeCodigo(Guid usuarioId, string? codigo) => codigo switch
+    {
+        CodigosRechazo.PartidaNoActiva => new RechazoData(usuarioId, CodigosRechazo.PartidaNoActiva, "La partida no está en curso."),
+        CodigosRechazo.JugadorEliminado => new RechazoData(usuarioId, CodigosRechazo.JugadorEliminado, "Estás eliminado."),
         _ => null
     };
 }
