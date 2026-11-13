@@ -14,6 +14,8 @@ namespace Reactor.Cliente.Servicios
         event Action<EstadoPartidaMsg> EstadoRecibido;
         event Action<JugadorMovidoMsg> JugadorMovido;
         event Action<JugadorActuoMsg> JugadorActuo;
+        event Action<JugadorExtrajoMsg> JugadorExtrajo;
+        event Action<JugadorRechazadoMsg> JugadorRechazado;
         event Action<PuntajeMsg> PuntajeCambiado;
         event Action<TickMsg> Tick;
         event Action<TiempoExtraMsg> TiempoExtra;

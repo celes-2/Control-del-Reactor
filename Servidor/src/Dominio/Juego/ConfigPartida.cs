@@ -40,7 +40,7 @@ public sealed record ConfigPartida
     public int PuntosPorEnergia { get; init; } = 1;
 
     /// <summary>Segundos que debe esperar un jugador entre una extracción y la siguiente.</summary>
-    public int SegundosEnfriamiento { get; init; } = 1;
+    public int SegundosEnfriamiento { get; init; } = 3;
 
     /// <summary>Puntos que pierde un jugador al caer en una trampa (nunca baja de cero).</summary>
     public int PenalizacionTrampa { get; init; } = 5;
