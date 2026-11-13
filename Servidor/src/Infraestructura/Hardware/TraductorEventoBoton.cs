@@ -13,9 +13,13 @@ public static class TraductorEventoBoton
 {
     private const string PrefijoTopic = "arena/devices/";
     private const string SufijoTopic = "/events";
+    private const string SufijoEstado = "/status";
 
     /// <summary>Topic al que se suscribe el servidor: el "+" acepta cualquier control.</summary>
     public const string TopicSuscripcion = "arena/devices/+/events";
+
+    /// <summary>Topic de estado de los controles: "online" al conectarse, "offline" por Last Will.</summary>
+    public const string TopicEstado = "arena/devices/+/status";
 
     public static EventoBoton? Traducir(string topic, string mensaje)
     {
@@ -52,16 +56,30 @@ public static class TraductorEventoBoton
         }
     }
 
-    /// <summary>Saca el deviceId del topic, o null si el topic no tiene el formato esperado.</summary>
-    public static string? ExtraerDeviceId(string topic)
+    /// <summary>Saca el deviceId de un topic de eventos, o null si el topic no tiene el formato esperado.</summary>
+    public static string? ExtraerDeviceId(string topic) => ExtraerDeviceId(topic, SufijoTopic);
+
+    /// <summary>True si el topic es el de estado de un control (arena/devices/{deviceId}/status).</summary>
+    public static bool EsTopicEstado(string topic) => ExtraerDeviceId(topic, SufijoEstado) is not null;
+
+    /// <summary>Si el mensaje es el "online" de un control devuelve su deviceId; si no, null.</summary>
+    public static string? ControlEnLinea(string topic, string mensaje)
+    {
+        var deviceId = ExtraerDeviceId(topic, SufijoEstado);
+        var esOnline = string.Equals(mensaje?.Trim(), "online", StringComparison.OrdinalIgnoreCase);
+        return deviceId is not null && esOnline ? deviceId : null;
+    }
+
+    /// <summary>Saca el deviceId de "arena/devices/{deviceId}{sufijo}", o null si no tiene ese formato.</summary>
+    private static string? ExtraerDeviceId(string topic, string sufijo)
     {
         if (string.IsNullOrEmpty(topic)
-            || topic.Length <= PrefijoTopic.Length + SufijoTopic.Length
+            || topic.Length <= PrefijoTopic.Length + sufijo.Length
             || !topic.StartsWith(PrefijoTopic, StringComparison.Ordinal)
-            || !topic.EndsWith(SufijoTopic, StringComparison.Ordinal))
+            || !topic.EndsWith(sufijo, StringComparison.Ordinal))
             return null;
 
-        var deviceId = topic[PrefijoTopic.Length..^SufijoTopic.Length];
+        var deviceId = topic[PrefijoTopic.Length..^sufijo.Length];
         return deviceId.Contains('/') ? null : deviceId;
     }
 

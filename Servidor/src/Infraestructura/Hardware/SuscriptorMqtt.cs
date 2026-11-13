@@ -4,12 +4,12 @@ using MQTTnet.Protocol;
 
 namespace Infraestructura.Hardware;
 
-/// <summary>Escucha los controles en Mosquitto y entrega cada boton ya traducido.</summary>
+/// <summary>Escucha los controles en Mosquitto: entrega cada boton ya traducido y avisa cuando un control se conecta.</summary>
 public sealed class SuscriptorMqtt(OpcionesMqtt opciones, ILogger<SuscriptorMqtt> log) : IFuenteEventosBoton
 {
     private static readonly TimeSpan EsperaReintento = TimeSpan.FromSeconds(5);
 
-    public async Task EscucharAsync(Func<EventoBoton, Task> alRecibir, CancellationToken ct)
+    public async Task EscucharAsync(Func<EventoBoton, Task> alRecibir, Func<string, Task> alConectarse, CancellationToken ct)
     {
         var fabrica = new MqttClientFactory();
         using var cliente = fabrica.CreateMqttClient();
@@ -18,6 +18,27 @@ public sealed class SuscriptorMqtt(OpcionesMqtt opciones, ILogger<SuscriptorMqtt
         {
             var topic = e.ApplicationMessage.Topic;
             var texto = e.ApplicationMessage.ConvertPayloadToString();
+
+            // Estado del control ("online" / "offline"): no es un boton.
+            if (TraductorEventoBoton.EsTopicEstado(topic))
+            {
+                var enLinea = TraductorEventoBoton.ControlEnLinea(topic, texto);
+
+                // Solo cuenta un "online" EN VIVO. El retenido llega cada vez que el servidor se
+                // (re)suscribe y no significa que la Pico se haya reiniciado.
+                if (enLinea is not null && !e.ApplicationMessage.Retain)
+                {
+                    try
+                    {
+                        await alConectarse(enLinea);
+                    }
+                    catch (Exception ex)
+                    {
+                        log.LogError(ex, "Error al procesar el estado de {DeviceId}", enLinea);
+                    }
+                }
+                return;
+            }
 
             var evento = TraductorEventoBoton.Traducir(topic, texto);
             if (evento is null)
@@ -49,6 +70,7 @@ public sealed class SuscriptorMqtt(OpcionesMqtt opciones, ILogger<SuscriptorMqtt
 
         var suscripcion = fabrica.CreateSubscribeOptionsBuilder()
             .WithTopicFilter(TraductorEventoBoton.TopicSuscripcion, MqttQualityOfServiceLevel.AtLeastOnce)
+            .WithTopicFilter(TraductorEventoBoton.TopicEstado, MqttQualityOfServiceLevel.AtLeastOnce)
             .Build();
 
         // Cada 5 s revisa la conexion; si se cayo, se reconecta y se vuelve a suscribir.

@@ -67,4 +67,33 @@ public class TraductorEventoBotonTests
     {
         Assert.Null(TraductorEventoBoton.Traducir(topic, "{\"button\":\"UP\",\"seq\":1}"));
     }
+    
+    // ---------- Estado del control (status) ----------
+
+    [Theory]
+    [Trait("CA", "18.8")]
+    [InlineData("online")]
+    [InlineData("ONLINE")]
+    [InlineData(" online ")]
+    public void ControlEnLinea_MensajeOnline_DevuelveDeviceId(string mensaje)
+    {
+        Assert.Equal("pico-01", TraductorEventoBoton.ControlEnLinea("arena/devices/pico-01/status", mensaje));
+    }
+
+    [Theory]
+    [Trait("CA", "18.8")]
+    [InlineData("arena/devices/pico-01/status", "offline")]  // se desconecto, no reinicia
+    [InlineData("arena/devices/pico-01/events", "online")]   // topic de eventos, no de estado
+    [InlineData("arena/devices//status", "online")]          // sin deviceId
+    public void ControlEnLinea_NoEsOnlineValido_DevuelveNull(string topic, string mensaje)
+    {
+        Assert.Null(TraductorEventoBoton.ControlEnLinea(topic, mensaje));
+    }
+
+    [Fact]
+    public void EsTopicEstado_DistingueEstadoDeEventos()
+    {
+        Assert.True(TraductorEventoBoton.EsTopicEstado("arena/devices/pico-01/status"));
+        Assert.False(TraductorEventoBoton.EsTopicEstado("arena/devices/pico-01/events"));
+    }
 }

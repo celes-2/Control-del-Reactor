@@ -8,7 +8,7 @@ namespace API.TiempoReal;
 /// <summary>
 /// Escucha los controles mientras el servidor este encendido. Por cada boton:
 /// descarta duplicados (FiltroDuplicados), busca el jugador del control, ejecuta la accion
-/// (EjecutarAccion) y avisa a los Unity.
+/// (EjecutarAccion) y avisa a los Unity. Cuando un control se conecta, reinicia su contador de seq.
 /// EjecutarAccion es Scoped y este servicio es Singleton: por eso se crea un scope por evento.
 /// </summary>
 public sealed class ServicioControles(
@@ -20,7 +20,18 @@ public sealed class ServicioControles(
     ILogger<ServicioControles> log) : BackgroundService
 {
     protected override Task ExecuteAsync(CancellationToken stoppingToken) =>
-        fuente.EscucharAsync(evento => ProcesarAsync(evento, stoppingToken), stoppingToken);
+        fuente.EscucharAsync(
+            evento => ProcesarAsync(evento, stoppingToken),
+            ControlConectadoAsync,
+            stoppingToken);
+
+    /// <summary>La Pico se acaba de conectar (se reinicio): su seq vuelve a empezar desde 1.</summary>
+    private Task ControlConectadoAsync(string deviceId)
+    {
+        filtro.Reiniciar(deviceId);
+        log.LogInformation("Control {DeviceId} en linea: se reinicia su contador de seq.", deviceId);
+        return Task.CompletedTask;
+    }
 
     private async Task ProcesarAsync(EventoBoton evento, CancellationToken ct)
     {
