@@ -12,6 +12,7 @@ public static class TiempoRealExtensiones
 
         services.AddSingleton(opciones);
         services.AddSingleton<IFuenteEventosBoton, SuscriptorMqtt>();
+        services.AddSingleton<FiltroDuplicados>();
         services.AddSingleton<AdministradorSalas>();
         services.AddSingleton<IEmparejamientoControles, EmparejamientoPorOrden>();
         services.AddSingleton<PublicadorPartida>();
