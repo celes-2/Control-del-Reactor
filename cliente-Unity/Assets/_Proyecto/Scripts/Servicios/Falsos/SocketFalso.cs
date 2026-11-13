@@ -10,7 +10,7 @@ namespace Reactor.Cliente.Servicios.Falsos
     /// Imita al servidor autoritativo para desarrollar la arena sin backend ni hardware.
     /// Aplica las mismas reglas que el dominio: bordes, muros, reactor y otros jugadores
     /// bloquean; moverse NO da puntos (Sprint 3); ACCIÓN extrae energía si el jugador está junto al reactor
-    /// (+1 punto por unidad, 10 por extracción, enfriamiento de 3 s); en empate se suman 2 minutos.
+    /// (+1 punto por unidad, 10 por extracción, enfriamiento de 1 s); en empate se suman 2 minutos.
     /// SOLO para desarrollo: en la versión real esto lo decide el servidor.
     /// </summary>
     public sealed class SocketFalso : IGameSocket
@@ -43,7 +43,7 @@ namespace Reactor.Cliente.Servicios.Falsos
         const int CapacidadReactor = 500;
         const int EnergiaPorExtraccion = 10;
         const int RegeneracionPorSegundo = 5;
-        const int SegundosEnfriamiento = 3;
+        const int SegundosEnfriamiento = 1;
 
         int energiaReactor = CapacidadReactor;
         readonly Dictionary<string, int> ultimaExtraccion = new Dictionary<string, int>();

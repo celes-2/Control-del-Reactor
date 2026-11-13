@@ -18,6 +18,13 @@ namespace Reactor.Cliente.Presentadores
         string modoFin = ModosFin.Tiempo;
         int capacidadReactor;
         readonly string jugadorPropioId;
+        readonly Dictionary<string, int> extracciones = new Dictionary<string, int>();
+
+        /// <summary>Segundos jugados, según el último tick o estado recibido.</summary>
+        public int SegundosTranscurridos { get; private set; }
+
+        /// <summary>Extracciones válidas de un jugador en esta partida (para la ceremonia).</summary>
+        public int ExtraccionesDe(string jugadorId) => extracciones.TryGetValue(jugadorId ?? "", out var n) ? n : 0;
 
         /// <summary>Jugadores de la partida actual, con su último estado conocido.</summary>
         public IReadOnlyCollection<JugadorMsg> Jugadores => jugadores.Values;
@@ -78,6 +85,7 @@ namespace Reactor.Cliente.Presentadores
             }
 
             e.AsignarColoresFaltantes();
+            SegundosTranscurridos = e.SegundosTranscurridos;
             modoFin = string.IsNullOrEmpty(e.ModoFin) ? ModosFin.Tiempo : e.ModoFin;
             vista.DibujarEscenario(e.Escenario);
 
@@ -123,6 +131,7 @@ namespace Reactor.Cliente.Presentadores
             if (m == null || !jugadores.TryGetValue(m.JugadorId ?? "", out var j)) return;
             j.Puntaje = m.Puntaje;
             vista.ActualizarMarcador(jugadores.Values);
+            extracciones[m.JugadorId] = ExtraccionesDe(m.JugadorId) + 1;
             vista.OcultarRechazo(); // una extracción válida borra el "Espera un momento" anterior
             vista.MostrarExtraccion(m.JugadorId);
             if (m.Puntos > 0) vista.MostrarAccion(m.JugadorId, $"+{m.Puntos}");
@@ -145,7 +154,9 @@ namespace Reactor.Cliente.Presentadores
 
         void AlTick(TickMsg m)
         {
-            if (m != null) ActualizarTemporizador(m.SegundosRestantes, m.SegundosTranscurridos);
+            if (m == null) return;
+            SegundosTranscurridos = m.SegundosTranscurridos;
+            ActualizarTemporizador(m.SegundosRestantes, m.SegundosTranscurridos);
         }
 
         void AlTiempoExtra(TiempoExtraMsg m)

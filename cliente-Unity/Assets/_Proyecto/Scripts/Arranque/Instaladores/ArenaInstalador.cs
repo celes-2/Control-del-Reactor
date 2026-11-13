@@ -45,7 +45,11 @@ namespace Reactor.Cliente.Arranque
 
         void AlTerminarPartida(PartidaFinalizadaMsg mensaje)
         {
-            raiz.Sesion.UltimoResultado = ResultadoPartida.Crear(mensaje, presentador.Jugadores);
+            var resultado = ResultadoPartida.Crear(mensaje, presentador.Jugadores);
+            resultado.DuracionSegundos = presentador.SegundosTranscurridos;
+            foreach (var j in resultado.Jugadores)
+                j.Extracciones = presentador.ExtraccionesDe(j.Id);
+            raiz.Sesion.UltimoResultado = resultado;
             StartCoroutine(IrAVictoria());
         }
 
