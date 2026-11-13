@@ -31,6 +31,8 @@ namespace Reactor.Cliente.Servicios
                 duracionSegundos = ajustes.DuracionSegundos,
                 puntosObjetivo = ajustes.PuntosObjetivo,
                 segundosCongelamiento = ajustes.SegundosCongelamiento,
+                // El servidor actual lo ignora; lo usará cuando exista el catálogo de escenarios.
+                escenarioId = ajustes.EscenarioId,
             });
 
             var solicitud = new UnityWebRequest(servidor + "/api/partidas", UnityWebRequest.kHttpVerbPOST)

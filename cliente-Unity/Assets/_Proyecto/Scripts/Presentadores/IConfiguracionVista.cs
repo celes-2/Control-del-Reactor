@@ -7,6 +7,7 @@ namespace Reactor.Cliente.Presentadores
         Valor,           // duración o puntos, según el modo
         Congelamiento,
         Jugadores,
+        Escenario,       // pasa al escenario anterior o siguiente
     }
 
     /// <summary>Lo que el presentador puede pedirle a la escena de configuración (patrón MVP).</summary>
@@ -27,6 +28,7 @@ namespace Reactor.Cliente.Presentadores
         void MostrarValor(string etiqueta, string valor);
         void MostrarCongelamiento(string valor);
         void MostrarJugadores(string valor);
+        void MostrarEscenario(Servicios.EscenarioInfo escenario);
         void BloquearCrear(bool bloqueado);
         void MostrarAviso(string texto);
     }

@@ -14,6 +14,7 @@ namespace Reactor.Cliente.Presentadores
         readonly IConfiguracionVista vista;
         readonly IApiPartidas api;
         readonly IAlmacenAjustes almacen;
+        readonly ICatalogoEscenarios catalogo;
         readonly string usuarioId;
         readonly Action<string> alCrear;
         readonly Action alUnirse;
@@ -24,8 +25,9 @@ namespace Reactor.Cliente.Presentadores
 
         public ConfiguracionPresentador(
             IConfiguracionVista vista, IApiPartidas api, IAlmacenAjustes almacen, string usuarioId, Action<string> alCrear,
-            Action alUnirse = null)
+            Action alUnirse = null, ICatalogoEscenarios catalogo = null)
         {
+            this.catalogo = catalogo ?? CatalogoEscenariosPrueba.Instancia;
             this.vista = vista ?? throw new ArgumentNullException(nameof(vista));
             this.api = api ?? throw new ArgumentNullException(nameof(api));
             this.almacen = almacen ?? throw new ArgumentNullException(nameof(almacen));
@@ -44,7 +46,7 @@ namespace Reactor.Cliente.Presentadores
         public void Iniciar()
         {
             ajustes = almacen.Cargar();
-            ajustes.Normalizar();
+            ajustes.Normalizar(catalogo);
             Refrescar();
         }
 
@@ -65,6 +67,7 @@ namespace Reactor.Cliente.Presentadores
                 case CampoAjuste.Valor: ajustes.CambiarValor(direccion); break;
                 case CampoAjuste.Congelamiento: ajustes.CambiarCongelamiento(direccion); break;
                 case CampoAjuste.Jugadores: ajustes.CambiarJugadores(direccion); break;
+                case CampoAjuste.Escenario: ajustes.CambiarEscenario(direccion, catalogo); break;
             }
             Refrescar();
         }
@@ -131,6 +134,8 @@ namespace Reactor.Cliente.Presentadores
                 vista.MostrarValor("Puntos para ganar", ajustes.PuntosObjetivo + " puntos");
             vista.MostrarCongelamiento(ajustes.SegundosCongelamiento + (ajustes.SegundosCongelamiento == 1 ? " segundo" : " segundos"));
             vista.MostrarJugadores(ajustes.MaxJugadores + " jugadores");
+            foreach (var escenario in catalogo.Todos)
+                if (escenario.Id == ajustes.EscenarioId) { vista.MostrarEscenario(escenario); break; }
         }
 
         public static string FormatoTiempo(int segundos) => $"{segundos / 60}:{segundos % 60:00}";

@@ -29,6 +29,9 @@ namespace Reactor.Cliente.Configuracion
         Image botonTiempo, botonPuntos;
         TextMeshProUGUI etiquetaValor, valor, congelamiento, jugadores, aviso;
         Button botonCrear;
+        TextMeshProUGUI escenario;
+        Texture2D texturaEscenario;
+        RawImage vistaPreviaEscenario;
         Coroutine borrarAviso;
 
         void Awake() => ConstruirInterfaz();
@@ -48,6 +51,51 @@ namespace Reactor.Cliente.Configuracion
         public void MostrarCongelamiento(string texto) => congelamiento.text = texto;
 
         public void MostrarJugadores(string texto) => jugadores.text = texto;
+
+        public void MostrarEscenario(EscenarioInfo info)
+        {
+            escenario.text = info.Nombre;
+            DibujarVistaPrevia(info);
+        }
+
+        void DibujarVistaPrevia(EscenarioInfo info)
+        {
+            var filas = info.Filas;
+            if (filas.Count == 0) { vistaPreviaEscenario.enabled = false; return; }
+            var ancho = 0;
+            foreach (var fila in filas) ancho = Mathf.Max(ancho, fila.Length);
+
+            if (texturaEscenario != null) Destroy(texturaEscenario);
+            texturaEscenario = new Texture2D(ancho, filas.Count, TextureFormat.RGBA32, false) { filterMode = FilterMode.Point };
+            for (var y = 0; y < filas.Count; y++)
+                for (var x = 0; x < ancho; x++)
+                {
+                    var c = x < filas[y].Length ? filas[y][x] : '#';
+                    // La fila 0 va arriba: la textura empieza abajo.
+                    texturaEscenario.SetPixel(x, filas.Count - 1 - y, ColorCelda(c));
+                }
+            texturaEscenario.Apply();
+            vistaPreviaEscenario.texture = texturaEscenario;
+            vistaPreviaEscenario.enabled = true;
+        }
+
+        static Color ColorCelda(char c)
+        {
+            switch (c)
+            {
+                case '#': return new Color(0.30f, 0.34f, 0.44f);
+                case 'R': return ConstructorUI.Dorado;
+                case 'T': return ConstructorUI.Rojo;
+                case 'A': return ConstructorUI.Azul;
+                case 'B': return ConstructorUI.Verde;
+                default: return new Color(0.07f, 0.09f, 0.15f);
+            }
+        }
+
+        void OnDestroy()
+        {
+            if (texturaEscenario != null) Destroy(texturaEscenario);
+        }
 
         public void BloquearCrear(bool bloqueado) => botonCrear.interactable = !bloqueado;
 
@@ -76,7 +124,7 @@ namespace Reactor.Cliente.Configuracion
                 new Vector2(0f, 400f), new Vector2(1500f, 130f)).text = "CONFIGURACION";
 
             var panel = ConstructorUI.CrearImagen(raiz, "Panel", null, ConstructorUI.Panel);
-            ConstructorUI.Colocar(panel.rectTransform, new Vector2(0f, 60f), new Vector2(1500f, 560f));
+            ConstructorUI.Colocar(panel.rectTransform, new Vector2(0f, 20f), new Vector2(1500f, 640f));
 
             // Fila 1: cómo termina la partida.
             Etiqueta("Fin de la partida", 250f);
@@ -86,16 +134,25 @@ namespace Reactor.Cliente.Configuracion
                 Apagado, () => ModoElegido?.Invoke(ModoFin.Puntos)).targetGraphic as Image;
 
             // Fila 2: duración o puntos, según el modo.
-            etiquetaValor = Etiqueta("Duración", 120f);
-            valor = Selector(120f, CampoAjuste.Valor);
+            etiquetaValor = Etiqueta("Duración", 140f);
+            valor = Selector(140f, CampoAjuste.Valor);
 
             // Fila 3: congelamiento.
-            Etiqueta("Congelamiento", -10f);
-            congelamiento = Selector(-10f, CampoAjuste.Congelamiento);
+            Etiqueta("Congelamiento", 30f);
+            congelamiento = Selector(30f, CampoAjuste.Congelamiento);
 
             // Fila 4: máximo de jugadores.
-            Etiqueta("Máximo de jugadores", -140f);
-            jugadores = Selector(-140f, CampoAjuste.Jugadores);
+            Etiqueta("Máximo de jugadores", -80f);
+            jugadores = Selector(-80f, CampoAjuste.Jugadores);
+
+            // Fila 5: escenario, con vista previa a la derecha (US-23).
+            Etiqueta("Escenario", -190f);
+            escenario = Selector(-190f, CampoAjuste.Escenario);
+            var previa = new GameObject("Vista previa escenario", typeof(RectTransform), typeof(RawImage));
+            previa.transform.SetParent(raiz, false);
+            ConstructorUI.Colocar(previa.GetComponent<RectTransform>(), new Vector2(660f, -190f), new Vector2(165f, 121f));
+            vistaPreviaEscenario = previa.GetComponent<RawImage>();
+            vistaPreviaEscenario.raycastTarget = false;
 
             botonCrear = ConstructorUI.CrearBoton(raiz, "Crear partida", new Vector2(-290f, -340f), new Vector2(520f, 100f),
                 ConstructorUI.Verde, () => CrearPulsado?.Invoke());

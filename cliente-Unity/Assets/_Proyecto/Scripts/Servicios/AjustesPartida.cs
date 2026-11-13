@@ -25,6 +25,7 @@ namespace Reactor.Cliente.Servicios
         public int PuntosObjetivo { get; set; } = 20;
         public int SegundosCongelamiento { get; set; } = 3;
         public int MaxJugadores { get; set; } = 4;
+        public string EscenarioId { get; set; } = "clasico";
 
         public AjustesPartida Copia() => (AjustesPartida)MemberwiseClone();
 
@@ -39,12 +40,32 @@ namespace Reactor.Cliente.Servicios
         public void CambiarCongelamiento(int direccion) =>
             SegundosCongelamiento = Limitar(SegundosCongelamiento + direccion, MinCongelamiento, MaxCongelamiento);
 
+        /// <summary>Pasa al escenario siguiente o anterior de la lista (da la vuelta al llegar al final).</summary>
+        public void CambiarEscenario(int direccion, ICatalogoEscenarios catalogo)
+        {
+            var lista = catalogo.Todos;
+            if (lista.Count == 0) return;
+            var actual = IndiceEscenario(lista);
+            EscenarioId = lista[((actual + direccion) % lista.Count + lista.Count) % lista.Count].Id;
+        }
+
+        static int IndiceEscenarioDe(string id, System.Collections.Generic.IReadOnlyList<EscenarioInfo> lista)
+        {
+            for (var i = 0; i < lista.Count; i++)
+                if (lista[i].Id == id) return i;
+            return 0;
+        }
+
+        int IndiceEscenario(System.Collections.Generic.IReadOnlyList<EscenarioInfo> lista) => IndiceEscenarioDe(EscenarioId, lista);
+
         public void CambiarJugadores(int direccion) =>
             MaxJugadores = Limitar(MaxJugadores + direccion, MinJugadores, MaxJugadoresPermitidos);
 
         /// <summary>Corrige valores fuera de rango (por ejemplo, de un valor guardado viejo).</summary>
-        public void Normalizar()
+        public void Normalizar(ICatalogoEscenarios catalogo = null)
         {
+            var lista = (catalogo ?? CatalogoEscenariosPrueba.Instancia).Todos;
+            if (lista.Count > 0) EscenarioId = lista[IndiceEscenarioDe(EscenarioId, lista)].Id;
             DuracionSegundos = Limitar(DuracionSegundos, MinSegundos, MaxSegundos);
             PuntosObjetivo = Limitar(PuntosObjetivo, MinPuntos, MaxPuntos);
             SegundosCongelamiento = Limitar(SegundosCongelamiento, MinCongelamiento, MaxCongelamiento);
