@@ -6,7 +6,19 @@ namespace Aplicacion.CasosDeUso;
 /// <summary>Una acción de un jugador (un botón del control). La partida se busca a partir del usuario.</summary>
 public sealed record EjecutarAccionComando(Guid UsuarioId, Accion Accion);
 
-/// <summary>Lo que pasó al ejecutar la acción; con esto se arman player:moved, score:changed y match:finished.</summary>
+/// <summary>Estado del reactor visible para los clientes (WebSocket: AVAILABLE, EMPTY, DISABLED).</summary>
+public enum EstadoDelReactor
+{
+    Disponible,
+    Vacio,
+    Desactivado
+}
+
+/// <summary>
+/// Lo que pasó al ejecutar la acción; con esto se arman player:moved, score:changed, match:finished
+/// y (Sprint 3) player:extracted / player:rejected.
+/// EnergiaJugador, EnergiaReactor y EstadoReactor son del Sprint 3 y se leen DESPUÉS de ejecutar.
+/// </summary>
 public sealed record ResultadoEjecucion(
     Guid PartidaId,
     Guid UsuarioId,
@@ -15,7 +27,10 @@ public sealed record ResultadoEjecucion(
     int Y,
     int Puntaje,
     EstadoPartida Estado,
-    Guid? GanadorId);
+    Guid? GanadorId,
+    int EnergiaJugador = 0,
+    int EnergiaReactor = 0,
+    EstadoDelReactor EstadoReactor = EstadoDelReactor.Disponible);
 
 /// <summary>
 /// Caso de uso: el jugador presionó un botón. Busca su partida y le pide al dominio que ejecute la
@@ -38,10 +53,17 @@ public sealed class EjecutarAccion(IPartidaRepo partidas)
             var resultado = partida.Ejecutar(comando.UsuarioId, comando.Accion);
             var jugador = partida.Jugadores.First(j => j.Id == comando.UsuarioId);
 
+            var estadoReactor = partida.Reactor.Desactivado
+                ? EstadoDelReactor.Desactivado
+                : partida.Reactor.EnergiaDisponible <= 0
+                    ? EstadoDelReactor.Vacio
+                    : EstadoDelReactor.Disponible;
+
             return new ResultadoEjecucion(
                 partida.Id, jugador.Id, resultado,
                 jugador.Posicion.X, jugador.Posicion.Y, jugador.Puntaje,
-                partida.Estado, partida.GanadorId);
+                partida.Estado, partida.GanadorId,
+                jugador.Energia, partida.Reactor.EnergiaDisponible, estadoReactor);
         }, ct);
     }
 }

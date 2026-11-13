@@ -22,6 +22,9 @@ public sealed class Jugador
     public bool Congelado => SegundosCongelado > 0;
     public bool Eliminado => Vida <= 0;
 
+    /// <summary>Segundo de la partida en que hizo su última extracción válida. -1 si todavía no ha extraído.</summary>
+    public int UltimaExtraccionSegundo { get; private set; } = -1;
+
     internal Jugador(Guid id, string nombre, Guid avatarId, Posicion posicion, int vida)
     {
         Id = id;
@@ -33,7 +36,12 @@ public sealed class Jugador
 
     internal void MoverA(Posicion destino) => Posicion = destino;
 
-    internal void SumarPunto() => Puntaje++;
+    internal void SumarPuntos(int puntos) => Puntaje += puntos;
+
+    /// <summary>Resta puntos sin dejar el puntaje por debajo de cero.</summary>
+    internal void RestarPuntos(int puntos) => Puntaje = Math.Max(0, Puntaje - puntos);
+
+    internal void MarcarExtraccion(int segundo) => UltimaExtraccionSegundo = segundo;
 
     internal void Congelar(int segundos) => SegundosCongelado = Math.Max(SegundosCongelado, segundos);
 

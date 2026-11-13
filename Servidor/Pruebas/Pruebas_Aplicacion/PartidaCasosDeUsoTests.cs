@@ -307,7 +307,7 @@ public class PartidaCasosDeUsoTests
     }
 
     [Fact]
-    public async Task Ejecutar_UnMovimientoValido_DevuelvePosicionYPuntaje()
+    public async Task Ejecutar_UnMovimientoValido_DevuelvePosicionYNoSumaPuntos()
     {
         var (ctx, ana, _, partida) = await PartidaEnCursoAsync();
 
@@ -317,7 +317,7 @@ public class PartidaCasosDeUsoTests
         Assert.Equal(partida.Id, resultado.PartidaId);
         Assert.Equal(ResultadoAccion.Movido, resultado.Resultado);
         Assert.Equal((1, 2), (resultado.X, resultado.Y));
-        Assert.Equal(1, resultado.Puntaje);
+        Assert.Equal(0, resultado.Puntaje);   // mover ya no da puntos (Sprint 3)
         Assert.Equal(EstadoPartida.EnCurso, resultado.Estado);
         Assert.Null(resultado.GanadorId);
     }
