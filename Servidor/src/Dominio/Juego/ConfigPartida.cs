@@ -24,18 +24,31 @@ public sealed record ConfigPartida
     public int DuracionSegundos { get; init; } = 180;
 
     /// <summary>Puntos que dan la victoria. Se usa cuando ModoFin es Puntos.</summary>
-    public int PuntosObjetivo { get; init; } = 20;
+    public int PuntosObjetivo { get; init; } = 200;
 
     /// <summary>Segundos que un jugador queda congelado cuando es inmovilizado (CA-08.5).</summary>
     public int SegundosCongelamiento { get; init; } = 3;
 
-    /// <summary>Reservado para el Sprint 3. No decide el ganador: ahora gana quien tenga más puntos.</summary>
+    /// <summary>Reservado. No decide el ganador: gana quien tenga más puntos.</summary>
     public int EnergiaObjetivo { get; init; } = 100;
 
     public int CapacidadReactor { get; init; } = 500;
     public int EnergiaPorExtraccion { get; init; } = 10;
     public int RegeneracionPorSegundo { get; init; } = 5;
+
+    /// <summary>Puntos que gana el jugador por cada unidad de energía que realmente extrae (US-19).</summary>
+    public int PuntosPorEnergia { get; init; } = 1;
+
+    /// <summary>Segundos que debe esperar un jugador entre una extracción y la siguiente.</summary>
+    public int SegundosEnfriamiento { get; init; } = 1;
+
+    /// <summary>Puntos que pierde un jugador al caer en una trampa (nunca baja de cero).</summary>
+    public int PenalizacionTrampa { get; init; } = 5;
+
+    /// <summary>Ya no se usa: las trampas congelan y restan puntos, no quitan vida.</summary>
     public int VidaInicial { get; init; } = 100;
+
+    /// <summary>Ya no se usa: las trampas congelan y restan puntos, no quitan vida.</summary>
     public int DanoTrampa { get; init; } = 20;
 
     public void Validar()
@@ -60,6 +73,12 @@ public sealed record ConfigPartida
             throw new DominioException("La energía por extracción debe ser mayor que cero.");
         if (RegeneracionPorSegundo < 0)
             throw new DominioException("La regeneración no puede ser negativa.");
+        if (PuntosPorEnergia < 0)
+            throw new DominioException("Los puntos por energía no pueden ser negativos.");
+        if (SegundosEnfriamiento < 0)
+            throw new DominioException("El enfriamiento no puede ser negativo.");
+        if (PenalizacionTrampa < 0)
+            throw new DominioException("La penalización de las trampas no puede ser negativa.");
         if (VidaInicial <= 0)
             throw new DominioException("La vida inicial debe ser mayor que cero.");
         if (DanoTrampa < 0)

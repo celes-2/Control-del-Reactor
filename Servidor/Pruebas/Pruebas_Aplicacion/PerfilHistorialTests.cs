@@ -7,6 +7,7 @@ using Infraestructura.Partidas;
 using Infraestructura.Persistencia;
 using Xunit;
 
+
 namespace PruebasAplicacion;
 
 /// <summary>US-04: historial, estadísticas, logros y ranking, con persistencia REAL en JSON temporal.</summary>
@@ -33,6 +34,34 @@ public sealed class Pruebas_PerfilHistorial : IDisposable
             new JugadorRegistro(Beto, "Beto", null, puntosBeto, ganador == Beto),
         ]);
 
+    /// <summary>Partida de 5 s en la que Ana extrae una vez y Beto queda en 0. Recorre en zigzag buscando el reactor.</summary>
+    private static Partida PartidaConAnaPunteando()
+{
+   var partida = Dominio.Juego.Partida.Crear(new ConfigPartida { DuracionSegundos = 5 });    partida.Unirse(Ana, "Ana", Guid.NewGuid());
+    partida.Unirse(Beto, "Beto", Guid.NewGuid());
+    partida.Iniciar();
+
+    var extracciones = new List<ResultadoAccion>();
+    var movimientos = new List<ResultadoAccion>();
+
+    for (var fila = 0; fila < 15; fila++)
+    {
+        var lado = fila % 2 == 0 ? Accion.Derecha : Accion.Izquierda;
+        for (var paso = 0; paso < 20; paso++)
+        {
+            var r = partida.Ejecutar(Ana, Accion.Extraer);
+            if (r == ResultadoAccion.EnergiaExtraida)
+                return partida;
+            extracciones.Add(r);
+            movimientos.Add(partida.Ejecutar(Ana, lado));
+        }
+        movimientos.Add(partida.Ejecutar(Ana, Accion.Abajo));
+    }
+
+    throw new InvalidOperationException(
+        $"Extraer dio: {string.Join(", ", extracciones.Distinct())} | " +
+        $"mover dio: {string.Join(", ", movimientos.Distinct())} | estado: {partida.Estado}");
+}
     // ---------- Estadísticas y logros (dominio puro) ----------
 
     [Fact]
@@ -127,7 +156,7 @@ public sealed class Pruebas_PerfilHistorial : IDisposable
     }
 
     [Fact]
-    public void Ranking_EmpateEnVictorias_DesempataPorPuntos()
+    public void Ranking_EmpateInVictorias_DesempataPorPuntos()
     {
         var partidas = new[] { Partida(Ana, 10, 5), Partida(Beto, 3, 40) };
 
@@ -247,16 +276,13 @@ public sealed class Pruebas_PerfilHistorial : IDisposable
         var historial = NuevoRepo();
         var repo = new PartidaRepoConHistorial(
             new PartidaEnMemoriaRepositorio(), new RegistrarResultadoPartida(historial, reloj));
-        var partida = new Partida(Guid.NewGuid(), new ConfigPartida { DuracionSegundos = 5 }, Arena.DesdeFilas(Escenarios.Predeterminado));
-        partida.Unirse(Ana, "Ana", Guid.NewGuid());
-        partida.Unirse(Beto, "Beto", Guid.NewGuid());
-        partida.Iniciar();
+        
+        var partida = PartidaConAnaPunteando();
         await repo.AgregarAsync(partida);
 
-        await repo.UsarAsync(partida.Id, p => p.Ejecutar(Ana, Accion.Abajo));   // Ana suma 1 punto
-        Assert.Empty(await historial.ListarTodasAsync());                          // aún en curso
+        Assert.Empty(await historial.ListarTodasAsync());                         // aún en curso
 
-        await repo.UsarAsync(partida.Id, p => { p.Tick(5); return 0; });           // se acaba el tiempo
+        await repo.UsarAsync(partida.Id, p => { p.Tick(5); return 0; });          // se acaba el tiempo
 
         var guardada = Assert.Single(await historial.ListarTodasAsync());
         Assert.Equal(partida.Id, guardada.PartidaId);
@@ -269,12 +295,9 @@ public sealed class Pruebas_PerfilHistorial : IDisposable
         var historial = NuevoRepo();
         var repo = new PartidaRepoConHistorial(
             new PartidaEnMemoriaRepositorio(), new RegistrarResultadoPartida(historial, reloj));
-        var partida = new Partida(Guid.NewGuid(), new ConfigPartida { DuracionSegundos = 5 }, Arena.DesdeFilas(Escenarios.Predeterminado));
-        partida.Unirse(Ana, "Ana", Guid.NewGuid());
-        partida.Unirse(Beto, "Beto", Guid.NewGuid());
-        partida.Iniciar();
+        
+        var partida = PartidaConAnaPunteando();
         await repo.AgregarAsync(partida);
-        await repo.UsarAsync(partida.Id, p => p.Ejecutar(Ana, Accion.Abajo));
         await repo.UsarAsync(partida.Id, p => { p.Tick(5); return 0; });
 
         for (var i = 0; i < 3; i++)
@@ -291,18 +314,16 @@ public sealed class Pruebas_PerfilHistorial : IDisposable
             new PartidaEnMemoriaRepositorio(),
             new RegistrarResultadoPartida(new HistorialQueFalla(), reloj),
             (id, _) => fallos.Add(id));
-        var partida = new Partida(Guid.NewGuid(), new ConfigPartida { DuracionSegundos = 5 }, Arena.DesdeFilas(Escenarios.Predeterminado));
-        partida.Unirse(Ana, "Ana", Guid.NewGuid());
-        partida.Unirse(Beto, "Beto", Guid.NewGuid());
-        partida.Iniciar();
+        
+        var partida = PartidaConAnaPunteando();
         await repo.AgregarAsync(partida);
-        await repo.UsarAsync(partida.Id, p => p.Ejecutar(Ana, Accion.Abajo));
 
         var estado = await repo.UsarAsync(partida.Id, p => { p.Tick(5); return p.Estado; });
 
         Assert.Equal(EstadoPartida.Finalizada, estado);   // el jugador no se entera del fallo
         Assert.Equal(new[] { partida.Id }, fallos);
     }
+    
 
     // ---------- Perfil, historial y ranking (servicio) ----------
 

@@ -10,5 +10,7 @@ public enum ResultadoAccion
     LejosDelReactor,
     ReactorVacio,
     AccionRealizada,
-    Congelado
+    Congelado,
+    Enfriamiento,
+    ReactorDesactivado
 }
