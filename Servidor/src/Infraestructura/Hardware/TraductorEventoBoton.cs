@@ -7,7 +7,7 @@ namespace Infraestructura.Hardware;
 /// Convierte un mensaje MQTT del control en un EventoBoton.
 /// Topic:   arena/devices/{deviceId}/events
 /// Mensaje: {"button":"UP","seq":42}
-/// Si el mensaje no es valido devuelve null y el evento se descarta.
+/// Si el mensaje no es valido (sin button, boton desconocido o sin seq) devuelve null y el evento se descarta.
 /// </summary>
 public static class TraductorEventoBoton
 {
@@ -38,11 +38,11 @@ public static class TraductorEventoBoton
             if (accion is null)
                 return null;
 
-            var seq = raiz.TryGetProperty("seq", out var s)
-                      && s.ValueKind == JsonValueKind.Number
-                      && s.TryGetInt32(out var numero)
-                ? numero
-                : 0;
+            // Sin seq no se puede detectar un duplicado (CA-18.8): el mensaje se descarta.
+            if (!raiz.TryGetProperty("seq", out var s)
+                || s.ValueKind != JsonValueKind.Number
+                || !s.TryGetInt32(out var seq))
+                return null;
 
             return new EventoBoton(deviceId, accion.Value, seq);
         }
@@ -72,7 +72,7 @@ public static class TraductorEventoBoton
         "DOWN" => Accion.Abajo,
         "LEFT" => Accion.Izquierda,
         "RIGHT" => Accion.Derecha,
-        "ACTION" => Accion.Especial,
+        "ACTION" => Accion.Extraer,
         _ => null
     };
 }
