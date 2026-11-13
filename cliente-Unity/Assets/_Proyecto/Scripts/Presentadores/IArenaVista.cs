@@ -18,5 +18,8 @@ namespace Reactor.Cliente.Presentadores
         void ActualizarTemporizador(int segundos, bool esCuentaRegresiva);
         void MostrarEstado(string texto);
         void MostrarAviso(string texto);
+        void MostrarRechazo(string texto);
+        void OcultarRechazo();
+        void MostrarReactor(int energia, int capacidad, string estado);
     }
 }

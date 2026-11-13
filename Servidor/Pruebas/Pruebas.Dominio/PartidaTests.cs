@@ -303,7 +303,7 @@ public class PartidaTests
         partida.Ejecutar(beto.Id, Accion.Extraer);        // Beto 10
 
         Assert.Equal(EstadoPartida.EnCurso, partida.Estado);
-        partida.Tick(1);                                  // pasa el enfriamiento
+        partida.Tick(3);                                  // pasa el enfriamiento (3 s)
         partida.Ejecutar(ana.Id, Accion.Extraer);         // Ana 20: llega primero a la meta
 
         Assert.Equal(EstadoPartida.Finalizada, partida.Estado);

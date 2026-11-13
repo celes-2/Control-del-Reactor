@@ -117,7 +117,7 @@ public class PartidaExtraccionPuntosTests
         var (partida, ana, _) = CrearPartida(config);
         AcercarAnaAlReactor(partida, ana);
         partida.Ejecutar(ana.Id, Accion.Extraer);     // vacia el reactor: 10 puntos
-        partida.Tick(1);                              // pasa el enfriamiento, sin recarga
+        partida.Tick(3);                              // pasa el enfriamiento (3 s), sin recarga
 
         var resultado = partida.Ejecutar(ana.Id, Accion.Extraer);
 
@@ -179,7 +179,7 @@ public class PartidaExtraccionPuntosTests
         AcercarAnaAlReactor(partida, ana);
 
         partida.Ejecutar(ana.Id, Accion.Extraer);
-        partida.Tick(1);
+        partida.Tick(3);
         var resultado = partida.Ejecutar(ana.Id, Accion.Extraer);
 
         Assert.Equal(ResultadoAccion.EnergiaExtraida, resultado);

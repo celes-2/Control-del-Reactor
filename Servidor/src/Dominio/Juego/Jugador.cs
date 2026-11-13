@@ -22,8 +22,11 @@ public sealed class Jugador
     public bool Congelado => SegundosCongelado > 0;
     public bool Eliminado => Vida <= 0;
 
-    /// <summary>Segundo de la partida en que hizo su última extracción válida. -1 si todavía no ha extraído.</summary>
-    public int UltimaExtraccionSegundo { get; private set; } = -1;
+    /// <summary>Valor de "nunca ha extraído": suficientemente lejano para que ningún enfriamiento lo bloquee.</summary>
+    public const int SinExtraccion = -1_000_000;
+
+    /// <summary>Segundo de la partida en que hizo su última extracción válida; SinExtraccion si todavía no ha extraído.</summary>
+    public int UltimaExtraccionSegundo { get; private set; } = SinExtraccion;
 
     internal Jugador(Guid id, string nombre, Guid avatarId, Posicion posicion, int vida)
     {

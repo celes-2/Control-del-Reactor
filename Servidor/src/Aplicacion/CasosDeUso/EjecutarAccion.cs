@@ -17,7 +17,8 @@ public enum EstadoDelReactor
 /// <summary>
 /// Lo que pasó al ejecutar la acción; con esto se arman player:moved, score:changed, match:finished
 /// y (Sprint 3) player:extracted / player:rejected.
-/// EnergiaJugador, EnergiaReactor y EstadoReactor son del Sprint 3 y se leen DESPUÉS de ejecutar.
+/// EnergiaJugador, EnergiaReactor, EstadoReactor y PuntosGanados son del Sprint 3 y se leen DESPUÉS de ejecutar.
+/// PuntosGanados es la diferencia de puntaje antes/después (+10 al extraer; negativo si cae en una trampa).
 /// </summary>
 public sealed record ResultadoEjecucion(
     Guid PartidaId,
@@ -30,7 +31,8 @@ public sealed record ResultadoEjecucion(
     Guid? GanadorId,
     int EnergiaJugador = 0,
     int EnergiaReactor = 0,
-    EstadoDelReactor EstadoReactor = EstadoDelReactor.Disponible);
+    EstadoDelReactor EstadoReactor = EstadoDelReactor.Disponible,
+    int PuntosGanados = 0);
 
 /// <summary>
 /// Caso de uso: el jugador presionó un botón. Busca su partida y le pide al dominio que ejecute la
@@ -50,20 +52,31 @@ public sealed class EjecutarAccion(IPartidaRepo partidas)
 
         return await partidas.UsarAsync(partidaId, partida =>
         {
-            var resultado = partida.Ejecutar(comando.UsuarioId, comando.Accion);
-            var jugador = partida.Jugadores.First(j => j.Id == comando.UsuarioId);
+            var jugador = partida.Jugadores.FirstOrDefault(j => j.Id == comando.UsuarioId);
+            var puntajeAntes = jugador?.Puntaje ?? 0;
 
-            var estadoReactor = partida.Reactor.Desactivado
-                ? EstadoDelReactor.Desactivado
-                : partida.Reactor.EnergiaDisponible <= 0
-                    ? EstadoDelReactor.Vacio
-                    : EstadoDelReactor.Disponible;
+            var resultado = partida.Ejecutar(comando.UsuarioId, comando.Accion);
+
+            jugador ??= partida.Jugadores.First(j => j.Id == comando.UsuarioId);
+            var estadoReactor = EstadoReactorVista.De(partida.Reactor);
 
             return new ResultadoEjecucion(
                 partida.Id, jugador.Id, resultado,
                 jugador.Posicion.X, jugador.Posicion.Y, jugador.Puntaje,
                 partida.Estado, partida.GanadorId,
-                jugador.Energia, partida.Reactor.EnergiaDisponible, estadoReactor);
+                jugador.Energia, partida.Reactor.EnergiaDisponible, estadoReactor,
+                jugador.Puntaje - puntajeAntes);
         }, ct);
     }
+}
+
+/// <summary>Estado visible del reactor, calculado en un solo lugar.</summary>
+public static class EstadoReactorVista
+{
+    public static EstadoDelReactor De(Reactor reactor) =>
+        reactor.Desactivado
+            ? EstadoDelReactor.Desactivado
+            : reactor.EnergiaDisponible <= 0
+                ? EstadoDelReactor.Vacio
+                : EstadoDelReactor.Disponible;
 }

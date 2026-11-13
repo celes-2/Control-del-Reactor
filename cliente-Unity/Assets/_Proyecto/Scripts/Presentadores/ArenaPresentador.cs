@@ -16,6 +16,7 @@ namespace Reactor.Cliente.Presentadores
         readonly IGameSocket socket;
         readonly Dictionary<string, JugadorMsg> jugadores = new Dictionary<string, JugadorMsg>();
         string modoFin = ModosFin.Tiempo;
+        int capacidadReactor;
 
         /// <summary>Jugadores de la partida actual, con su último estado conocido.</summary>
         public IReadOnlyCollection<JugadorMsg> Jugadores => jugadores.Values;
@@ -31,6 +32,8 @@ namespace Reactor.Cliente.Presentadores
             socket.EstadoRecibido += AlRecibirEstado;
             socket.JugadorMovido += AlMoverse;
             socket.JugadorActuo += AlActuar;
+            socket.JugadorExtrajo += AlExtraer;
+            socket.JugadorRechazado += AlRechazar;
             socket.PuntajeCambiado += AlCambiarPuntaje;
             socket.Tick += AlTick;
             socket.TiempoExtra += AlTiempoExtra;
@@ -55,6 +58,8 @@ namespace Reactor.Cliente.Presentadores
             socket.EstadoRecibido -= AlRecibirEstado;
             socket.JugadorMovido -= AlMoverse;
             socket.JugadorActuo -= AlActuar;
+            socket.JugadorExtrajo -= AlExtraer;
+            socket.JugadorRechazado -= AlRechazar;
             socket.PuntajeCambiado -= AlCambiarPuntaje;
             socket.Tick -= AlTick;
             socket.TiempoExtra -= AlTiempoExtra;
@@ -85,6 +90,11 @@ namespace Reactor.Cliente.Presentadores
 
             vista.MostrarEstado(TextoEstado(e.Estado, jugadores.Count));
             ActualizarTemporizador(e.SegundosRestantes, e.SegundosTranscurridos);
+            if (e.Reactor != null)
+            {
+                capacidadReactor = e.Reactor.Capacidad;
+                vista.MostrarReactor(e.Reactor.Energia, e.Reactor.Capacidad, e.Reactor.Estado);
+            }
             vista.ActualizarMarcador(jugadores.Values);
         }
 
@@ -102,6 +112,23 @@ namespace Reactor.Cliente.Presentadores
         {
             if (m == null || !jugadores.ContainsKey(m.JugadorId ?? "")) return;
             vista.MostrarAccion(m.JugadorId, string.IsNullOrWhiteSpace(m.Mensaje) ? "¡Acción!" : m.Mensaje);
+        }
+
+        void AlExtraer(JugadorExtrajoMsg m)
+        {
+            if (m == null || !jugadores.TryGetValue(m.JugadorId ?? "", out var j)) return;
+            j.Puntaje = m.Puntaje;
+            vista.ActualizarMarcador(jugadores.Values);
+            vista.OcultarRechazo(); // una extracción válida borra el "Espera un momento" anterior
+            if (m.Puntos > 0) vista.MostrarAccion(m.JugadorId, $"+{m.Puntos}");
+            vista.MostrarReactor(m.EnergiaReactor, capacidadReactor, m.EstadoReactor);
+        }
+
+        // El servidor envía player:rejected SOLO al jugador que lo causó, así que no hace falta comparar ids.
+        void AlRechazar(JugadorRechazadoMsg m)
+        {
+            if (m == null) return;
+            vista.MostrarRechazo(TextosRechazo.Para(m.Codigo));
         }
 
         void AlCambiarPuntaje(PuntajeMsg m)

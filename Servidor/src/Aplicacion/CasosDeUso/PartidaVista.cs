@@ -30,7 +30,8 @@ public sealed record PartidaVista(
     ModoFin ModoFin,
     int PuntosObjetivo,
     int SegundosTranscurridos,
-    int Prorrogas)
+    int Prorrogas,
+    EstadoDelReactor EstadoReactor = EstadoDelReactor.Disponible)
 {
     public static PartidaVista Desde(Partida p) => new(
         p.Id,
@@ -57,7 +58,8 @@ public sealed record PartidaVista(
         p.Config.ModoFin,
         p.Config.PuntosObjetivo,
         p.SegundosTranscurridos,
-        p.Prorrogas);
+        p.Prorrogas,
+        EstadoReactorVista.De(p.Reactor));
 }
 
 /// <summary>Línea de la lista de partidas abiertas.</summary>
