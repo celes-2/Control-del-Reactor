@@ -99,7 +99,18 @@ public class TiempoRealTests
     public void Reloj_SeAcabaElTiempoConGanador_AvisaFin()
     {
         var (partida, ana, _) = CrearPartida(new ConfigPartida { DuracionSegundos = 1 });
-        partida.Ejecutar(ana.Id, Accion.Abajo); // Ana 1, Beto 0
+        
+        for (var fila = 0; fila < 15; fila++)
+        {
+            var lado = fila % 2 == 0 ? Accion.Derecha : Accion.Izquierda;
+            for (var paso = 0; paso < 20; paso++)
+            {
+                if (partida.Ejecutar(ana.Id, Accion.Extraer) == ResultadoAccion.EnergiaExtraida) goto listo;
+                partida.Ejecutar(ana.Id, lado);
+            }
+            partida.Ejecutar(ana.Id, Accion.Abajo);
+        }
+        listo:
 
         var cambio = ServicioReloj.Avanzar(partida);
 
@@ -146,9 +157,9 @@ public class TiempoRealTests
 
     [Theory]
     [InlineData("hola")]               // no es JSON
-    [InlineData("[]")]                 // no es un objeto
-    [InlineData("{\"data\":{}}")]      // falta type
-    [InlineData("{\"type\":5}")]       // type no es texto
+    [InlineData("[]")]                  // no es un objeto
+    [InlineData("{\"data\":{}}")]       // falta type
+    [InlineData("{\"type\":5}")]        // type no es texto
     public void Leer_MensajeInvalido_DevuelveNull(string json)
     {
         Assert.Null(SerializadorMensajes.Leer(json));

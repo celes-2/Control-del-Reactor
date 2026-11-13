@@ -7,17 +7,20 @@ namespace Dominio.Juego;
 /// Es una clase pura: no usa reloj, archivos, red ni base de datos. El tiempo avanza
 /// cuando la capa de aplicación llama a <see cref="Tick"/>, lo que la hace fácil de probar.
 ///
-/// Reglas:
+/// Reglas (Sprint 3, ver docs/reglas.md):
 ///  - Los jugadores aparecen en las esquinas. Hay entre 2 y 4.
 ///  - Los movimientos son de una celda. Muros, bordes, el reactor y otros jugadores bloquean.
-///  - Cada movimiento efectivo suma 1 punto (US-15).
+///  - Moverse NO da puntos. Los puntos salen de extraer energía del reactor (1 punto por unidad extraída).
+///  - Extraer exige: partida en curso, jugador vivo y no congelado, celda vecina al reactor,
+///    reactor activo y con energía, y haber esperado el enfriamiento desde la última extracción.
+///  - Una trampa congela al jugador y le resta puntos (nunca baja de cero); no quita vida.
 ///  - El fin se elige en la configuración (US-08): por TIEMPO o por PUNTOS.
 ///      Tiempo: al llegar a cero gana quien tenga más puntos.
 ///      Puntos: gana el primero que llegue a PuntosObjetivo.
 ///  - Empate al acabarse el tiempo: se suman 2 minutos y la partida sigue con los mismos puntajes (CA-16.4).
 ///  - Un jugador congelado no puede actuar hasta que pase su tiempo de congelamiento.
 ///  - "Especial" (quinto botón) no cambia el estado: solo avisa que el jugador hizo una acción (US-14).
-///  - Extras del Sprint 3 ya implementados: trampas (quitan vida; el último vivo gana) y extracción de energía.
+///  - Una sobrecarga desactiva el reactor unos segundos (<see cref="DesactivarReactor"/>).
 /// </summary>
 public sealed class Partida
 {
@@ -153,6 +156,15 @@ public sealed class Partida
         jugador.Congelar(Config.SegundosCongelamiento);
     }
 
+    /// <summary>Sobrecarga del reactor (US-22): lo desactiva durante <paramref name="segundos"/>. Nadie puede extraer mientras tanto.</summary>
+    public void DesactivarReactor(int segundos)
+    {
+        if (Estado != EstadoPartida.EnCurso)
+            throw new DominioException("La partida no está en curso.");
+
+        Reactor.Desactivar(segundos);
+    }
+
     /// <summary>Avanza el tiempo: recarga el reactor, descongela jugadores y revisa si terminó por tiempo.</summary>
     public void Tick(int segundos)
     {
@@ -163,6 +175,7 @@ public sealed class Partida
 
         SegundosTranscurridos += segundos;
         Reactor.Recargar(Config.RegeneracionPorSegundo * segundos);
+        Reactor.AvanzarTiempo(segundos);
         foreach (var jugador in _jugadores)
             jugador.AvanzarTiempo(segundos);
 
@@ -189,20 +202,17 @@ public sealed class Partida
         if (obstaculo?.Tipo == TipoObstaculo.Muro)
             return ResultadoAccion.Bloqueado;
 
+        // Moverse no da puntos: solo extraer energía del reactor los da.
         jugador.MoverA(destino);
-        jugador.SumarPunto();
 
         if (obstaculo?.Tipo == TipoObstaculo.Trampa)
         {
-            jugador.RecibirDano(Config.DanoTrampa);
-            if (jugador.Eliminado)
-                Reactor.Recargar(jugador.VaciarEnergia());
-
-            EvaluarFin();
+            // La trampa resta puntos (nunca baja de cero) e inmoviliza; no quita vida.
+            jugador.RestarPuntos(Config.PenalizacionTrampa);
+            jugador.Congelar(Config.SegundosCongelamiento);
             return ResultadoAccion.DanoPorTrampa;
         }
 
-        EvaluarFin();
         return ResultadoAccion.Movido;
     }
 
@@ -211,11 +221,23 @@ public sealed class Partida
         if (!Reactor.EstaAdyacente(jugador.Posicion))
             return ResultadoAccion.LejosDelReactor;
 
-        var energia = Reactor.Extraer(Config.EnergiaPorExtraccion);
-        if (energia == 0)
+        if (Reactor.Desactivado)
+            return ResultadoAccion.ReactorDesactivado;
+
+        if (Reactor.EnergiaDisponible == 0)
             return ResultadoAccion.ReactorVacio;
 
+        if (SegundosTranscurridos - jugador.UltimaExtraccionSegundo < Config.SegundosEnfriamiento)
+            return ResultadoAccion.Enfriamiento;
+
+        var energia = Reactor.Extraer(Config.EnergiaPorExtraccion);
+
         jugador.GanarEnergia(energia);
+        jugador.SumarPuntos(energia * Config.PuntosPorEnergia);
+        jugador.MarcarExtraccion(SegundosTranscurridos);
+
+        // Los puntos acaban de cambiar: puede que alguien llegue a la meta.
+        EvaluarFin();
         return ResultadoAccion.EnergiaExtraida;
     }
 

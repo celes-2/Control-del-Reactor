@@ -15,6 +15,20 @@ public class PartidaTiempoTests
         return (partida, ana, beto);
     }
 
+    private static void Repetir(Partida partida, Jugador jugador, Accion accion, int veces)
+    {
+        for (var i = 0; i < veces; i++)
+            partida.Ejecutar(jugador.Id, accion);
+    }
+
+    /// <summary>Ana camina de (0,0) a (4,5) y extrae una vez (+10 puntos).</summary>
+    private static void AnaExtraeUnaVez(Partida partida, Jugador ana)
+    {
+        Repetir(partida, ana, Accion.Derecha, 4);
+        Repetir(partida, ana, Accion.Abajo, 5);
+        Assert.Equal(ResultadoAccion.EnergiaExtraida, partida.Ejecutar(ana.Id, Accion.Extraer));
+    }
+
     [Fact]
     public void Tick_SumaLosSegundosTranscurridos()
     {
@@ -53,7 +67,7 @@ public class PartidaTiempoTests
     public void Tick_DespuesDeFinalizar_NoSigueSumando()
     {
         var (partida, ana, _) = CrearPartida(new ConfigPartida { DuracionSegundos = 30 });
-        partida.Ejecutar(ana.Id, Accion.Abajo);
+        AnaExtraeUnaVez(partida, ana);
         partida.Tick(30); // gana Ana
 
         partida.Tick(5);
