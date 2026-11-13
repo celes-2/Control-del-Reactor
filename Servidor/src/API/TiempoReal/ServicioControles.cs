@@ -70,6 +70,6 @@ public sealed class ServicioControles(
         log.LogInformation("{DeviceId} -> {Accion} (seq {Seq}): {Resultado} en ({X},{Y}), puntaje {Puntaje}",
             evento.DeviceId, evento.Accion, evento.Seq, resultado.Resultado, resultado.X, resultado.Y, resultado.Puntaje);
 
-        await publicador.EnviarResultadoAsync(resultado, ct);
+        await publicador.EnviarResultadoAsync(resultado, evento.Accion, ct);
     }
 }

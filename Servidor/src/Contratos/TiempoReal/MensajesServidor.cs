@@ -20,8 +20,12 @@ public sealed record EstadoPartidaData(
 /// <summary>"player:moved"</summary>
 public sealed record JugadorMovidoData(Guid UserId, int X, int Y, int Score);
 
-/// <summary>"player:acted" (botón ACTION). Message es opcional.</summary>
-public sealed record JugadorActuoData(Guid UserId, string? Message);
+/// <summary>"player:extracted": extraccion valida, a toda la sala. ReactorState: AVAILABLE | EMPTY | DISABLED.</summary>
+public sealed record JugadorExtrajoData(
+    Guid UserId, int Points, int Score, int PlayerEnergy, int ReactorEnergy, string ReactorState, string? EventId);
+
+/// <summary>"player:rejected": la extraccion no fue valida; solo al jugador que la intento.</summary>
+public sealed record RechazoData(Guid UserId, string Code, string Message);
 
 /// <summary>"score:changed"</summary>
 public sealed record PuntajeCambiadoData(Guid UserId, int Score);

@@ -56,4 +56,17 @@ public sealed class AdministradorSalas
         var texto = SerializadorMensajes.Serializar(tipo, data);
         return Task.WhenAll(destinatarios.Select(c => c.EnviarTextoAsync(texto, ct)));
     }
+
+    /// <summary>Envia un mensaje solo a un jugador de la partida (por ejemplo, un rechazo). Si no esta conectado, no hace nada.</summary>
+    public Task EnviarAJugadorAsync<T>(Guid partidaId, Guid usuarioId, string tipo, T data, CancellationToken ct = default)
+    {
+        ConexionJugador? conexion = null;
+        lock (_candado)
+        {
+            if (_salas.TryGetValue(partidaId, out var sala))
+                sala.TryGetValue(usuarioId, out conexion);
+        }
+
+        return conexion is null ? Task.CompletedTask : conexion.EnviarAsync(tipo, data, ct);
+    }
 }

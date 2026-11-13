@@ -11,8 +11,6 @@ namespace API.TiempoReal;
 /// </summary>
 public sealed class PublicadorPartida(AdministradorSalas salas, IPartidaRepo partidas)
 {
-    public const string MensajeAccion = "¡Acción!";
-
     /// <summary>Foto actual de la partida en formato "match:state".</summary>
     public Task<EstadoPartidaData> ObtenerEstadoAsync(Guid partidaId, CancellationToken ct = default) =>
         partidas.UsarAsync(partidaId,
@@ -24,8 +22,8 @@ public sealed class PublicadorPartida(AdministradorSalas salas, IPartidaRepo par
         await salas.EnviarATodosAsync(partidaId, TiposMensaje.MatchState, estado, ct);
     }
 
-    /// <summary>Traduce el resultado de un boton en mensajes para todos los jugadores de la partida.</summary>
-    public async Task EnviarResultadoAsync(ResultadoEjecucion r, CancellationToken ct = default)
+    /// <summary>Traduce el resultado de un boton en mensajes para los jugadores de la partida.</summary>
+    public async Task EnviarResultadoAsync(ResultadoEjecucion r, Accion accion, CancellationToken ct = default)
     {
         switch (r.Resultado)
         {
@@ -37,13 +35,16 @@ public sealed class PublicadorPartida(AdministradorSalas salas, IPartidaRepo par
                     new PuntajeCambiadoData(r.UsuarioId, r.Puntaje), ct);
                 break;
 
-            case ResultadoAccion.AccionRealizada:
-                await salas.EnviarATodosAsync(r.PartidaId, TiposMensaje.PlayerActed,
-                    new JugadorActuoData(r.UsuarioId, MensajeAccion), ct);
+            case ResultadoAccion.EnergiaExtraida:
+                // player:extracted llega en el paso 6B (falta PuntosGanados). Por ahora se actualiza el marcador.
+                await salas.EnviarATodosAsync(r.PartidaId, TiposMensaje.ScoreChanged,
+                    new PuntajeCambiadoData(r.UsuarioId, r.Puntaje), ct);
                 break;
-
-                // Bloqueado, Congelado, etc.: no cambio nada visible, no se avisa.
         }
+
+        // Rechazos: solo cuando falla una extraccion, y solo al jugador que la intento (Docs/contratos.md).
+        if (accion == Accion.Extraer && Rechazos.Desde(r.UsuarioId, r.Resultado) is { } rechazo)
+            await salas.EnviarAJugadorAsync(r.PartidaId, r.UsuarioId, TiposMensaje.PlayerRejected, rechazo, ct);
 
         if (r.Estado == EstadoPartida.Finalizada)
             await EnviarFinAsync(r.PartidaId, ct);
