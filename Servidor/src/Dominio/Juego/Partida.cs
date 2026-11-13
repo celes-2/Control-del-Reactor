@@ -125,13 +125,13 @@ public sealed class Partida
     public ResultadoAccion Ejecutar(Guid jugadorId, Accion accion)
     {
         if (Estado != EstadoPartida.EnCurso)
-            throw new DominioException("La partida no está en curso.");
+            throw new DominioException("La partida no está en curso.", CodigosRechazo.PartidaNoActiva);
 
         var jugador = _jugadores.FirstOrDefault(j => j.Id == jugadorId)
-            ?? throw new DominioException("El jugador no pertenece a esta partida.");
+            ?? throw new DominioException("El jugador no pertenece a esta partida.", CodigosRechazo.JugadorAjeno);
 
         if (jugador.Eliminado)
-            throw new DominioException("El jugador está eliminado.");
+            throw new DominioException("El jugador está eliminado.", CodigosRechazo.JugadorEliminado);
 
         if (jugador.Congelado)
             return ResultadoAccion.Congelado;
@@ -148,10 +148,10 @@ public sealed class Partida
     public void Congelar(Guid jugadorId)
     {
         if (Estado != EstadoPartida.EnCurso)
-            throw new DominioException("La partida no está en curso.");
+            throw new DominioException("La partida no está en curso.", CodigosRechazo.PartidaNoActiva);
 
         var jugador = _jugadores.FirstOrDefault(j => j.Id == jugadorId)
-            ?? throw new DominioException("El jugador no pertenece a esta partida.");
+            ?? throw new DominioException("El jugador no pertenece a esta partida.", CodigosRechazo.JugadorAjeno);
 
         jugador.Congelar(Config.SegundosCongelamiento);
     }
@@ -160,7 +160,7 @@ public sealed class Partida
     public void DesactivarReactor(int segundos)
     {
         if (Estado != EstadoPartida.EnCurso)
-            throw new DominioException("La partida no está en curso.");
+            throw new DominioException("La partida no está en curso.", CodigosRechazo.PartidaNoActiva);
 
         Reactor.Desactivar(segundos);
     }
