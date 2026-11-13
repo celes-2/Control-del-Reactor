@@ -36,7 +36,7 @@ namespace Reactor.Cliente.Arranque
 
             raiz.Audio.Reproducir(Pista.Arena);
 
-            presentador = new ArenaPresentador(GetComponent<ArenaVista>(), raiz.Socket);
+            presentador = new ArenaPresentador(GetComponent<ArenaVista>(), raiz.Socket, raiz.Sesion.UsuarioId);
             presentador.PartidaTerminada += AlTerminarPartida;
 
             var partidaId = string.IsNullOrEmpty(raiz.Sesion.PartidaActualId) ? partidaIdDemo : raiz.Sesion.PartidaActualId;

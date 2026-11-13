@@ -19,6 +19,9 @@ namespace Reactor.Cliente.Arena
         SpriteRenderer cuerpo;
         TextMeshPro inicial;
         TextMeshPro burbuja;
+        TextMeshPro nombreTexto;
+        SpriteRenderer anilloPropio;
+        float tamanoAnilloBase;
         Coroutine rutinaBurbuja;
         Vector3 destino;
         float tamanoCuerpo;                  // tamaño final de la imagen, en unidades
@@ -47,6 +50,15 @@ namespace Reactor.Cliente.Arena
 
         public void MoverA(Vector3 posicion) => destino = posicion;
 
+        /// <summary>Distingue al jugador local (CA-24): aro blanco que pulsa y "(tú)" junto al nombre.</summary>
+        public void MarcarComoPropio()
+        {
+            if (anilloPropio != null) return;
+            anilloPropio = CrearSprite("AroPropio", GeneradorSprites.Circulo(), Color.white, tamanoAnilloBase * 1.2f, 9);
+            nombreTexto.text += " (tú)";
+            nombreTexto.color = new Color(1f, 0.95f, 0.5f);
+        }
+
         public void MostrarMensaje(string mensaje)
         {
             if (rutinaBurbuja != null) StopCoroutine(rutinaBurbuja);
@@ -71,6 +83,12 @@ namespace Reactor.Cliente.Arena
         void Update()
         {
             transform.position = Vector3.MoveTowards(transform.position, destino, Velocidad * Time.deltaTime);
+
+            if (anilloPropio != null)
+            {
+                float k = 1.18f + 0.05f * Mathf.Sin(Time.time * 4f);
+                anilloPropio.transform.localScale = Vector3.one * (tamanoAnilloBase * k);
+            }
         }
 
         void Construir(JugadorMsg jugador, Vector3 posicion, float escala, float proporcionImagen)
@@ -88,7 +106,8 @@ namespace Reactor.Cliente.Arena
             CrearSprite("Anillo", circulo, color, anillo, 10);
             cuerpo = CrearSprite("Cuerpo", circulo, Color.Lerp(color, Color.white, 0.55f), tamanoCuerpo, 11);
             inicial = CrearTexto("Inicial", Inicial(jugador.Nombre), Vector3.zero, 5f * escala, new Color(0.1f, 0.1f, 0.12f), 12, false, new Vector2(anillo, anillo));
-            CrearTexto("Nombre", jugador.Nombre, new Vector3(0f, borde + 0.25f, 0f), 3f, Color.white, 13, true, new Vector2(4f, 0.6f));
+            nombreTexto = CrearTexto("Nombre", jugador.Nombre, new Vector3(0f, borde + 0.25f, 0f), 3f, Color.white, 13, true, new Vector2(4f, 0.6f));
+            tamanoAnilloBase = anillo;
             burbuja = CrearTexto("Burbuja", "", new Vector3(0f, borde + 0.8f, 0f), 3.5f, new Color(1f, 0.92f, 0.3f), 14, true, new Vector2(6f, 0.8f));
             burbuja.gameObject.SetActive(false);
         }

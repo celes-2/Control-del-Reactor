@@ -21,5 +21,7 @@ namespace Reactor.Cliente.Presentadores
         void MostrarRechazo(string texto);
         void OcultarRechazo();
         void MostrarReactor(int energia, int capacidad, string estado);
+        void MostrarExtraccion(string jugadorId);
+        void MarcarJugadorPropio(string jugadorId);
     }
 }

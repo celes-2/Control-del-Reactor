@@ -30,6 +30,7 @@ namespace Reactor.Cliente.Arena
         ArenaRenderer mapa;
         ArenaHud hud;
         Transform contenedorAvatares;
+        string jugadorPropioId;
 
         void Awake()
         {
@@ -93,7 +94,10 @@ public void MostrarJugador(JugadorMsg jugador)
         {
             var texto = new StringBuilder();
             foreach (var j in jugadores.OrderByDescending(x => x.Puntaje))
-                texto.AppendLine($"<color={Colores.HexSeguro(j.Color)}>{j.Nombre}</color>   {j.Puntaje} pts");
+            {
+                var etiqueta = j.Id == jugadorPropioId ? $"<b>{j.Nombre} (tú)</b>" : j.Nombre;
+                texto.AppendLine($"<color={Colores.HexSeguro(j.Color)}>{etiqueta}</color>   {j.Puntaje} pts");
+            }
             hud.MostrarMarcador(texto.ToString());
         }
 
@@ -112,6 +116,22 @@ public void MostrarJugador(JugadorMsg jugador)
 
         public void OcultarRechazo() => hud.OcultarRechazo();
 
-        public void MostrarReactor(int energia, int capacidad, string estado) => hud.MostrarReactor(energia, capacidad, estado);
+        public void MostrarReactor(int energia, int capacidad, string estado)
+        {
+            hud.MostrarReactor(energia, capacidad, estado);
+            mapa.ActualizarReactor(energia, capacidad, estado);
+        }
+
+        public void MarcarJugadorPropio(string jugadorId)
+        {
+            jugadorPropioId = jugadorId;
+            if (avatares.TryGetValue(jugadorId ?? "", out var avatar)) avatar.MarcarComoPropio();
+        }
+
+        public void MostrarExtraccion(string jugadorId)
+        {
+            mapa.Destello();
+            if (avatares.TryGetValue(jugadorId ?? "", out var avatar)) mapa.LanzarRayo(avatar.transform.position);
+        }
     }
 }

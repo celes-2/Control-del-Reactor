@@ -1,3 +1,4 @@
+using System.Collections;
 using Reactor.Cliente.Contratos;
 using UnityEngine;
 using UnityEngine.Tilemaps;
@@ -23,6 +24,13 @@ namespace Reactor.Cliente.Arena
 
         int alto;
 
+        // Reactor vivo (Sprint 3): núcleo que pulsa y cambia según energía y estado.
+        SpriteRenderer nucleo;
+        string estadoReactor = EstadosReactor.Disponible;
+        float cargaReactor = 1f;
+        float destello;
+        int reactorX = -1, reactorY = -1;
+
         public bool Dibujar(EscenarioMsg escenario)
         {
             if (escenario == null || escenario.Filas == null || escenario.Ancho <= 0 || escenario.Filas.Count != escenario.Alto)
@@ -36,16 +44,115 @@ namespace Reactor.Cliente.Arena
 
             tilemap.ClearAllTiles();
             alto = escenario.Alto;
+            reactorX = reactorY = -1;
 
             for (int y = 0; y < escenario.Alto; y++)
             {
                 var fila = escenario.Filas[y] ?? "";
                 for (int x = 0; x < escenario.Ancho && x < fila.Length; x++)
+                {
                     tilemap.SetTile(Coordenadas.ACelda(x, y, alto), TileDe(fila[x]));
+                    if (fila[x] == Celdas.Reactor) { reactorX = x; reactorY = y; }
+                }
             }
 
             AjustarCamara(escenario.Ancho, escenario.Alto);
+            CrearNucleo();
             return true;
+        }
+
+        /// <summary>Energía y estado del reactor: cambia el tamaño y el color del núcleo.</summary>
+        public void ActualizarReactor(int energia, int capacidad, string estado)
+        {
+            cargaReactor = capacidad > 0 ? Mathf.Clamp01(energia / (float)capacidad) : 1f;
+            estadoReactor = string.IsNullOrEmpty(estado) ? EstadosReactor.Disponible : estado;
+        }
+
+        /// <summary>Destello breve del reactor cuando alguien extrae.</summary>
+        public void Destello() => destello = 1f;
+
+        /// <summary>Rayo de energía desde el reactor hasta el jugador que extrajo.</summary>
+        public void LanzarRayo(Vector3 hacia)
+        {
+            if (nucleo == null) return;
+            StartCoroutine(RutinaRayo(nucleo.transform.position, hacia));
+        }
+
+        IEnumerator RutinaRayo(Vector3 desde, Vector3 hasta)
+        {
+            var go = new GameObject("RayoExtraccion");
+            go.transform.SetParent(transform, false);
+            var linea = go.AddComponent<LineRenderer>();
+            linea.material = new Material(Shader.Find("Sprites/Default"));
+            linea.positionCount = 2;
+            linea.useWorldSpace = true;
+            linea.numCapVertices = 4;
+            linea.sortingOrder = 9;
+            linea.SetPosition(0, desde);
+            linea.SetPosition(1, hasta);
+
+            const float duracion = 0.3f;
+            for (float t = 0f; t < duracion; t += Time.deltaTime)
+            {
+                float k = 1f - t / duracion;
+                linea.startWidth = 0.22f * k;
+                linea.endWidth = 0.06f * k;
+                var c = new Color(1f, 0.92f, 0.35f, k);
+                linea.startColor = c;
+                linea.endColor = c;
+                yield return null;
+            }
+            Destroy(go);
+        }
+
+        void CrearNucleo()
+        {
+            if (nucleo != null) Destroy(nucleo.gameObject);
+            nucleo = null;
+            if (reactorX < 0) return;
+
+            var go = new GameObject("NucleoReactor");
+            go.transform.SetParent(transform, false);
+            go.transform.position = CentroDeCelda(reactorX, reactorY);
+            nucleo = go.AddComponent<SpriteRenderer>();
+            nucleo.sprite = GeneradorSprites.Circulo();
+            nucleo.sortingOrder = 5; // sobre el suelo, debajo de los avatares
+            cargaReactor = 1f;
+            estadoReactor = EstadosReactor.Disponible;
+        }
+
+        void Update()
+        {
+            if (nucleo == null) return;
+
+            destello = Mathf.MoveTowards(destello, 0f, Time.deltaTime * 4f);
+            float pulso = Mathf.Sin(Time.time * 3f);
+
+            float tamano;
+            Color color;
+            switch (estadoReactor)
+            {
+                case EstadosReactor.Desactivado:
+                    // Sobrecarga: rojo, parpadeando rápido.
+                    tamano = 0.55f;
+                    color = new Color(0.95f, 0.2f, 0.2f, 0.45f + 0.45f * Mathf.Abs(Mathf.Sin(Time.time * 8f)));
+                    break;
+                case EstadosReactor.Vacio:
+                    // Vacío: gris apagado, sin pulso.
+                    tamano = 0.3f;
+                    color = new Color(0.5f, 0.52f, 0.58f, 0.7f);
+                    break;
+                default:
+                    // Activo: más grande y brillante mientras más energía; pulsa suave.
+                    tamano = 0.4f + 0.35f * cargaReactor + 0.04f * pulso;
+                    color = Color.Lerp(new Color(0.9f, 0.45f, 0.1f), new Color(1f, 0.95f, 0.4f), cargaReactor);
+                    break;
+            }
+
+            tamano += 0.25f * destello;
+            color = Color.Lerp(color, Color.white, 0.6f * destello);
+            nucleo.transform.localScale = Vector3.one * tamano;
+            nucleo.color = color;
         }
 
         public Vector3 CentroDeCelda(int x, int y)

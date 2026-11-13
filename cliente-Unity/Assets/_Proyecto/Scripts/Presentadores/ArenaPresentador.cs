@@ -17,6 +17,7 @@ namespace Reactor.Cliente.Presentadores
         readonly Dictionary<string, JugadorMsg> jugadores = new Dictionary<string, JugadorMsg>();
         string modoFin = ModosFin.Tiempo;
         int capacidadReactor;
+        readonly string jugadorPropioId;
 
         /// <summary>Jugadores de la partida actual, con su último estado conocido.</summary>
         public IReadOnlyCollection<JugadorMsg> Jugadores => jugadores.Values;
@@ -24,8 +25,9 @@ namespace Reactor.Cliente.Presentadores
         /// <summary>Se dispara al terminar la partida (aquí se navegará a la escena Victoria).</summary>
         public event Action<PartidaFinalizadaMsg> PartidaTerminada;
 
-        public ArenaPresentador(IArenaVista vista, IGameSocket socket)
+        public ArenaPresentador(IArenaVista vista, IGameSocket socket, string jugadorPropioId = null)
         {
+            this.jugadorPropioId = jugadorPropioId;
             this.vista = vista ?? throw new ArgumentNullException(nameof(vista));
             this.socket = socket ?? throw new ArgumentNullException(nameof(socket));
 
@@ -86,6 +88,8 @@ namespace Reactor.Cliente.Presentadores
                 if (string.IsNullOrEmpty(j?.Id)) continue;
                 jugadores[j.Id] = j;
                 vista.MostrarJugador(j);
+                if (!string.IsNullOrEmpty(jugadorPropioId) && j.Id == jugadorPropioId)
+                    vista.MarcarJugadorPropio(j.Id);
             }
 
             vista.MostrarEstado(TextoEstado(e.Estado, jugadores.Count));
@@ -120,6 +124,7 @@ namespace Reactor.Cliente.Presentadores
             j.Puntaje = m.Puntaje;
             vista.ActualizarMarcador(jugadores.Values);
             vista.OcultarRechazo(); // una extracción válida borra el "Espera un momento" anterior
+            vista.MostrarExtraccion(m.JugadorId);
             if (m.Puntos > 0) vista.MostrarAccion(m.JugadorId, $"+{m.Puntos}");
             vista.MostrarReactor(m.EnergiaReactor, capacidadReactor, m.EstadoReactor);
         }
