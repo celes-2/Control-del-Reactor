@@ -48,6 +48,9 @@ public sealed class Jugador
 
     internal void Congelar(int segundos) => SegundosCongelado = Math.Max(SegundosCongelado, segundos);
 
+    /// <summary>Suma tiempo a un congelamiento en curso (un guardián alcanza a quien ya está inmovilizado, CA-21.10).</summary>
+    internal void ExtenderCongelamiento(int segundos) => SegundosCongelado += segundos;
+
     internal void AvanzarTiempo(int segundos) => SegundosCongelado = Math.Max(0, SegundosCongelado - segundos);
 
     internal void GanarEnergia(int cantidad) => Energia += cantidad;

@@ -12,5 +12,8 @@ public enum ResultadoAccion
     AccionRealizada,
     Congelado,
     Enfriamiento,
-    ReactorDesactivado
+    ReactorDesactivado,
+
+    /// <summary>El jugador pisó la energía adicional de un evento y se llevó sus puntos.</summary>
+    EnergiaRecogida
 }

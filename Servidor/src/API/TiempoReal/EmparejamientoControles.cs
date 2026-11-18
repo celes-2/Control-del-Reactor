@@ -10,7 +10,33 @@ public interface IEmparejamientoControles
 }
 
 /// <summary>
-/// Plan B acordado con Celeste para la demo (mientras no exista POST /api/devices/pair):
+/// Emparejamiento real (CA-18.2): primero busca el control en dispositivos.json
+/// (lo llena POST /api/devices/pair con el JWT del jugador).
+/// - Control emparejado: maneja SOLO a su jugador, y solo si ese jugador esta en una partida en curso.
+/// - Control sin emparejar: usa el respaldo por orden (pico-01 = primer jugador, pico-02 = segundo).
+/// </summary>
+public sealed class EmparejamientoPorDispositivo(
+    IDispositivoRepo dispositivos,
+    IPartidaRepo partidas,
+    EmparejamientoPorOrden respaldo) : IEmparejamientoControles
+{
+    public async Task<Guid?> BuscarJugadorAsync(string deviceId, CancellationToken ct = default)
+    {
+        var asignado = await dispositivos.ObtenerPorDeviceIdAsync(deviceId, ct);
+        if (asignado is null)
+            return await respaldo.BuscarJugadorAsync(deviceId, ct);
+
+        var enCurso = await partidas.ConsultarAsync(
+            p => p.Estado == EstadoPartida.EnCurso && p.Jugadores.Any(j => j.Id == asignado.UserId),
+            p => p.Id,
+            ct);
+
+        return enCurso.Count > 0 ? asignado.UserId : null;
+    }
+}
+
+/// <summary>
+/// Respaldo para la demo (si un control no se emparejo con POST /api/devices/pair):
 /// pico-01 = primer jugador que entro a la partida en curso, pico-02 = el segundo.
 /// Si hubiera varias partidas en curso usa la primera que encuentre (en la demo hay una sola).
 /// </summary>
