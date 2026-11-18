@@ -33,6 +33,7 @@ public sealed class PublicadorPartida(AdministradorSalas salas, IPartidaRepo par
         {
             case ResultadoAccion.Movido:
             case ResultadoAccion.DanoPorTrampa:
+            case ResultadoAccion.EnergiaRecogida:
                 await salas.EnviarATodosAsync(r.PartidaId, TiposMensaje.PlayerMoved,
                     new JugadorMovidoData(r.UsuarioId, r.X, r.Y, r.Puntaje), ct);
                 await salas.EnviarATodosAsync(r.PartidaId, TiposMensaje.ScoreChanged,
@@ -50,9 +51,32 @@ public sealed class PublicadorPartida(AdministradorSalas salas, IPartidaRepo par
         if (accion == Accion.Extraer && Rechazos.Desde(r.UsuarioId, r.Resultado) is { } rechazo)
             await salas.EnviarAJugadorAsync(r.PartidaId, r.UsuarioId, TiposMensaje.PlayerRejected, rechazo, ct);
 
+        // Arena viva: congelamientos, energía recogida y eventos que terminaron por esta acción (a toda la sala).
+        await EnviarNovedadesAsync(r.PartidaId, r.Novedades, ct);
+
         if (r.Estado == EstadoPartida.Finalizada)
             await EnviarFinAsync(r.PartidaId, ct);
     }
+
+    /// <summary>
+    /// Avisa a toda la sala lo que pasó en la arena viva (player:frozen, item:collected, event:started, event:ended),
+    /// en el mismo orden en que ocurrió. Así todos ven lo mismo (CA-20.6, CA-21.7, CA-22.6).
+    /// </summary>
+    public async Task EnviarNovedadesAsync(Guid partidaId, IReadOnlyList<Novedad>? novedades, CancellationToken ct = default)
+    {
+        if (novedades is null)
+            return;
+
+        foreach (var novedad in novedades)
+        {
+            if (novedad.AMensaje() is { } mensaje)
+                await salas.EnviarATodosAsync(partidaId, mensaje.Tipo, mensaje.Data, ct);
+        }
+    }
+
+    /// <summary>"arena:update": foto de guardianes, puertas, trampas, energía y eventos. La manda el reloj cada segundo.</summary>
+    public Task EnviarArenaAsync(Guid partidaId, ArenaActualizadaData arena, CancellationToken ct = default) =>
+        salas.EnviarATodosAsync(partidaId, TiposMensaje.ArenaUpdate, arena, ct);
 
     /// <summary>
     /// Rechazo que no viene de un resultado sino de una excepcion (por ejemplo, partida no activa).

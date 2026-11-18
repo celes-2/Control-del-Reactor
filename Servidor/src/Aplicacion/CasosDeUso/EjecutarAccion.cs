@@ -19,6 +19,8 @@ public enum EstadoDelReactor
 /// y (Sprint 3) player:extracted / player:rejected.
 /// EnergiaJugador, EnergiaReactor, EstadoReactor y PuntosGanados son del Sprint 3 y se leen DESPUÉS de ejecutar.
 /// PuntosGanados es la diferencia de puntaje antes/después (+10 al extraer; negativo si cae en una trampa).
+/// Novedades (Paquete B) es lo que pasó en la arena por esta acción: congelamientos (trampa o guardián),
+/// energía adicional recogida y eventos que terminaron. Con eso se arman player:frozen, item:collected y event:ended.
 /// </summary>
 public sealed record ResultadoEjecucion(
     Guid PartidaId,
@@ -32,7 +34,8 @@ public sealed record ResultadoEjecucion(
     int EnergiaJugador = 0,
     int EnergiaReactor = 0,
     EstadoDelReactor EstadoReactor = EstadoDelReactor.Disponible,
-    int PuntosGanados = 0);
+    int PuntosGanados = 0,
+    IReadOnlyList<Novedad>? Novedades = null);
 
 /// <summary>
 /// Caso de uso: el jugador presionó un botón. Busca su partida y le pide al dominio que ejecute la
@@ -65,7 +68,8 @@ public sealed class EjecutarAccion(IPartidaRepo partidas)
                 jugador.Posicion.X, jugador.Posicion.Y, jugador.Puntaje,
                 partida.Estado, partida.GanadorId,
                 jugador.Energia, partida.Reactor.EnergiaDisponible, estadoReactor,
-                jugador.Puntaje - puntajeAntes);
+                jugador.Puntaje - puntajeAntes,
+                partida.TomarNovedades());
         }, ct);
     }
 }

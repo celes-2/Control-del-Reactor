@@ -21,6 +21,7 @@ public static class PartidasServicios
         servicios.AddScoped<ObtenerPartida>();
         servicios.AddScoped<ListarPartidasEnEspera>();
         servicios.AddScoped<EjecutarAccion>();
+        servicios.AddSingleton<ListarEscenarios>();   // US-23: catálogo fijo, sin estado
 
         return servicios;
     }

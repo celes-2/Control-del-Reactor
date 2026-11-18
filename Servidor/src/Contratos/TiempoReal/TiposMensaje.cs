@@ -19,5 +19,12 @@ public static class TiposMensaje
     public const string MatchTick = "match:tick";
     public const string MatchOvertime = "match:overtime";
     public const string MatchFinished = "match:finished";
+
+    // Arena viva (Sprint 3, Paquete B: US-20 a US-22)
+    public const string ArenaUpdate = "arena:update";
+    public const string EventStarted = "event:started";
+    public const string EventEnded = "event:ended";
+    public const string PlayerFrozen = "player:frozen";
+    public const string ItemCollected = "item:collected";
     public const string Error = "error";
 }

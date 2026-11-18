@@ -55,6 +55,11 @@ Unity **nunca** envía movimientos: los botones llegan desde la Pico por MQTT. E
 | `match:overtime` | `{ extraMinutes, timeLeft }` (empate: +2 minutos y sigue con el puntaje, CA-16.4) |
 | `match:finished` | `{ winnerId, scores }` (`winnerId` puede ser `null`) |
 | `error` | `{ message }` (solo al jugador que lo causó) |
+| `arena:update` | `{ timeElapsed, live }` (una vez por segundo con la partida en curso; Sprint 3, ver abajo) |
+| `event:started` | `{ eventId, kind, duration, message }` |
+| `event:ended` | `{ eventId, kind }` |
+| `player:frozen` | `{ userId, seconds, source, trapKind }` |
+| `item:collected` | `{ itemId, userId, points }` (llega junto con `score:changed`) |
 
 ### `match:state`
 
@@ -107,6 +112,64 @@ Unity **nunca** envía movimientos: los botones llegan desde la Pico por MQTT. E
 
 Si un movimiento lleva a alguien a la meta de puntos, el servidor envía primero `player:moved` (y `score:changed`)
 y enseguida `match:finished`. Unity deja ver el último movimiento unos segundos antes de abrir la pantalla de victoria.
+
+## Arena viva (Sprint 3, Paquete B — Faby)
+
+Reglas completas en `Docs/arena-viva.md`. Todo lo nuevo es **aditivo**: los campos y mensajes de antes no cambian.
+
+### Al crear la partida (REST)
+
+- `GET /api/escenarios` → `[{ id, nombre, descripcion, ancho, alto, filas, puertas: [{x,y}], inicioGuardianes: [{x,y}],
+  maxJugadores, minGuardianes: 2, maxGuardianes: 4, guardianesPorDefecto: 4 }]`. Ids: `laboratorio`, `estacion`, `militar`.
+- `POST /api/partidas` acepta además `escenarioId` (null = mapa clásico) y `cantidadGuardianes` (2 a 4, null = 4).
+  Fuera de rango o id desconocido → 400. La respuesta trae `escenarioId` y `cantidadGuardianes`.
+
+### `match:state` (campos nuevos)
+
+- `scenarioId`, `guardianCount`.
+- `players[].frozenSeconds`: 0 = normal; mayor que 0 = congelado.
+- `live`: la misma estructura que `arena:update` (null mientras la partida está en `Espera`).
+- `scenario.rows` sigue con `W . S R T`: una puerta cerrada viaja como `W` y una abierta como `.`; los inicios de
+  guardián como `.`. Para dibujar puertas, guardianes, trampas por tipo e ítems, usar `live`.
+
+### `live` / `arena:update`
+
+```json
+{
+  "type": "arena:update",
+  "data": {
+    "timeElapsed": 42,
+    "live": {
+      "guardians": [ { "id": 1, "x": 7, "y": 2, "temporary": false, "paused": false } ],
+      "traps":     [ { "x": 4, "y": 4, "kind": "QUICKSAND" } ],
+      "doors":     [ { "x": 5, "y": 2, "open": true } ],
+      "items":     [ { "id": 3, "x": 9, "y": 7, "points": 25, "secondsLeft": 6 } ],
+      "events":    [ { "id": "9f1c...", "kind": "REACTOR_OVERLOAD", "duration": 10, "secondsLeft": 4 } ],
+      "frozen":    [ { "userId": "a1b2...", "seconds": 2 } ],
+      "scoreMultiplier": 1
+    }
+  }
+}
+```
+
+- `traps[].kind`: `QUICKSAND` (tierra movediza, 3 s) · `RISING_CELL` (celda emergente, 5 s) · `NET` (red, 2 s). Todas restan 5 puntos.
+- `guardians[].temporary`: llegó con la invasión. `paused`: acaba de congelar a alguien y está quieto.
+- `events[].kind`: `EXTRA_ENERGY` · `GUARDIAN_INVASION` · `REACTOR_OVERLOAD` · `DOUBLE_POINTS` · `ALTERNATE_ROUTES` · `ENERGY_RAIN`.
+- `scoreMultiplier`: 2 durante «Puntos dobles».
+
+### Mensajes puntuales
+
+- `event:started` → `{ "eventId": "...", "kind": "REACTOR_OVERLOAD", "duration": 10, "message": "¡Sobrecarga! El reactor no da energía durante 10 s." }`.
+  `message` está listo para mostrar en pantalla.
+- `event:ended` → `{ "eventId": "...", "kind": "REACTOR_OVERLOAD" }`.
+- `player:frozen` → `{ "userId": "...", "seconds": 5, "source": "TRAP", "trapKind": "RISING_CELL" }`.
+  `source`: `GUARDIAN` | `TRAP`; `seconds` es el total que le queda (si ya estaba congelado, se suma).
+- `item:collected` → `{ "itemId": 3, "userId": "...", "points": 25 }`.
+
+### Orden
+
+- Al mover: `player:moved` → `score:changed` → (`player:frozen` / `item:collected` / `event:ended`) → `match:finished` si terminó.
+- Cada segundo: `match:tick` → (`event:started` / `event:ended` / `player:frozen`) → `arena:update` → `match:overtime` / `match:finished`.
 
 ## Hardware (referencia)
 
