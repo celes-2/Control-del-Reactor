@@ -6,4 +6,9 @@
     <Nullable>enable</Nullable>
   </PropertyGroup>
 
+  <!-- Catálogo de escenarios (US-23): cada JSON viaja dentro de Dominio.dll como recurso "escenarios/<archivo>". -->
+  <ItemGroup>
+    <EmbeddedResource Include="Juego\Escenarios\*.json" LogicalName="escenarios/%(Filename)%(Extension)" />
+  </ItemGroup>
+
 </Project>

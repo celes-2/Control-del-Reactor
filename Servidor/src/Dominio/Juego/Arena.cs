@@ -27,10 +27,18 @@ public sealed class Arena
     /// <summary>Lugar donde puede aparecer un guardián. Es piso normal para los jugadores.</summary>
     public const char CeldaGuardian = 'G';
 
+    /// <summary>Lugar donde puede aparecer la energía adicional. Es piso normal.</summary>
+    public const char CeldaEnergia = 'E';
+
+    /// <summary>Celda preferida para las trampas aleatorias (por ejemplo, un cuello de botella). Es piso normal.</summary>
+    public const char CeldaTrampaPosible = 't';
+
     private readonly Dictionary<Posicion, Obstaculo> _obstaculos = new();
     private readonly Dictionary<Posicion, Puerta> _puertas = new();
     private readonly Posicion[] _aparicion;
     private readonly Posicion[] _inicioGuardianes;
+    private readonly Posicion[] _puntosEnergia;
+    private readonly Posicion[] _celdasParaTrampas;
 
     public int Ancho { get; }
     public int Alto { get; }
@@ -41,18 +49,25 @@ public sealed class Arena
     /// <summary>Lugares marcados con G en el escenario, en orden de lectura. Puede estar vacío.</summary>
     public IReadOnlyList<Posicion> InicioGuardianes => _inicioGuardianes;
 
+    /// <summary>Lugares marcados con E: ahí aparece la energía adicional. Si está vacío, aparece en cualquier piso libre.</summary>
+    public IReadOnlyList<Posicion> PuntosEnergia => _puntosEnergia;
+
+    /// <summary>Lugares marcados con t: las trampas aleatorias se buscan primero ahí. Puede estar vacío.</summary>
+    public IReadOnlyList<Posicion> CeldasParaTrampas => _celdasParaTrampas;
+
     /// <summary>Cuántos jugadores caben según los puntos de aparición de esta arena.</summary>
     public int CantidadPuntosDeAparicion => _aparicion.Length;
 
     /// <summary>Reactor al centro y jugadores en las esquinas.</summary>
     public Arena(int ancho, int alto, IEnumerable<Obstaculo>? obstaculos = null)
-        : this(ancho, alto, new Posicion(ancho / 2, alto / 2), Esquinas(ancho, alto), obstaculos, null)
+        : this(ancho, alto, new Posicion(ancho / 2, alto / 2), Esquinas(ancho, alto), obstaculos, null, null, null)
     {
     }
 
     private Arena(
         int ancho, int alto, Posicion reactor, Posicion[] aparicion,
-        IEnumerable<Obstaculo>? obstaculos, IEnumerable<Posicion>? inicioGuardianes)
+        IEnumerable<Obstaculo>? obstaculos, IEnumerable<Posicion>? inicioGuardianes,
+        IEnumerable<Posicion>? puntosEnergia, IEnumerable<Posicion>? celdasParaTrampas)
     {
         if (ancho < TamanoMinimo || alto < TamanoMinimo)
             throw new DominioException($"La arena debe medir al menos {TamanoMinimo}x{TamanoMinimo}.");
@@ -85,12 +100,28 @@ public sealed class Arena
             guardianes.Add(inicio);
         }
         _inicioGuardianes = guardianes.ToArray();
+        _puntosEnergia = CeldasDePiso(puntosEnergia, "punto de energía");
+        _celdasParaTrampas = CeldasDePiso(celdasParaTrampas, "celda para trampa");
+    }
+
+    /// <summary>Marcas sobre piso (E, t): no pueden caer en el reactor, en un inicio ni sobre un obstáculo.</summary>
+    private Posicion[] CeldasDePiso(IEnumerable<Posicion>? celdas, string nombre)
+    {
+        var lista = new List<Posicion>();
+        foreach (var celda in celdas ?? [])
+        {
+            if (!EstaDentro(celda) || EsReactor(celda) || EsPuntoDeAparicion(celda) || _obstaculos.ContainsKey(celda))
+                throw new DominioException($"El {nombre} en {celda} no es válido.");
+            lista.Add(celda);
+        }
+        return lista.ToArray();
     }
 
     /// <summary>
     /// Crea la arena a partir de un escenario en filas de texto. Origen (0,0) arriba a la izquierda.
     /// Caracteres: W muro, . piso, S inicio de un jugador, R reactor (exactamente uno), T trampa,
-    /// D puerta automática, G lugar donde puede empezar un guardián.
+    /// D puerta automática, G lugar donde puede empezar un guardián, E lugar donde aparece la energía adicional,
+    /// t celda preferida para las trampas aleatorias. G, E y t son piso para los jugadores.
     /// Los jugadores aparecen en las S en orden de lectura (de arriba abajo, de izquierda a derecha).
     /// </summary>
     public static Arena DesdeFilas(IReadOnlyList<string> filas)
@@ -108,6 +139,8 @@ public sealed class Arena
         var inicios = new List<Posicion>();
         var reactores = new List<Posicion>();
         var guardianes = new List<Posicion>();
+        var energia = new List<Posicion>();
+        var paraTrampas = new List<Posicion>();
 
         for (var y = 0; y < filas.Count; y++)
         {
@@ -136,9 +169,15 @@ public sealed class Arena
                     case CeldaGuardian:
                         guardianes.Add(posicion);
                         break;
+                    case CeldaEnergia:
+                        energia.Add(posicion);
+                        break;
+                    case CeldaTrampaPosible:
+                        paraTrampas.Add(posicion);
+                        break;
                     default:
                         throw new DominioException(
-                            $"Carácter no válido '{filas[y][x]}' en el escenario, en {posicion}. Use W . S R T D G.");
+                            $"Carácter no válido '{filas[y][x]}' en el escenario, en {posicion}. Use W . S R T D G E t.");
                 }
             }
         }
@@ -148,12 +187,12 @@ public sealed class Arena
         if (inicios.Count < 2 || inicios.Count > MaxJugadores)
             throw new DominioException($"El escenario debe tener entre 2 y {MaxJugadores} puntos de inicio (S).");
 
-        return new Arena(ancho, filas.Count, reactores[0], inicios.ToArray(), obstaculos, guardianes);
+        return new Arena(ancho, filas.Count, reactores[0], inicios.ToArray(), obstaculos, guardianes, energia, paraTrampas);
     }
 
     /// <summary>
     /// El escenario como filas de texto, en el mismo formato que acepta <see cref="DesdeFilas"/>.
-    /// Las puertas salen como muro (cerrada) o piso (abierta) y los inicios de guardián como piso:
+    /// Las puertas salen como muro (cerrada) o piso (abierta), y G, E y t como piso:
     /// así los clientes que solo conocen W . S R T siguen entendiendo el mapa.
     /// </summary>
     public IReadOnlyList<string> ComoFilas()

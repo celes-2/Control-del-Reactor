@@ -40,15 +40,15 @@ internal static class AyudaArenaViva
     public static (Partida partida, Jugador[] jugadores) CrearEscenario(
         string id, int jugadores = 2, int guardianes = 4, int semilla = 1, ConfigPartida? config = null)
     {
+        // Igual que ConfigurarPartida: el escenario pone su id y sus trampas aleatorias.
         var definicion = Escenarios.Obtener(id);
-        var configuracion = (config ?? new ConfigPartida()) with
+        var configuracion = definicion.Aplicar((config ?? new ConfigPartida()) with
         {
             CantidadGuardianes = guardianes,
-            MaxJugadores = jugadores,
-            EscenarioId = id
-        };
+            MaxJugadores = jugadores
+        });
 
-        var partida = Partida.Crear(configuracion, Arena.DesdeFilas(definicion.Filas));
+        var partida = Partida.Crear(configuracion, definicion.CrearArena());
         var lista = Enumerable.Range(1, jugadores)
             .Select(i => partida.Unirse(Guid.NewGuid(), $"J{i}", Guid.NewGuid()))
             .ToArray();
