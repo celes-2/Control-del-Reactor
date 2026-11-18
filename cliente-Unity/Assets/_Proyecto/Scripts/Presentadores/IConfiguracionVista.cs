@@ -8,6 +8,7 @@ namespace Reactor.Cliente.Presentadores
         Congelamiento,
         Jugadores,
         Escenario,       // pasa al escenario anterior o siguiente
+        Guardianes,      // de 2 a 4
     }
 
     /// <summary>Lo que el presentador puede pedirle a la escena de configuración (patrón MVP).</summary>
@@ -29,6 +30,7 @@ namespace Reactor.Cliente.Presentadores
         void MostrarCongelamiento(string valor);
         void MostrarJugadores(string valor);
         void MostrarEscenario(Servicios.EscenarioInfo escenario);
+        void MostrarGuardianes(string valor);
         void BloquearCrear(bool bloqueado);
         void MostrarAviso(string texto);
     }

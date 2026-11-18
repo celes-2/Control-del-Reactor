@@ -1,4 +1,6 @@
 using System;
+using System.Collections.Generic;
+using System.Threading.Tasks;
 using Reactor.Cliente.Servicios;
 
 namespace Reactor.Cliente.Presentadores
@@ -14,20 +16,20 @@ namespace Reactor.Cliente.Presentadores
         readonly IConfiguracionVista vista;
         readonly IApiPartidas api;
         readonly IAlmacenAjustes almacen;
-        readonly ICatalogoEscenarios catalogo;
         readonly string usuarioId;
         readonly Action<string> alCrear;
         readonly Action alUnirse;
 
+        // Mientras no llegue el catálogo del servidor solo está el mapa clásico.
+        IReadOnlyList<EscenarioInfo> escenarios = new[] { EscenarioInfo.Clasico };
         AjustesPartida ajustes;
         bool creando;
         bool liberado;
 
         public ConfiguracionPresentador(
             IConfiguracionVista vista, IApiPartidas api, IAlmacenAjustes almacen, string usuarioId, Action<string> alCrear,
-            Action alUnirse = null, ICatalogoEscenarios catalogo = null)
+            Action alUnirse = null)
         {
-            this.catalogo = catalogo ?? CatalogoEscenariosPrueba.Instancia;
             this.vista = vista ?? throw new ArgumentNullException(nameof(vista));
             this.api = api ?? throw new ArgumentNullException(nameof(api));
             this.almacen = almacen ?? throw new ArgumentNullException(nameof(almacen));
@@ -46,8 +48,9 @@ namespace Reactor.Cliente.Presentadores
         public void Iniciar()
         {
             ajustes = almacen.Cargar();
-            ajustes.Normalizar(catalogo);
+            ajustes.Normalizar();
             Refrescar();
+            _ = CargarEscenariosAsync();
         }
 
         public void Dispose()
@@ -67,7 +70,8 @@ namespace Reactor.Cliente.Presentadores
                 case CampoAjuste.Valor: ajustes.CambiarValor(direccion); break;
                 case CampoAjuste.Congelamiento: ajustes.CambiarCongelamiento(direccion); break;
                 case CampoAjuste.Jugadores: ajustes.CambiarJugadores(direccion); break;
-                case CampoAjuste.Escenario: ajustes.CambiarEscenario(direccion, catalogo); break;
+                case CampoAjuste.Escenario: ajustes.CambiarEscenario(direccion, escenarios); break;
+                case CampoAjuste.Guardianes: ajustes.CambiarGuardianes(direccion); break;
             }
             Refrescar();
         }
@@ -127,6 +131,7 @@ namespace Reactor.Cliente.Presentadores
 
         void Refrescar()
         {
+            ajustes.AjustarA(escenarios);
             vista.MostrarModo(ajustes.Modo);
             if (ajustes.Modo == ModoFin.Tiempo)
                 vista.MostrarValor("Duración", FormatoTiempo(ajustes.DuracionSegundos));
@@ -134,8 +139,28 @@ namespace Reactor.Cliente.Presentadores
                 vista.MostrarValor("Puntos para ganar", ajustes.PuntosObjetivo + " puntos");
             vista.MostrarCongelamiento(ajustes.SegundosCongelamiento + (ajustes.SegundosCongelamiento == 1 ? " segundo" : " segundos"));
             vista.MostrarJugadores(ajustes.MaxJugadores + " jugadores");
-            foreach (var escenario in catalogo.Todos)
+            vista.MostrarGuardianes(ajustes.CantidadGuardianes + " guardianes");
+            foreach (var escenario in escenarios)
                 if (escenario.Id == ajustes.EscenarioId) { vista.MostrarEscenario(escenario); break; }
+        }
+
+        async Task CargarEscenariosAsync()
+        {
+            try
+            {
+                var lista = await api.ListarEscenariosAsync();
+                if (liberado) return;
+                var todos = new List<EscenarioInfo> { EscenarioInfo.Clasico };
+                todos.AddRange(lista);
+                escenarios = todos;
+            }
+            catch (Exception)
+            {
+                if (liberado) return;
+                vista.MostrarAviso("No se pudo cargar los escenarios. Se usará el mapa clásico.");
+            }
+            ajustes.AjustarA(escenarios); // si el guardado ya no existe, vuelve al clásico
+            Refrescar();
         }
 
         public static string FormatoTiempo(int segundos) => $"{segundos / 60}:{segundos % 60:00}";

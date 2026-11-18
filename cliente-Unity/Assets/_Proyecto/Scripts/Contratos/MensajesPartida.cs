@@ -26,6 +26,13 @@ namespace Reactor.Cliente.Contratos
         public const string Tick = "match:tick";
         public const string TiempoExtra = "match:overtime";
         public const string PartidaFinalizada = "match:finished";
+
+        // Arena viva (Sprint 3, Paquete B)
+        public const string ArenaActualizada = "arena:update";
+        public const string EventoIniciado = "event:started";
+        public const string EventoTerminado = "event:ended";
+        public const string JugadorCongelado = "player:frozen";
+        public const string ItemRecogido = "item:collected";
         public const string Error = "error";
     }
 
@@ -59,6 +66,25 @@ namespace Reactor.Cliente.Contratos
         public const string Disponible = "AVAILABLE";
         public const string Vacio = "EMPTY";
         public const string Desactivado = "DISABLED";
+    }
+
+    /// <summary>Tipos de trampa (traps[].kind en el cable).</summary>
+    public static class TiposTrampa
+    {
+        public const string TierraMovediza = "QUICKSAND";
+        public const string CeldaEmergente = "RISING_CELL";
+        public const string Red = "NET";
+    }
+
+    /// <summary>Tipos de evento especial (events[].kind en el cable).</summary>
+    public static class TiposEvento
+    {
+        public const string EnergiaExtra = "EXTRA_ENERGY";
+        public const string InvasionGuardianes = "GUARDIAN_INVASION";
+        public const string Sobrecarga = "REACTOR_OVERLOAD";
+        public const string PuntosDobles = "DOUBLE_POINTS";
+        public const string RutasAlternas = "ALTERNATE_ROUTES";
+        public const string LluviaEnergia = "ENERGY_RAIN";
     }
 
     /// <summary>Caracteres de las filas del escenario.</summary>
@@ -99,6 +125,9 @@ namespace Reactor.Cliente.Contratos
         [JsonProperty("scenario")] public EscenarioMsg Escenario { get; set; }
         [JsonProperty("reactor")] public ReactorMsg Reactor { get; set; } // null si el servidor aun no lo manda
         [JsonProperty("players")] public List<JugadorMsg> Jugadores { get; set; } = new List<JugadorMsg>();
+        [JsonProperty("scenarioId")] public string EscenarioId { get; set; }
+        [JsonProperty("guardianCount")] public int CantidadGuardianes { get; set; }
+        [JsonProperty("live")] public ArenaVivaMsg Vivo { get; set; } // null mientras la partida está en Espera
 
         /// <summary>Si el servidor no envía color, se asigna uno por orden de llegada.</summary>
         public void AsignarColoresFaltantes()
@@ -127,6 +156,7 @@ namespace Reactor.Cliente.Contratos
         [JsonProperty("x")] public int X { get; set; }
         [JsonProperty("y")] public int Y { get; set; }
         [JsonProperty("score")] public int Puntaje { get; set; }
+        [JsonProperty("frozenSeconds")] public int SegundosCongelado { get; set; } // 0 = normal
     }
 
     public class JugadorMovidoMsg
@@ -218,6 +248,101 @@ namespace Reactor.Cliente.Contratos
         [JsonProperty("userId")] public string JugadorId { get; set; }
         [JsonProperty("username")] public string Nombre { get; set; }
         [JsonProperty("score")] public int Puntaje { get; set; }
+    }
+
+    // ---------- Arena viva ----------
+
+    /// <summary>Lo que cambia solo durante la partida; llega en match:state (live) y cada segundo en arena:update.</summary>
+    public class ArenaVivaMsg
+    {
+        [JsonProperty("guardians")] public List<GuardianMsg> Guardianes { get; set; } = new List<GuardianMsg>();
+        [JsonProperty("traps")] public List<TrampaMsg> Trampas { get; set; } = new List<TrampaMsg>();
+        [JsonProperty("doors")] public List<PuertaMsg> Puertas { get; set; } = new List<PuertaMsg>();
+        [JsonProperty("items")] public List<ItemEnergiaMsg> Items { get; set; } = new List<ItemEnergiaMsg>();
+        [JsonProperty("events")] public List<EventoActivoMsg> Eventos { get; set; } = new List<EventoActivoMsg>();
+        [JsonProperty("frozen")] public List<CongeladoMsg> Congelados { get; set; } = new List<CongeladoMsg>();
+        [JsonProperty("scoreMultiplier")] public int MultiplicadorPuntos { get; set; } = 1;
+    }
+
+    public class GuardianMsg
+    {
+        [JsonProperty("id")] public int Id { get; set; }
+        [JsonProperty("x")] public int X { get; set; }
+        [JsonProperty("y")] public int Y { get; set; }
+        [JsonProperty("temporary")] public bool Temporal { get; set; } // llegó con la invasión
+        [JsonProperty("paused")] public bool Pausado { get; set; }     // acaba de congelar a alguien
+    }
+
+    public class TrampaMsg
+    {
+        [JsonProperty("x")] public int X { get; set; }
+        [JsonProperty("y")] public int Y { get; set; }
+        [JsonProperty("kind")] public string Tipo { get; set; }
+    }
+
+    public class PuertaMsg
+    {
+        [JsonProperty("x")] public int X { get; set; }
+        [JsonProperty("y")] public int Y { get; set; }
+        [JsonProperty("open")] public bool Abierta { get; set; }
+    }
+
+    public class ItemEnergiaMsg
+    {
+        [JsonProperty("id")] public int Id { get; set; }
+        [JsonProperty("x")] public int X { get; set; }
+        [JsonProperty("y")] public int Y { get; set; }
+        [JsonProperty("points")] public int Puntos { get; set; }
+        [JsonProperty("secondsLeft")] public int SegundosRestantes { get; set; }
+    }
+
+    public class EventoActivoMsg
+    {
+        [JsonProperty("id")] public string Id { get; set; }
+        [JsonProperty("kind")] public string Tipo { get; set; }
+        [JsonProperty("duration")] public int Duracion { get; set; }
+        [JsonProperty("secondsLeft")] public int SegundosRestantes { get; set; }
+    }
+
+    public class CongeladoMsg
+    {
+        [JsonProperty("userId")] public string JugadorId { get; set; }
+        [JsonProperty("seconds")] public int Segundos { get; set; }
+    }
+
+    public class ArenaActualizadaMsg
+    {
+        [JsonProperty("timeElapsed")] public int SegundosTranscurridos { get; set; }
+        [JsonProperty("live")] public ArenaVivaMsg Vivo { get; set; }
+    }
+
+    public class EventoIniciadoMsg
+    {
+        [JsonProperty("eventId")] public string IdEvento { get; set; }
+        [JsonProperty("kind")] public string Tipo { get; set; }
+        [JsonProperty("duration")] public int Duracion { get; set; }
+        [JsonProperty("message")] public string Mensaje { get; set; } // listo para mostrar en pantalla
+    }
+
+    public class EventoTerminadoMsg
+    {
+        [JsonProperty("eventId")] public string IdEvento { get; set; }
+        [JsonProperty("kind")] public string Tipo { get; set; }
+    }
+
+    public class JugadorCongeladoMsg
+    {
+        [JsonProperty("userId")] public string JugadorId { get; set; }
+        [JsonProperty("seconds")] public int Segundos { get; set; } // total que le queda
+        [JsonProperty("source")] public string Origen { get; set; }  // GUARDIAN | TRAP
+        [JsonProperty("trapKind")] public string TipoTrampa { get; set; }
+    }
+
+    public class ItemRecogidoMsg
+    {
+        [JsonProperty("itemId")] public int ItemId { get; set; }
+        [JsonProperty("userId")] public string JugadorId { get; set; }
+        [JsonProperty("points")] public int Puntos { get; set; }
     }
 
     public class ErrorMsg

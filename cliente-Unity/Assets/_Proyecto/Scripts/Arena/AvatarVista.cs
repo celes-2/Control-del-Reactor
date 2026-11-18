@@ -21,6 +21,7 @@ namespace Reactor.Cliente.Arena
         TextMeshPro burbuja;
         TextMeshPro nombreTexto;
         SpriteRenderer anilloPropio;
+        SpriteRenderer anilloHielo;
         float tamanoAnilloBase;
         Coroutine rutinaBurbuja;
         Vector3 destino;
@@ -59,6 +60,19 @@ namespace Reactor.Cliente.Arena
             nombreTexto.color = new Color(1f, 0.95f, 0.5f);
         }
 
+        /// <summary>Jugador congelado (trampa o guardián): aro celeste que pulsa mientras queden segundos.</summary>
+        public void PonerCongelado(int segundos)
+        {
+            if (segundos <= 0)
+            {
+                if (anilloHielo != null) anilloHielo.gameObject.SetActive(false);
+                return;
+            }
+            if (anilloHielo == null)
+                anilloHielo = CrearSprite("AroHielo", GeneradorSprites.Circulo(), new Color(0.55f, 0.85f, 1f, 0.6f), tamanoAnilloBase * 1.35f, 8);
+            anilloHielo.gameObject.SetActive(true);
+        }
+
         public void MostrarMensaje(string mensaje)
         {
             if (rutinaBurbuja != null) StopCoroutine(rutinaBurbuja);
@@ -89,6 +103,9 @@ namespace Reactor.Cliente.Arena
                 float k = 1.18f + 0.05f * Mathf.Sin(Time.time * 4f);
                 anilloPropio.transform.localScale = Vector3.one * (tamanoAnilloBase * k);
             }
+
+            if (anilloHielo != null && anilloHielo.gameObject.activeSelf)
+                anilloHielo.color = new Color(0.55f, 0.85f, 1f, 0.5f + 0.25f * Mathf.Sin(Time.time * 6f));
         }
 
         void Construir(JugadorMsg jugador, Vector3 posicion, float escala, float proporcionImagen)

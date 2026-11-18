@@ -29,6 +29,9 @@ namespace Reactor.Cliente.Arena
         [Tooltip("Objeto que se enciende/apaga con el aviso (por ejemplo, un panel con fondo). Si está vacío se usa el texto.")]
         [SerializeField] GameObject panelAviso;
 
+        TextMeshProUGUI eventos;
+        readonly System.Collections.Generic.Dictionary<string, string> eventosActivos = new System.Collections.Generic.Dictionary<string, string>();
+        int multiplicador = 1;
         Coroutine rutinaAviso;
         bool avisoEsRechazo;
 
@@ -61,7 +64,39 @@ namespace Reactor.Cliente.Arena
             aviso = CrearTexto(raiz, "Aviso", new Vector2(0.5f, 0.5f), Vector2.zero, new Vector2(1400f, 140f), 72, TextAlignmentOptions.Center);
             aviso.color = new Color(1f, 0.92f, 0.3f);
             reactor = CrearTexto(raiz, "Reactor", new Vector2(0.5f, 0f), new Vector2(0f, 32f), new Vector2(700f, 70f), 40, TextAlignmentOptions.Center);
+            eventos = CrearTexto(raiz, "Eventos", new Vector2(0.5f, 1f), new Vector2(0f, -170f), new Vector2(1300f, 110f), 44, TextAlignmentOptions.Center);
+            eventos.color = new Color(1f, 0.75f, 0.3f);
             ContenedorAviso.SetActive(false);
+        }
+
+        /// <summary>Banner de un evento especial (event:started); queda hasta que llega event:ended.</summary>
+        public void MostrarEvento(string id, string texto)
+        {
+            eventosActivos[id] = texto;
+            ActualizarBannerEventos();
+        }
+
+        public void OcultarEvento(string id)
+        {
+            eventosActivos.Remove(id);
+            ActualizarBannerEventos();
+        }
+
+        /// <summary>Multiplicador de puntos activo (x2 en «Puntos dobles»).</summary>
+        public void MostrarMultiplicador(int valor)
+        {
+            valor = Mathf.Max(1, valor);
+            if (valor == multiplicador) return;
+            multiplicador = valor;
+            ActualizarBannerEventos();
+        }
+
+        void ActualizarBannerEventos()
+        {
+            if (eventos == null) return;
+            var lineas = new System.Collections.Generic.List<string>(eventosActivos.Values);
+            if (multiplicador > 1) lineas.Add($"PUNTOS x{multiplicador}");
+            eventos.text = string.Join("\n", lineas);
         }
 
         public void MostrarTemporizador(string texto) => temporizador.text = texto;

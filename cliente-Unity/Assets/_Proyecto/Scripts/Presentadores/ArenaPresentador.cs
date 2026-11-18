@@ -19,6 +19,7 @@ namespace Reactor.Cliente.Presentadores
         int capacidadReactor;
         readonly string jugadorPropioId;
         readonly Dictionary<string, int> extracciones = new Dictionary<string, int>();
+        readonly HashSet<string> congelados = new HashSet<string>();
 
         /// <summary>Segundos jugados, según el último tick o estado recibido.</summary>
         public int SegundosTranscurridos { get; private set; }
@@ -47,6 +48,11 @@ namespace Reactor.Cliente.Presentadores
             socket.Tick += AlTick;
             socket.TiempoExtra += AlTiempoExtra;
             socket.PartidaFinalizada += AlFinalizar;
+            socket.ArenaActualizada += AlActualizarArena;
+            socket.EventoIniciado += AlIniciarEvento;
+            socket.EventoTerminado += AlTerminarEvento;
+            socket.JugadorCongelado += AlCongelar;
+            socket.ItemRecogido += AlRecogerItem;
             socket.Error += AlError;
         }
 
@@ -73,6 +79,11 @@ namespace Reactor.Cliente.Presentadores
             socket.Tick -= AlTick;
             socket.TiempoExtra -= AlTiempoExtra;
             socket.PartidaFinalizada -= AlFinalizar;
+            socket.ArenaActualizada -= AlActualizarArena;
+            socket.EventoIniciado -= AlIniciarEvento;
+            socket.EventoTerminado -= AlTerminarEvento;
+            socket.JugadorCongelado -= AlCongelar;
+            socket.ItemRecogido -= AlRecogerItem;
             socket.Error -= AlError;
         }
 
@@ -108,6 +119,12 @@ namespace Reactor.Cliente.Presentadores
                 vista.MostrarReactor(e.Reactor.Energia, e.Reactor.Capacidad, e.Reactor.Estado);
             }
             vista.ActualizarMarcador(jugadores.Values);
+
+            // Arena viva: lo que el servidor dibuja encima del mapa (guardianes, trampas, puertas, energías).
+            congelados.Clear();
+            foreach (var j in jugadores.Values)
+                if (j.SegundosCongelado > 0) MarcarCongelado(j.Id, j.SegundosCongelado);
+            if (e.Vivo != null) AplicarArenaViva(e.Vivo);
         }
 
         void AlMoverse(JugadorMovidoMsg m)
@@ -173,6 +190,62 @@ namespace Reactor.Cliente.Presentadores
             vista.MostrarEstado(TextoEstado(EstadosPartida.Finalizada, jugadores.Count));
             vista.MostrarAviso($"¡Ganó {nombre}!");
             PartidaTerminada?.Invoke(m);
+        }
+
+        void AlActualizarArena(ArenaActualizadaMsg m)
+        {
+            if (m?.Vivo == null) return;
+            SegundosTranscurridos = m.SegundosTranscurridos;
+            AplicarArenaViva(m.Vivo);
+        }
+
+        void AplicarArenaViva(ArenaVivaMsg vivo)
+        {
+            vista.ActualizarArenaViva(vivo);
+
+            // live.frozen es la lista completa: quien ya no aparece se descongeló.
+            var ahora = new HashSet<string>();
+            foreach (var c in vivo.Congelados ?? new List<CongeladoMsg>())
+            {
+                if (string.IsNullOrEmpty(c?.JugadorId)) continue;
+                ahora.Add(c.JugadorId);
+                MarcarCongelado(c.JugadorId, c.Segundos);
+            }
+            foreach (var id in new List<string>(congelados))
+                if (!ahora.Contains(id)) MarcarCongelado(id, 0);
+        }
+
+        void MarcarCongelado(string jugadorId, int segundos)
+        {
+            if (segundos > 0) congelados.Add(jugadorId);
+            else congelados.Remove(jugadorId);
+            vista.MostrarCongelado(jugadorId, segundos);
+        }
+
+        void AlIniciarEvento(EventoIniciadoMsg m)
+        {
+            if (m == null || string.IsNullOrEmpty(m.IdEvento)) return;
+            vista.MostrarEvento(m.IdEvento, string.IsNullOrWhiteSpace(m.Mensaje) ? m.Tipo : m.Mensaje);
+        }
+
+        void AlTerminarEvento(EventoTerminadoMsg m)
+        {
+            if (m == null || string.IsNullOrEmpty(m.IdEvento)) return;
+            vista.OcultarEvento(m.IdEvento);
+        }
+
+        void AlCongelar(JugadorCongeladoMsg m)
+        {
+            if (m == null || !jugadores.ContainsKey(m.JugadorId ?? "")) return;
+            MarcarCongelado(m.JugadorId, m.Segundos);
+            vista.MostrarAccion(m.JugadorId, m.Origen == "GUARDIAN" ? "¡Guardián!" : "¡Trampa!");
+        }
+
+        // El puntaje de la energía recogida llega aparte, en score:changed.
+        void AlRecogerItem(ItemRecogidoMsg m)
+        {
+            if (m == null || !jugadores.ContainsKey(m.JugadorId ?? "")) return;
+            vista.MostrarAccion(m.JugadorId, $"+{m.Puntos}");
         }
 
         void AlError(string mensaje) => vista.MostrarAviso(mensaje);

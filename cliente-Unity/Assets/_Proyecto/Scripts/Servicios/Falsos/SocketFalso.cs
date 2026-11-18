@@ -70,6 +70,13 @@ namespace Reactor.Cliente.Servicios.Falsos
         public event Action<JugadorExtrajoMsg> JugadorExtrajo;
         public event Action<JugadorRechazadoMsg> JugadorRechazado;
         public event Action<PartidaFinalizadaMsg> PartidaFinalizada;
+        public event Action<ArenaActualizadaMsg> ArenaActualizada;
+        public event Action<EventoIniciadoMsg> EventoIniciado;
+        public event Action<EventoTerminadoMsg> EventoTerminado;
+#pragma warning disable CS0067 // el socket falso no simula congelamientos ni recogidas
+        public event Action<JugadorCongeladoMsg> JugadorCongelado;
+        public event Action<ItemRecogidoMsg> ItemRecogido;
+#pragma warning restore CS0067
         public event Action<string> Error;
 
         public void Conectar(string partidaId)
@@ -259,9 +266,49 @@ namespace Reactor.Cliente.Servicios.Falsos
                 if (EsModo(ModosFin.Tiempo)) estado.SegundosRestantes = Math.Max(0, estado.SegundosRestantes - 1);
 
                 Tick?.Invoke(new TickMsg { SegundosRestantes = estado.SegundosRestantes, SegundosTranscurridos = estado.SegundosTranscurridos });
+                SimularArenaViva(estado.SegundosTranscurridos);
 
                 if (EsModo(ModosFin.Tiempo) && estado.SegundosRestantes == 0) Finalizar();
             }
+        }
+
+        /// <summary>
+        /// Arena viva de mentira para probar el dibujo sin servidor: un guardián que patrulla, una trampa de cada tipo,
+        /// una puerta que se abre y se cierra, una energía que aparece y un evento de puntos dobles entre los segundos 10 y 20.
+        /// </summary>
+        void SimularArenaViva(int segundo)
+        {
+            const string idEvento = "evento-demo";
+            var tramo = segundo % 24; // ida y vuelta por la fila 4 (x de 1 a 13)
+            var guardianX = 1 + (tramo <= 12 ? tramo : 24 - tramo);
+            var dobles = segundo >= 10 && segundo < 20;
+
+            if (segundo == 10)
+                EventoIniciado?.Invoke(new EventoIniciadoMsg
+                {
+                    IdEvento = idEvento, Tipo = TiposEvento.PuntosDobles, Duracion = 10,
+                    Mensaje = "¡Puntos dobles! Todo vale x2 durante 10 s.",
+                });
+            if (segundo == 20) EventoTerminado?.Invoke(new EventoTerminadoMsg { IdEvento = idEvento, Tipo = TiposEvento.PuntosDobles });
+
+            var vivo = new ArenaVivaMsg
+            {
+                MultiplicadorPuntos = dobles ? 2 : 1,
+                Guardianes = new List<GuardianMsg> { new GuardianMsg { Id = 1, X = guardianX, Y = 4 } },
+                Trampas = new List<TrampaMsg>
+                {
+                    new TrampaMsg { X = 5, Y = 4, Tipo = TiposTrampa.TierraMovediza },
+                    new TrampaMsg { X = 9, Y = 6, Tipo = TiposTrampa.CeldaEmergente },
+                    new TrampaMsg { X = 7, Y = 2, Tipo = TiposTrampa.Red },
+                },
+                Puertas = new List<PuertaMsg> { new PuertaMsg { X = 3, Y = 6, Abierta = (segundo / 5) % 2 == 0 } },
+            };
+            if (segundo % 12 < 8)
+                vivo.Items.Add(new ItemEnergiaMsg { Id = segundo / 12, X = 11, Y = 6, Puntos = 25, SegundosRestantes = 8 - segundo % 12 });
+            if (dobles)
+                vivo.Eventos.Add(new EventoActivoMsg { Id = idEvento, Tipo = TiposEvento.PuntosDobles, Duracion = 10, SegundosRestantes = 20 - segundo });
+
+            ArenaActualizada?.Invoke(new ArenaActualizadaMsg { SegundosTranscurridos = segundo, Vivo = vivo });
         }
 
         public void Cerrar()

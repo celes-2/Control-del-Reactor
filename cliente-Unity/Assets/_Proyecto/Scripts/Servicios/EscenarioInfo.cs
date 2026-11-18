@@ -4,82 +4,28 @@ using System.Collections.Generic;
 namespace Reactor.Cliente.Servicios
 {
     /// <summary>
-    /// Un escenario que se puede elegir al crear la partida (US-23). Las filas son solo para la vista previa:
-    /// '#' pared, '.' piso, 'R' reactor, 'A'/'B' salidas de los jugadores, 'T' trampa.
+    /// Un escenario elegible al crear la partida (US-23), tal como lo entrega GET /api/escenarios.
+    /// Filas: 'W' pared, '.' piso, 'S' salida de jugador, 'R' reactor, 'T' trampa (también se acepta '#' en datos falsos).
     /// </summary>
     public sealed class EscenarioInfo
     {
-        public string Id { get; }
-        public string Nombre { get; }
-        public IReadOnlyList<string> Filas { get; }
-
-        public EscenarioInfo(string id, string nombre, IReadOnlyList<string> filas)
+        /// <summary>El mapa clásico del servidor: no manda escenarioId.</summary>
+        public static readonly EscenarioInfo Clasico = new EscenarioInfo
         {
-            Id = id ?? throw new ArgumentNullException(nameof(id));
-            Nombre = nombre ?? id;
-            Filas = filas ?? Array.Empty<string>();
-        }
-    }
-
-    /// <summary>De dónde sale la lista de escenarios. Hoy es fija; luego vendrá del servidor.</summary>
-    public interface ICatalogoEscenarios
-    {
-        IReadOnlyList<EscenarioInfo> Todos { get; }
-    }
-
-    /// <summary>
-    /// Catálogo PROVISIONAL con datos de prueba, para desarrollar el selector sin depender del servidor.
-    /// Cuando exista el catálogo real (GET de escenarios), se reemplaza por una implementación que lo consulte
-    /// y los ids deben coincidir con los del servidor.
-    /// </summary>
-    public sealed class CatalogoEscenariosPrueba : ICatalogoEscenarios
-    {
-        public static readonly CatalogoEscenariosPrueba Instancia = new CatalogoEscenariosPrueba();
-
-        public IReadOnlyList<EscenarioInfo> Todos { get; } = new[]
-        {
-            new EscenarioInfo("clasico", "Clásico", new[]
-            {
-                "###############",
-                "#A...........B#",
-                "#.##.......##.#",
-                "#.#....T....#.#",
-                "#....#...#....#",
-                "#..T...R...T..#",
-                "#....#...#....#",
-                "#.#....T....#.#",
-                "#.##.......##.#",
-                "#.............#",
-                "###############",
-            }),
-            new EscenarioInfo("laberinto", "Laberinto", new[]
-            {
-                "###############",
-                "#A..#.....#..B#",
-                "#.#.#.###.#.#.#",
-                "#.#...#T#...#.#",
-                "#.#####.#####.#",
-                "#T.....R.....T#",
-                "#.#####.#####.#",
-                "#.#...#T#...#.#",
-                "#.#.#.###.#.#.#",
-                "#...#.....#...#",
-                "###############",
-            }),
-            new EscenarioInfo("abierto", "Arena abierta", new[]
-            {
-                "###############",
-                "#A...........B#",
-                "#.............#",
-                "#....T...T....#",
-                "#.............#",
-                "#......R......#",
-                "#.............#",
-                "#....T...T....#",
-                "#.............#",
-                "#.............#",
-                "###############",
-            }),
+            Id = "", Nombre = "Mapa clásico", Descripcion = "El mapa de siempre.",
         };
+
+        public string Id { get; set; } = "";
+        public string Nombre { get; set; } = "";
+        public string Descripcion { get; set; } = "";
+        public IReadOnlyList<string> Filas { get; set; } = Array.Empty<string>();
+        public IReadOnlyList<(int x, int y)> Puertas { get; set; } = Array.Empty<(int, int)>();
+        public IReadOnlyList<(int x, int y)> InicioGuardianes { get; set; } = Array.Empty<(int, int)>();
+
+        /// <summary>0 = sin límite conocido.</summary>
+        public int MaxJugadores { get; set; }
+        public int MinGuardianes { get; set; } = 2;
+        public int MaxGuardianes { get; set; } = 4;
+        public int GuardianesPorDefecto { get; set; } = 4;
     }
 }

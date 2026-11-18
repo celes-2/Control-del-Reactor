@@ -27,7 +27,7 @@ namespace Reactor.Cliente.Configuracion
 
         RectTransform raiz;
         Image botonTiempo, botonPuntos;
-        TextMeshProUGUI etiquetaValor, valor, congelamiento, jugadores, aviso;
+        TextMeshProUGUI etiquetaValor, valor, congelamiento, jugadores, guardianes, aviso;
         Button botonCrear;
         TextMeshProUGUI escenario;
         Texture2D texturaEscenario;
@@ -52,6 +52,8 @@ namespace Reactor.Cliente.Configuracion
 
         public void MostrarJugadores(string texto) => jugadores.text = texto;
 
+        public void MostrarGuardianes(string texto) => guardianes.text = texto;
+
         public void MostrarEscenario(EscenarioInfo info)
         {
             escenario.text = info.Nombre;
@@ -61,6 +63,7 @@ namespace Reactor.Cliente.Configuracion
         void DibujarVistaPrevia(EscenarioInfo info)
         {
             var filas = info.Filas;
+            // El mapa clásico no trae dibujo: se oculta la vista previa.
             if (filas.Count == 0) { vistaPreviaEscenario.enabled = false; return; }
             var ancho = 0;
             foreach (var fila in filas) ancho = Mathf.Max(ancho, fila.Length);
@@ -74,18 +77,34 @@ namespace Reactor.Cliente.Configuracion
                     // La fila 0 va arriba: la textura empieza abajo.
                     texturaEscenario.SetPixel(x, filas.Count - 1 - y, ColorCelda(c));
                 }
+            foreach (var puerta in info.Puertas) PintarCelda(puerta.x, puerta.y, filas.Count, ancho, ColorPuerta);
+            foreach (var guardian in info.InicioGuardianes) PintarCelda(guardian.x, guardian.y, filas.Count, ancho, ColorGuardian);
             texturaEscenario.Apply();
             vistaPreviaEscenario.texture = texturaEscenario;
+            // Respeta la proporción del mapa dentro del recuadro de 165 x 121.
+            var escala = Mathf.Min(165f / ancho, 121f / filas.Count);
+            vistaPreviaEscenario.rectTransform.sizeDelta = new Vector2(ancho * escala, filas.Count * escala);
             vistaPreviaEscenario.enabled = true;
+        }
+
+        static readonly Color ColorPuerta = new Color(0.85f, 0.55f, 0.20f);
+        static readonly Color ColorGuardian = new Color(0.70f, 0.35f, 0.90f);
+
+        void PintarCelda(int x, int y, int alto, int ancho, Color color)
+        {
+            if (x < 0 || y < 0 || x >= ancho || y >= alto) return;
+            texturaEscenario.SetPixel(x, alto - 1 - y, color);
         }
 
         static Color ColorCelda(char c)
         {
             switch (c)
             {
-                case '#': return new Color(0.30f, 0.34f, 0.44f);
+                case '#':
+                case 'W': return new Color(0.30f, 0.34f, 0.44f);
                 case 'R': return ConstructorUI.Dorado;
                 case 'T': return ConstructorUI.Rojo;
+                case 'S':
                 case 'A': return ConstructorUI.Azul;
                 case 'B': return ConstructorUI.Verde;
                 default: return new Color(0.07f, 0.09f, 0.15f);
@@ -127,40 +146,44 @@ namespace Reactor.Cliente.Configuracion
             ConstructorUI.Colocar(panel.rectTransform, new Vector2(0f, 20f), new Vector2(1500f, 640f));
 
             // Fila 1: cómo termina la partida.
-            Etiqueta("Fin de la partida", 250f);
-            botonTiempo = ConstructorUI.CrearBoton(raiz, "Por tiempo", new Vector2(130f, 250f), new Vector2(320f, 90f),
+            Etiqueta("Fin de la partida", 270f);
+            botonTiempo = ConstructorUI.CrearBoton(raiz, "Por tiempo", new Vector2(130f, 270f), new Vector2(320f, 90f),
                 Apagado, () => ModoElegido?.Invoke(ModoFin.Tiempo)).targetGraphic as Image;
-            botonPuntos = ConstructorUI.CrearBoton(raiz, "Por puntos", new Vector2(480f, 250f), new Vector2(320f, 90f),
+            botonPuntos = ConstructorUI.CrearBoton(raiz, "Por puntos", new Vector2(480f, 270f), new Vector2(320f, 90f),
                 Apagado, () => ModoElegido?.Invoke(ModoFin.Puntos)).targetGraphic as Image;
 
             // Fila 2: duración o puntos, según el modo.
-            etiquetaValor = Etiqueta("Duración", 140f);
-            valor = Selector(140f, CampoAjuste.Valor);
+            etiquetaValor = Etiqueta("Duración", 170f);
+            valor = Selector(170f, CampoAjuste.Valor);
 
             // Fila 3: congelamiento.
-            Etiqueta("Congelamiento", 30f);
-            congelamiento = Selector(30f, CampoAjuste.Congelamiento);
+            Etiqueta("Congelamiento", 70f);
+            congelamiento = Selector(70f, CampoAjuste.Congelamiento);
 
             // Fila 4: máximo de jugadores.
-            Etiqueta("Máximo de jugadores", -80f);
-            jugadores = Selector(-80f, CampoAjuste.Jugadores);
+            Etiqueta("Máximo de jugadores", -30f);
+            jugadores = Selector(-30f, CampoAjuste.Jugadores);
 
-            // Fila 5: escenario, con vista previa a la derecha (US-23).
-            Etiqueta("Escenario", -190f);
-            escenario = Selector(-190f, CampoAjuste.Escenario);
+            // Fila 5: guardianes (US-21).
+            Etiqueta("Guardianes", -130f);
+            guardianes = Selector(-130f, CampoAjuste.Guardianes);
+
+            // Fila 6: escenario, con vista previa a la derecha (US-23).
+            Etiqueta("Escenario", -230f);
+            escenario = Selector(-230f, CampoAjuste.Escenario);
             var previa = new GameObject("Vista previa escenario", typeof(RectTransform), typeof(RawImage));
             previa.transform.SetParent(raiz, false);
-            ConstructorUI.Colocar(previa.GetComponent<RectTransform>(), new Vector2(660f, -190f), new Vector2(165f, 121f));
+            ConstructorUI.Colocar(previa.GetComponent<RectTransform>(), new Vector2(660f, -230f), new Vector2(165f, 121f));
             vistaPreviaEscenario = previa.GetComponent<RawImage>();
             vistaPreviaEscenario.raycastTarget = false;
 
-            botonCrear = ConstructorUI.CrearBoton(raiz, "Crear partida", new Vector2(-290f, -340f), new Vector2(520f, 100f),
+            botonCrear = ConstructorUI.CrearBoton(raiz, "Crear partida", new Vector2(-290f, -380f), new Vector2(520f, 100f),
                 ConstructorUI.Verde, () => CrearPulsado?.Invoke());
-            ConstructorUI.CrearBoton(raiz, "Unirse a una partida", new Vector2(290f, -340f), new Vector2(520f, 100f),
+            ConstructorUI.CrearBoton(raiz, "Unirse a una partida", new Vector2(290f, -380f), new Vector2(520f, 100f),
                 ConstructorUI.Azul, () => UnirsePulsado?.Invoke());
 
             aviso = ConstructorUI.CrearTexto(raiz, "Aviso", 40, FontStyles.Bold, new Color(1f, 0.55f, 0.45f),
-                new Vector2(0f, -440f), new Vector2(1500f, 70f));
+                new Vector2(0f, -465f), new Vector2(1500f, 70f));
         }
 
         TextMeshProUGUI Etiqueta(string texto, float y)

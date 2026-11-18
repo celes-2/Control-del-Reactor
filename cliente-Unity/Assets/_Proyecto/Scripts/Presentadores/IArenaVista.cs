@@ -23,5 +23,11 @@ namespace Reactor.Cliente.Presentadores
         void MostrarReactor(int energia, int capacidad, string estado);
         void MostrarExtraccion(string jugadorId);
         void MarcarJugadorPropio(string jugadorId);
+
+        // Arena viva (Sprint 3)
+        void ActualizarArenaViva(ArenaVivaMsg vivo);
+        void MostrarEvento(string eventoId, string texto);
+        void OcultarEvento(string eventoId);
+        void MostrarCongelado(string jugadorId, int segundos);
     }
 }

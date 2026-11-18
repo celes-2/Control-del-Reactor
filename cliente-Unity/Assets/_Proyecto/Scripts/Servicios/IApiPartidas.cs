@@ -18,5 +18,8 @@ namespace Reactor.Cliente.Servicios
 
         /// <summary>Partidas en espera a las que se puede entrar (GET /api/partidas).</summary>
         Task<IReadOnlyList<PartidaAbierta>> ListarAbiertasAsync();
+
+        /// <summary>Catálogo de escenarios (GET /api/escenarios). No incluye el mapa clásico.</summary>
+        Task<IReadOnlyList<EscenarioInfo>> ListarEscenariosAsync();
     }
 }

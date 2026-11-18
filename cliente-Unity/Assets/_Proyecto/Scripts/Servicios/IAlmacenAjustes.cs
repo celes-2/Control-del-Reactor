@@ -30,6 +30,7 @@ namespace Reactor.Cliente.Servicios
                 SegundosCongelamiento = PlayerPrefs.GetInt(Prefijo + "congelamiento", porDefecto.SegundosCongelamiento),
                 MaxJugadores = PlayerPrefs.GetInt(Prefijo + "jugadores", porDefecto.MaxJugadores),
                 EscenarioId = PlayerPrefs.GetString(Prefijo + "escenario", porDefecto.EscenarioId),
+                CantidadGuardianes = PlayerPrefs.GetInt(Prefijo + "guardianes", porDefecto.CantidadGuardianes),
             };
             ajustes.Normalizar();
             return ajustes;
@@ -43,6 +44,7 @@ namespace Reactor.Cliente.Servicios
             PlayerPrefs.SetInt(Prefijo + "congelamiento", ajustes.SegundosCongelamiento);
             PlayerPrefs.SetInt(Prefijo + "jugadores", ajustes.MaxJugadores);
             PlayerPrefs.SetString(Prefijo + "escenario", ajustes.EscenarioId);
+            PlayerPrefs.SetInt(Prefijo + "guardianes", ajustes.CantidadGuardianes);
             PlayerPrefs.Save();
         }
     }

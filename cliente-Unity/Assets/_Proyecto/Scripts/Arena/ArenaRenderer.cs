@@ -31,6 +31,108 @@ namespace Reactor.Cliente.Arena
         float destello;
         int reactorX = -1, reactorY = -1;
 
+        // ---- Arena viva (Sprint 3): guardianes, trampas, puertas e ítems de energía ----
+        readonly System.Collections.Generic.List<SpriteRenderer> guardianes = new System.Collections.Generic.List<SpriteRenderer>();
+        readonly System.Collections.Generic.List<SpriteRenderer> trampas = new System.Collections.Generic.List<SpriteRenderer>();
+        readonly System.Collections.Generic.List<SpriteRenderer> puertas = new System.Collections.Generic.List<SpriteRenderer>();
+        readonly System.Collections.Generic.List<SpriteRenderer> items = new System.Collections.Generic.List<SpriteRenderer>();
+        readonly System.Collections.Generic.List<Vector3> destinosGuardianes = new System.Collections.Generic.List<Vector3>();
+        Sprite cuadroPuerta;
+
+        /// <summary>Dibuja lo que el servidor manda en live. Reutiliza los objetos; los que sobran se ocultan.</summary>
+        public void ActualizarArenaViva(ArenaVivaMsg vivo)
+        {
+            if (vivo == null || alto <= 0) return;
+
+            var gs = vivo.Guardianes ?? new System.Collections.Generic.List<GuardianMsg>();
+            AjustarCantidad(guardianes, gs.Count, "Guardian", GeneradorSprites.Circulo(), 7);
+            destinosGuardianes.Clear();
+            for (var i = 0; i < gs.Count; i++)
+            {
+                var g = gs[i];
+                var destino = CentroDeCelda(g.X, g.Y);
+                destinosGuardianes.Add(destino);
+                var sr = guardianes[i];
+                if (!sr.gameObject.activeSelf || sr.transform.position == Vector3.zero) sr.transform.position = destino;
+                sr.transform.localScale = Vector3.one * (g.Temporal ? 0.6f : 0.8f);
+                sr.color = g.Pausado ? new Color(0.45f, 0.4f, 0.55f, 0.8f)
+                    : g.Temporal ? new Color(1f, 0.45f, 0.75f, 0.95f) : new Color(0.7f, 0.3f, 0.95f, 1f);
+                sr.gameObject.SetActive(true);
+            }
+            for (var i = gs.Count; i < guardianes.Count; i++) guardianes[i].gameObject.SetActive(false);
+
+            var ts = vivo.Trampas ?? new System.Collections.Generic.List<TrampaMsg>();
+            AjustarCantidad(trampas, ts.Count, "Trampa", GeneradorSprites.Circulo(), 2);
+            for (var i = 0; i < ts.Count; i++)
+            {
+                var sr = trampas[i];
+                sr.transform.position = CentroDeCelda(ts[i].X, ts[i].Y);
+                sr.transform.localScale = Vector3.one * 0.62f;
+                sr.color = ColorTrampa(ts[i].Tipo);
+                sr.gameObject.SetActive(true);
+            }
+            for (var i = ts.Count; i < trampas.Count; i++) trampas[i].gameObject.SetActive(false);
+
+            if (cuadroPuerta == null) cuadroPuerta = GeneradorSprites.Cuadro(Color.white, Color.white, 16, 1);
+            var ps = vivo.Puertas ?? new System.Collections.Generic.List<PuertaMsg>();
+            AjustarCantidad(puertas, ps.Count, "Puerta", cuadroPuerta, 3);
+            for (var i = 0; i < ps.Count; i++)
+            {
+                var sr = puertas[i];
+                sr.transform.position = CentroDeCelda(ps[i].X, ps[i].Y);
+                sr.transform.localScale = Vector3.one * (ps[i].Abierta ? 0.5f : 0.95f);
+                // Cerrada: bloque ámbar sólido. Abierta: cuadro pequeño y tenue, para que se vea que se puede pasar.
+                sr.color = ps[i].Abierta ? new Color(0.9f, 0.6f, 0.2f, 0.35f) : new Color(0.9f, 0.55f, 0.15f, 1f);
+                sr.gameObject.SetActive(true);
+            }
+            for (var i = ps.Count; i < puertas.Count; i++) puertas[i].gameObject.SetActive(false);
+
+            var its = vivo.Items ?? new System.Collections.Generic.List<ItemEnergiaMsg>();
+            AjustarCantidad(items, its.Count, "Energia", GeneradorSprites.Circulo(), 4);
+            for (var i = 0; i < its.Count; i++)
+            {
+                var sr = items[i];
+                sr.transform.position = CentroDeCelda(its[i].X, its[i].Y);
+                sr.color = new Color(0.55f, 1f, 0.45f, 1f);
+                sr.gameObject.SetActive(true);
+            }
+            for (var i = its.Count; i < items.Count; i++) items[i].gameObject.SetActive(false);
+        }
+
+        static Color ColorTrampa(string tipo)
+        {
+            switch (tipo)
+            {
+                case TiposTrampa.TierraMovediza: return new Color(0.65f, 0.45f, 0.2f, 0.95f);  // marrón
+                case TiposTrampa.CeldaEmergente: return new Color(0.9f, 0.25f, 0.25f, 0.95f);  // rojo
+                case TiposTrampa.Red: return new Color(0.85f, 0.95f, 0.85f, 0.9f);              // blanco verdoso
+                default: return new Color(1f, 0.6f, 0.2f, 0.9f);
+            }
+        }
+
+        void AjustarCantidad(System.Collections.Generic.List<SpriteRenderer> lista, int cantidad, string nombre, Sprite sprite, int orden)
+        {
+            while (lista.Count < cantidad)
+            {
+                var go = new GameObject(nombre + lista.Count);
+                go.transform.SetParent(transform, false);
+                var sr = go.AddComponent<SpriteRenderer>();
+                sr.sprite = sprite;
+                sr.sortingOrder = orden;
+                lista.Add(sr);
+            }
+        }
+
+        void LimpiarArenaViva()
+        {
+            foreach (var lista in new[] { guardianes, trampas, puertas, items })
+            {
+                foreach (var sr in lista) if (sr != null) Destroy(sr.gameObject);
+                lista.Clear();
+            }
+            destinosGuardianes.Clear();
+        }
+
         public bool Dibujar(EscenarioMsg escenario)
         {
             if (escenario == null || escenario.Filas == null || escenario.Ancho <= 0 || escenario.Filas.Count != escenario.Alto)
@@ -58,6 +160,7 @@ namespace Reactor.Cliente.Arena
 
             AjustarCamara(escenario.Ancho, escenario.Alto);
             CrearNucleo();
+            LimpiarArenaViva();
             return true;
         }
 
@@ -123,6 +226,17 @@ namespace Reactor.Cliente.Arena
 
         void Update()
         {
+            // Los guardianes se deslizan hacia su celda en vez de saltar (el servidor los mueve cada segundo).
+            for (var i = 0; i < guardianes.Count && i < destinosGuardianes.Count; i++)
+                if (guardianes[i] != null && guardianes[i].gameObject.activeSelf)
+                    guardianes[i].transform.position = Vector3.MoveTowards(
+                        guardianes[i].transform.position, destinosGuardianes[i], 6f * Time.deltaTime);
+
+            // Las energías sueltas laten para que se noten.
+            var latido = 0.38f + 0.06f * Mathf.Sin(Time.time * 6f);
+            foreach (var sr in items)
+                if (sr != null && sr.gameObject.activeSelf) sr.transform.localScale = Vector3.one * latido;
+
             if (nucleo == null) return;
 
             destello = Mathf.MoveTowards(destello, 0f, Time.deltaTime * 4f);

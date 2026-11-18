@@ -128,6 +128,21 @@ public void MostrarJugador(JugadorMsg jugador)
             if (avatares.TryGetValue(jugadorId ?? "", out var avatar)) avatar.MarcarComoPropio();
         }
 
+        public void ActualizarArenaViva(ArenaVivaMsg vivo)
+        {
+            mapa.ActualizarArenaViva(vivo);
+            hud.MostrarMultiplicador(vivo != null ? vivo.MultiplicadorPuntos : 1);
+        }
+
+        public void MostrarEvento(string eventoId, string texto) => hud.MostrarEvento(eventoId, texto);
+
+        public void OcultarEvento(string eventoId) => hud.OcultarEvento(eventoId);
+
+        public void MostrarCongelado(string jugadorId, int segundos)
+        {
+            if (avatares.TryGetValue(jugadorId ?? "", out var avatar)) avatar.PonerCongelado(segundos);
+        }
+
         public void MostrarExtraccion(string jugadorId)
         {
             mapa.Destello();
