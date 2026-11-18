@@ -31,9 +31,9 @@ Este documento cumple CA-22.10: activación, duración y efecto de cada evento, 
 | Obstáculo | Símbolo en el escenario | Regla |
 |---|---|---|
 | Muro / barrera | `W` | No se atraviesa nunca (jugadores ni guardianes). |
-| Puerta automática | `D` | Cambia de estado cada **6 s**. Cerrada = muro; abierta = piso. Al iniciar, las puertas se alternan (la 1.ª cerrada, la 2.ª abierta, …). **Nunca se cierra con alguien encima**: espera a que la celda quede libre y lo vuelve a intentar cada segundo (CA-20.8). |
-| Trampa fija | `T` | La que viene dibujada en el mapa. Es tierra movediza. |
-| Trampa aleatoria | — | Al iniciar, el servidor coloca **3** trampas al azar, **una de cada variante** (CA-20.9). |
+| Puerta automática | `D` | Cambia de estado cada **6 s**. Cerrada = muro; abierta = piso. Al iniciar, las puertas se alternan (la 1.ª cerrada, la 2.ª abierta, …) y **cada una cambia en un segundo distinto** (desfase de 1 s entre puertas), así no se abren y cierran todas a la vez. **Nunca se cierra con alguien encima**: espera a que la celda quede libre y lo vuelve a intentar cada segundo (CA-20.8). |
+| Trampa aleatoria | `t` (celda preferida, opcional) | Al iniciar, el servidor reparte al azar **las trampas que indica el JSON del escenario** (14, 18 o 24; 3 en el mapa clásico), con las **3 variantes repartidas parejo** (CA-20.9). |
+| Trampa fija | `T` | Solo para mapas dibujados a mano (los escenarios del catálogo no las usan). Es tierra movediza. |
 
 **Variantes de trampa.** Todas inmovilizan y restan 5 puntos; cambia cuánto inmovilizan.
 
@@ -43,9 +43,11 @@ Este documento cumple CA-22.10: activación, duración y efecto de cada evento, 
 | Celda emergente (surge del piso) | `RISING_CELL` | 5 s (+2) |
 | Red inmovilizadora | `NET` | 2 s (−1) |
 
-**Dónde caen las aleatorias:** en piso libre, a 3 o más celdas de todos los inicios de jugador, a 2 o más del reactor
-y de los inicios de guardián, nunca sobre una puerta, un muro u otra trampa. Si el mapa no tiene lugar, la partida
-no inicia (error) y queda en espera.
+**Dónde caen las aleatorias:**
+- primero en las celdas marcadas con `t` (por ejemplo, los cuellos de botella de la estación) y después en el resto del piso, siempre al azar;
+- en piso libre: nunca sobre un muro, una puerta, una salida, el reactor, un inicio de guardián, un punto de energía (`E`) ni otra trampa;
+- **nunca pegadas al reactor ni a una salida**: a 2 o más pasos del reactor y de los inicios de guardián, y a 3 o más de los inicios de jugador;
+- **separadas entre sí** por la distancia mínima del escenario (`distanciaMinimaEntreTrampas`). Si el mapa no alcanza, se acercan lo justo; si aun así no caben, la partida no inicia (error) y queda en espera.
 
 ## 4. Guardianes y congelado (US-21)
 
@@ -67,8 +69,8 @@ no inicia (error) y queda en espera.
 
 ## 5. Eventos especiales (US-22)
 
-**Activación.** Al iniciar se arma un calendario con un lote de 8 eventos en orden aleatorio, repartidos a lo largo de la
-duración de la partida: el evento *i* cae cerca del segundo `hueco × (i+1)` (con `hueco = duración / 9`, unos 20 s en
+**Activación.** Al iniciar se arma un calendario con un lote de 11 eventos en orden aleatorio, repartidos a lo largo de la
+duración de la partida: el evento *i* cae cerca del segundo `hueco × (i+1)` (con `hueco = duración / 12`, unos 15 s en
 una partida de 3 minutos), corrido al azar hasta ±¼ de hueco, con al menos 2 s entre uno y otro y nunca en el primer
 segundo. Cuando el lote se acaba (prórroga por empate o modo por puntos) se programa otro igual.
 **Sin repeticiones accidentales** (CA-22.9): un evento del mismo tipo nunca está activo dos veces a la vez; si le toca
@@ -76,7 +78,7 @@ empezar y ya está activo, se pospone 2 s.
 
 | Evento | Código | Veces por lote | Duración | Efecto | Al terminar |
 |---|---|---|---|---|---|
-| Energía adicional | `EXTRA_ENERGY` | 3 | 8 s | Aparece un ícono en una celda libre al azar. El primero que lo pisa gana **+25**. | Si nadie lo tomó, desaparece. Si alguien lo tomó, el evento termina en ese momento. |
+| Energía adicional | `EXTRA_ENERGY` | 6 | 8 s | Aparece un ícono en uno de los puntos `E` del escenario, elegido al azar (si no hay puntos `E` libres, en cualquier piso libre). El primero que lo pisa gana **+25**. | Si nadie lo tomó, desaparece. Si alguien lo tomó, el evento termina en ese momento. |
 | Sobrecarga del reactor | `REACTOR_OVERLOAD` | 2 | 10 s | Se llama `Partida.DesactivarReactor(10)`: nadie puede extraer (`REACTOR_DESACTIVADO`). | El reactor vuelve a funcionar. |
 | Invasión de guardianes | `GUARDIAN_INVASION` | 1 | 30 s | Aparecen **5 guardianes más**, iguales a los normales, lejos de los jugadores y del reactor. | Los 5 temporales desaparecen. |
 | Puntos dobles *(creativo 1)* | `DOUBLE_POINTS` | 1 | 15 s | Extraer y recoger energía valen ×2. Las penalizaciones no se duplican. | Todo vuelve a valer lo normal. |
@@ -88,24 +90,53 @@ Cada inicio se avisa con `event:started` (tipo, duración y un texto listo para 
 
 ## 6. Escenarios (US-23)
 
-Se eligen al crear la partida (`escenarioId`); la lista sale de `GET /api/escenarios`. Todos miden 15×11, tienen
-4 inicios de jugador en las esquinas, 4 inicios de guardián y el reactor al centro con sus 4 vecinas libres. Las reglas
-son las mismas; cambian los muros, las puertas y las trampas fijas. Con las puertas cerradas, todos los jugadores pueden
-llegar al reactor (nadie queda encerrado).
+Se eligen al crear la partida (`escenarioId`); la lista sale de `GET /api/escenarios`. Los tres del catálogo miden
+**30×20** (Unity hace que la cámara siga al avatar), con 4 inicios de jugador en las esquinas, 4 inicios de guardián
+en los extremos (arriba, izquierda, derecha y abajo) y el reactor al centro con sus 4 vecinas libres. Las reglas son las
+mismas; cambian los muros, las puertas, los puntos de energía y cuántas trampas se reparten.
 
-| Id | Nombre | Distribución |
-|---|---|---|
-| `laboratorio` | Laboratorio subterráneo | Corredores laterales y una sala central con 8 puertas automáticas. 4 trampas fijas. |
-| `estacion` | Estación espacial | Pilares alrededor del reactor y 2 puertas en el anillo central. 4 trampas fijas. |
-| `militar` | Complejo militar futurista | Barreras con pasillos de seguridad, 4 puertas y 2 trampas junto al reactor. |
-| *(sin id)* | Arena clásica | El mapa que ya existía, sin puertas. Ahí «Rutas alternativas» se reemplaza por «Lluvia de energía». |
+| Id | Nombre | Distribución | Puertas | Trampas al azar | Puntos `E` |
+|---|---|---|---|---|---|
+| `laboratorio` | Laboratorio subterráneo | Pasillos cerrados: 4 laboratorios con puerta y una sala central del reactor con 4 puertas y 2 accesos fijos. | 8 | 14 (separadas ≥3) | 8 |
+| `estacion` | Estación espacial | Corredores largos separados por muros, cuellos de botella marcados con `t` y un anillo de pilares alrededor del reactor. | 2 | 18 (separadas ≥2) | 8 |
+| `militar` | Complejo militar futurista | Terreno abierto con pilares sueltos y una sola barrera con 2 puertas frente al reactor. | 2 | 24 (separadas ≥3) | 8 |
+| *(sin id)* | Arena clásica | El mapa de 15×11 que ya existía, sin puertas. Ahí «Rutas alternativas» se reemplaza por «Lluvia de energía». | 0 | 3 | — |
+
+### Modelo de datos (JSON)
+
+Cada escenario es un archivo en `Servidor/src/Dominio/Juego/Escenarios/<id>.json`, que viaja dentro de `Dominio.dll`.
+Para cambiar uno basta con editar su JSON y volver a compilar; para agregar otro, se crea un archivo nuevo.
+
+```json
+{
+  "id": "estacion",
+  "orden": 2,
+  "nombre": "Estación espacial",
+  "descripcion": "Corredores largos ...",
+  "trampasAleatorias": 18,
+  "distanciaMinimaEntreTrampas": 2,
+  "filas": [ "WWWW…", "WS…G…SW", "…" ]
+}
+```
+
+Caracteres de `filas`: `W` muro o pilar · `.` piso · `S` salida (inicio de jugador) · `R` reactor · `D` puerta automática ·
+`G` inicio de guardián · `E` punto donde aparece la energía · `t` celda preferida para trampas · `T` trampa fija.
+`G`, `E` y `t` son piso para los jugadores, y Unity las recibe como `.`.
+
+**Validación al cargar** (`ValidadorEscenario`): si un escenario no la pasa, el servidor no arranca y dice qué está mal.
+- El mapa es rectangular, con el borde todo de muro, un reactor y de 2 a 4 salidas.
+- Hay al menos 4 inicios de guardián.
+- Las 4 vecinas del reactor son piso, y ninguna puerta queda pegada al reactor ni a una salida.
+- Con todas las puertas cerradas, cada jugador llega al reactor; con todas abiertas, no queda ninguna zona encerrada.
+- Las trampas al azar están entre 3 y 60.
 
 El escenario se carga antes de iniciar (CA-23.3) y no puede cambiar durante la partida (CA-23.7). Un id desconocido
 responde 400. No se puede pedir un escenario y obstáculos propios a la vez.
 
 ## 7. Valores configurables
 
-Todos están en `ReglasArenaViva` (dentro de `ConfigPartida.ArenaViva`) y se validan al crear la partida.
+Todos están en `ReglasArenaViva` (dentro de `ConfigPartida.ArenaViva`) y se validan al crear la partida. Las velocidades
+(paso del guardián, pausa y ciclo de las puertas) son las mismas en todos los escenarios.
 
 | Valor | Por defecto |
 |---|---|
@@ -113,7 +144,8 @@ Todos están en `ReglasArenaViva` (dentro de `ConfigPartida.ArenaViva`) y se val
 | `SegundosCongelamiento` (en `ConfigPartida`) | 3 |
 | `PenalizacionTrampa` (en `ConfigPartida`) | 5 |
 | `SegundosPorPasoGuardian` / `SegundosPausaGuardian` | 2 / 4 |
-| `TrampasAleatorias` | 3 (rango 3–9) |
+| `TrampasAleatorias` / `DistanciaMinimaEntreTrampas` | las del JSON del escenario (3 y 2 en el mapa clásico; rango 3–60 y 1–10) |
+| `VecesEnergiaExtra` / `VecesSobrecarga` (por lote) | 6 / 2 (mínimos 3 y 2) |
 | `SegundosCicloPuertas` | 6 |
 | `PuntosEnergiaExtra` / `SegundosEnergiaExtra` | 25 / 8 |
 | `SegundosSobrecarga` | 10 |
@@ -139,13 +171,13 @@ envía el tipo de cada obstáculo, guardián, ítem y evento para que se dibujen
 | CA-20.1 | `TrampasYPuertasTests.DesdeFilas_LeePuertasYLugaresDeGuardian` |
 | CA-20.2 | `TrampasYPuertasTests.ComoFilas_MuestraLaPuertaCerradaComoMuroYLaAbiertaComoPiso` |
 | CA-20.3 | `TrampasYPuertasTests.Muro_SigueBloqueandoElPaso` |
-| CA-20.4 | `TrampasYPuertasTests.Puerta_Abierta_PermiteElPaso`, `TrampasYPuertasTests.Puerta_Cerrada_BloqueaElPaso`, `TrampasYPuertasTests.Puerta_ConArenaViva_AbreYCierraSolaCadaCiclo` |
+| CA-20.4 | `EscenariosJsonTests.Iniciar_LasPuertasNoCambianTodasAlMismoTiempo`, `TrampasYPuertasTests.Puerta_Abierta_PermiteElPaso`, `TrampasYPuertasTests.Puerta_Cerrada_BloqueaElPaso`, `TrampasYPuertasTests.Puerta_ConArenaViva_AbreYCierraSolaCadaCiclo` |
 | CA-20.5 | `ArenaVivaCasosDeUsoTests.Ejecutar_CaerEnUnaTrampa_RestaCincoCongelaYDevuelveLaNovedad`, `TrampasYPuertasTests.Trampa_ElJugadorQuedaInmovilizadoYLuegoRecuperaElMovimiento`, `TrampasYPuertasTests.Trampa_ElPuntajeNuncaBajaDeCero`, `TrampasYPuertasTests.Trampa_PorDefectoEsTierraMovediza_ComoAntes`, `TrampasYPuertasTests.Trampa_TodasLasVariantesRestanCincoPuntosYNoQuitanVida` |
 | CA-20.6 | `ArenaVivaTiempoRealTests.EstadoPartida_ConArenaViva_IncluyeEscenarioLiveYCongelados`, `ArenaVivaTiempoRealTests.Publicador_CaerEnTrampa_MandaPlayerFrozenATodos` |
 | CA-20.7 | `ArenaVivaTiempoRealTests.Reloj_ConArenaViva_TraeLaFotoDeLaArenaCadaSegundo` |
 | CA-20.8 | `EscenariosCatalogoTests.ArenaViva_JugadoresYGuardianesNuncaQuedanEnPosicionInvalidaNiSuperpuestos`, `TrampasYPuertasTests.Puerta_NoSeCierraSobreUnJugador` |
-| CA-20.9 | `ArenaVivaCasosDeUsoTests.Iniciar_ActivaLaArenaVivaConCuatroGuardianesEnLosExtremosYTresTrampasDistintas`, `ArenaVivaCasosDeUsoTests.Iniciar_ConElMismoAzar_ColocaLasTrampasEnElMismoLugar`, `ArenaVivaCasosDeUsoTests.Iniciar_SinAzarInyectado_TambienActivaLaArenaViva`, `TrampasYPuertasTests.Config_TrampasAleatoriasFueraDeRango_Falla`, `TrampasYPuertasTests.Iniciar_ConArenaViva_ColocaTresTrampasDistintas`, `TrampasYPuertasTests.Iniciar_ConLaMismaSemilla_ColocaLasMismasTrampas`, `TrampasYPuertasTests.Iniciar_ConUnaArenaSinEspacio_FallaSinEmpezarLaPartida`, `TrampasYPuertasTests.Iniciar_LasTrampasAleatoriasCaenSoloEnPisoLibre`, `TrampasYPuertasTests.Iniciar_LasTrampasCambianSegunLaSemilla`, `TrampasYPuertasTests.Iniciar_SinArenaViva_NoColocaTrampasNiGuardianes`, `TrampasYPuertasTests.Trampa_CeldaEmergente_CongelaDosSegundosMas`, `TrampasYPuertasTests.Trampa_RedInmovilizadora_CongelaUnSegundoMenos`, `TrampasYPuertasTests.Trampa_TierraMovediza_CongelaLoDeLaConfiguracionYRestaLaPenalizacion` |
-| CA-21.1 | `ArenaVivaCasosDeUsoTests.Configurar_GuardianesFueraDeDosACuatro_Falla`, `ArenaVivaCasosDeUsoTests.Configurar_SinElegir_DejaCuatroGuardianes`, `ArenaVivaCasosDeUsoTests.Iniciar_ActivaLaArenaVivaConCuatroGuardianesEnLosExtremosYTresTrampasDistintas`, `ArenaVivaCasosDeUsoTests.Iniciar_CreaLosGuardianesElegidos`, `ArenaVivaTiempoRealTests.Aceptacion_PartidaDeTresMinutos_TieneTodosLosElementosDeLaArenaViva`, `GuardianesTests.Config_GuardianesFueraDeDosACuatro_Falla`, `GuardianesTests.Config_PorDefectoHayCuatroGuardianes`, `GuardianesTests.Iniciar_ConCuatroGuardianes_EmpiezanEnLosCuatroExtremosDelEscenario`, `GuardianesTests.Iniciar_ConDosGuardianes_EmpiezanEnExtremosOpuestos`, `GuardianesTests.Iniciar_CreaLaCantidadDeGuardianesElegida`, `GuardianesTests.Iniciar_SinCeldasG_LosGuardianesEmpiezanCercaDeLosBordes` |
+| CA-20.9 | `ArenaVivaCasosDeUsoTests.Iniciar_ActivaLaArenaVivaConCuatroGuardianesEnLosExtremosYLasTrampasDelEscenario`, `ArenaVivaCasosDeUsoTests.Iniciar_ConElMismoAzar_ColocaLasTrampasEnElMismoLugar`, `ArenaVivaCasosDeUsoTests.Iniciar_SinAzarInyectado_TambienActivaLaArenaViva`, `EscenariosJsonTests.Iniciar_ConOtraSemilla_LasTrampasCambianDeLugar`, `EscenariosJsonTests.Iniciar_EnLaEstacion_LasTrampasVanPrimeroALosCuellosDeBotella`, `EscenariosJsonTests.Iniciar_ReparteLasTrampasDelEscenarioSinPegarlasAlReactorNiALasSalidas`, `EscenariosJsonTests.Validador_TrampasFueraDeRango_Falla`, `TrampasYPuertasTests.Config_TrampasAleatoriasFueraDeRango_Falla`, `TrampasYPuertasTests.Iniciar_ConArenaViva_ColocaTresTrampasDistintas`, `TrampasYPuertasTests.Iniciar_ConLaMismaSemilla_ColocaLasMismasTrampas`, `TrampasYPuertasTests.Iniciar_ConUnaArenaSinEspacio_FallaSinEmpezarLaPartida`, `TrampasYPuertasTests.Iniciar_LasTrampasAleatoriasCaenSoloEnPisoLibre`, `TrampasYPuertasTests.Iniciar_LasTrampasCambianSegunLaSemilla`, `TrampasYPuertasTests.Iniciar_SinArenaViva_NoColocaTrampasNiGuardianes`, `TrampasYPuertasTests.Trampa_CeldaEmergente_CongelaDosSegundosMas`, `TrampasYPuertasTests.Trampa_RedInmovilizadora_CongelaUnSegundoMenos`, `TrampasYPuertasTests.Trampa_TierraMovediza_CongelaLoDeLaConfiguracionYRestaLaPenalizacion` |
+| CA-21.1 | `ArenaVivaCasosDeUsoTests.Configurar_GuardianesFueraDeDosACuatro_Falla`, `ArenaVivaCasosDeUsoTests.Configurar_SinElegir_DejaCuatroGuardianes`, `ArenaVivaCasosDeUsoTests.Iniciar_ActivaLaArenaVivaConCuatroGuardianesEnLosExtremosYLasTrampasDelEscenario`, `ArenaVivaCasosDeUsoTests.Iniciar_CreaLosGuardianesElegidos`, `ArenaVivaTiempoRealTests.Aceptacion_PartidaDeTresMinutos_TieneTodosLosElementosDeLaArenaViva`, `GuardianesTests.Config_GuardianesFueraDeDosACuatro_Falla`, `GuardianesTests.Config_PorDefectoHayCuatroGuardianes`, `GuardianesTests.Iniciar_ConCuatroGuardianes_EmpiezanEnLosCuatroExtremosDelEscenario`, `GuardianesTests.Iniciar_ConDosGuardianes_EmpiezanEnExtremosOpuestos`, `GuardianesTests.Iniciar_CreaLaCantidadDeGuardianesElegida`, `GuardianesTests.Iniciar_SinCeldasG_LosGuardianesEmpiezanCercaDeLosBordes` |
 | CA-21.2 | `GuardianesTests.Guardian_BloqueaElPasoDeLosJugadores`, `GuardianesTests.Guardian_DaUnPasoCadaDosSegundosHaciaElJugadorMasCercano`, `GuardianesTests.Guardian_NoAtraviesaMuros` |
 | CA-21.3 | `GuardianesTests.Guardian_AlAlcanzarAUnJugadorLoCongelaYSeQuedaQuieto` |
 | CA-21.4 | `ArenaVivaTiempoRealTests.EstadoPartida_ConArenaViva_IncluyeEscenarioLiveYCongelados`, `GuardianesTests.Congelado_NoPuedeActuarYLuegoRecuperaLasAcciones` |
@@ -156,7 +188,7 @@ envía el tipo de cada obstáculo, guardián, ítem y evento para que se dibujen
 | CA-21.9 | `GuardianesTests.Guardian_AlcanzarAUnJugadorNoCambiaSuPuntaje` |
 | CA-21.10 | `GuardianesTests.Guardian_AlAlcanzarAUnJugadorYaInmovilizado_LeSumaTiempo`, `GuardianesTests.Guardian_DespuesDeAlcanzarAUnJugador_NoLoCongelaDeNuevoMientrasEstaQuieto` |
 | CA-21.11 | `GuardianesTests.Guardian_SiElMasCercanoEstaCongelado_VaPorOtroJugador`, `GuardianesTests.Guardian_SiTodosEstanCongelados_NoSeMueve` |
-| CA-22.1 | `ArenaVivaTiempoRealTests.AMensaje_EnergiaRecogida_EsItemCollected`, `ArenaVivaTiempoRealTests.Aceptacion_PartidaDeTresMinutos_TieneTodosLosElementosDeLaArenaViva`, `EventosEspecialesTests.EnergiaExtra_AparecePisandoUnaCeldaLibreDeLaArena`, `EventosEspecialesTests.EnergiaExtra_DaVeinticincoPuntosYDuraOchoSegundos`, `EventosEspecialesTests.EnergiaExtra_ElPrimeroQueLaPisaSeLlevaLosPuntos`, `EventosEspecialesTests.EnergiaExtra_NoLaPuedenTomarDosJugadores`, `EventosEspecialesTests.EnergiaExtra_SiNadieLaTomaDesapareceConElEvento`, `EventosEspecialesTests.Partida_ConPuertas_TieneTodosLosEventosLasVecesPedidas` |
+| CA-22.1 | `ArenaVivaTiempoRealTests.AMensaje_EnergiaRecogida_EsItemCollected`, `ArenaVivaTiempoRealTests.Aceptacion_PartidaDeTresMinutos_TieneTodosLosElementosDeLaArenaViva`, `EscenariosJsonTests.EnergiaAdicional_AparecePorLoMenosSeisVecesEnLosPuntosDelEscenario`, `EventosEspecialesTests.EnergiaExtra_AparecePisandoUnaCeldaLibreDeLaArena`, `EventosEspecialesTests.EnergiaExtra_DaVeinticincoPuntosYDuraOchoSegundos`, `EventosEspecialesTests.EnergiaExtra_ElPrimeroQueLaPisaSeLlevaLosPuntos`, `EventosEspecialesTests.EnergiaExtra_NoLaPuedenTomarDosJugadores`, `EventosEspecialesTests.EnergiaExtra_SiNadieLaTomaDesapareceConElEvento`, `EventosEspecialesTests.Partida_ConPuertas_TieneTodosLosEventosLasVecesPedidas` |
 | CA-22.2 | `ArenaVivaTiempoRealTests.Aceptacion_PartidaDeTresMinutos_TieneTodosLosElementosDeLaArenaViva`, `EventosEspecialesTests.Invasion_AparecenCincoGuardianesMasYDespuesDesaparecen`, `EventosEspecialesTests.Invasion_LosInvasoresPersiguenComoLosDemasGuardianes` |
 | CA-22.3 | `ArenaVivaTiempoRealTests.Aceptacion_PartidaDeTresMinutos_TieneTodosLosElementosDeLaArenaViva`, `EventosEspecialesTests.Calendario_NoEmpiezaEnElPrimerSegundoYNoSeAmontona`, `EventosEspecialesTests.Partida_ConPuertas_TieneTodosLosEventosLasVecesPedidas`, `EventosEspecialesTests.Sobrecarga_DesactivaElReactorYDespuesVuelveAFuncionar`, `EventosEspecialesTests.Sobrecarga_DuraDiezSegundosYOcurreAlMenosDosVecesEnMomentosDistintos`, `EventosEspecialesTests.Sobrecarga_ElMomentoCambiaSegunElAzar` |
 | CA-22.4 | `ArenaVivaTiempoRealTests.Aceptacion_PartidaDeTresMinutos_TieneTodosLosElementosDeLaArenaViva`, `EventosEspecialesTests.LluviaDeEnergia_CreaVariasCeldasQueTerminanAlTomarLaUltima`, `EventosEspecialesTests.Partida_ConPuertas_TieneTodosLosEventosLasVecesPedidas`, `EventosEspecialesTests.Partida_SinPuertas_UsaLluviaDeEnergiaComoSegundoCreativo`, `EventosEspecialesTests.PuntosDobles_LaExtraccionVale_ElDobleSoloMientrasDura`, `EventosEspecialesTests.PuntosDobles_NoDuplicaLasPenalizaciones`, `EventosEspecialesTests.RutasAlternativas_DejanTodasLasPuertasAbiertasMientrasDuran` |
@@ -166,11 +198,11 @@ envía el tipo de cada obstáculo, guardián, ítem y evento para que se dibujen
 | CA-22.8 | `EventosEspecialesTests.PartidaTerminada_NoAceptaRecogerEnergia`, `EventosEspecialesTests.PartidaTerminada_NoTieneEventosNiEnergiaEnLaArenaYElTiempoNoLosMueve` |
 | CA-22.9 | `EventosEspecialesTests.Evento_NoSeRepiteSinoHayPartidaNueva_SoloSeActivaUnaVezLaArenaViva`, `EventosEspecialesTests.Evento_NuncaEstaActivoDosVecesALaVez` |
 | CA-22.10 | `EventosEspecialesTests.Calendario_ConLaMismaSemilla_EsElMismo`, `EventosEspecialesTests.Reglas_ConValoresInvalidos_Fallan`, `EventosEspecialesTests.Reglas_ValoresPorDefecto_SonLosAcordados` |
-| CA-23.1 | `ArenaVivaCasosDeUsoTests.ListarEscenarios_DevuelveLosTresConLoNecesarioParaElegir`, `EscenariosCatalogoTests.Catalogo_TieneAlMenosDosEscenariosDistintos` |
-| CA-23.2 | `ArenaVivaCasosDeUsoTests.Configurar_ConEscenarioDesconocido_FallaYNoCreaLaPartida`, `EscenariosCatalogoTests.Escenario_SeCargaYDefineLimitesInicioReactorObstaculosYGuardianes` |
+| CA-23.1 | `ArenaVivaCasosDeUsoTests.ListarEscenarios_DevuelveLosTresConLoNecesarioParaElegir`, `EscenariosCatalogoTests.Catalogo_TieneAlMenosDosEscenariosDistintos`, `EscenariosJsonTests.Catalogo_SeCargaDeLosJsonEnSuOrden`, `EscenariosJsonTests.Escenarios_TienenDistribucionesDistintas` |
+| CA-23.2 | `ArenaVivaCasosDeUsoTests.Configurar_ConEscenarioDesconocido_FallaYNoCreaLaPartida`, `EscenariosCatalogoTests.Escenario_SeCargaYDefineLimitesInicioReactorObstaculosYGuardianes`, `EscenariosJsonTests.Escenario_PasaTodasLasValidaciones`, `EscenariosJsonTests.Validador_BordeAbiertoOPocosGuardianes_Falla` |
 | CA-23.3 | `ArenaVivaCasosDeUsoTests.Configurar_ConEscenario_CargaEseMapaAntesDeEmpezar`, `ArenaVivaCasosDeUsoTests.Configurar_GuardaElIdDelCatalogoAunqueVengaConMayusculas`, `ArenaVivaTiempoRealTests.Aceptacion_PartidaDeTresMinutos_TieneTodosLosElementosDeLaArenaViva`, `EscenariosCatalogoTests.Obtener_BuscaPorIdSinImportarMayusculas` |
 | CA-23.4 | `ArenaVivaCasosDeUsoTests.Obtener_TodosVenLaMismaArenaViva`, `ArenaVivaTiempoRealTests.EstadoPartida_ConArenaViva_IncluyeEscenarioLiveYCongelados`, `EscenariosCatalogoTests.Partida_TodosLosJugadoresVenElMismoEscenario` |
-| CA-23.5 | `EscenariosCatalogoTests.Escenario_LosInicioNoEstanEnObstaculosNiFueraDeLaArena`, `EscenariosCatalogoTests.Partida_LosJugadoresAparecenEnLosInicioDelEscenario` |
+| CA-23.5 | `EscenariosCatalogoTests.Escenario_LosInicioNoEstanEnObstaculosNiFueraDeLaArena`, `EscenariosCatalogoTests.Partida_LosJugadoresAparecenEnLosInicioDelEscenario`, `EscenariosJsonTests.Escenario_PasaTodasLasValidaciones`, `EscenariosJsonTests.Validador_PuertaPegadaAlReactor_Falla`, `EscenariosJsonTests.Validador_ReactorSoloAlcanzablePorPuertas_Falla` |
 | CA-23.6 | `EscenariosCatalogoTests.Escenario_ElReactorSeAlcanzaSinDependerDeLasPuertas`, `EscenariosCatalogoTests.Escenario_ElReactorTieneSusCuatroVecinasLibresYTodoSeAlcanzaDesdeLosInicios` |
 | CA-23.7 | `ArenaVivaCasosDeUsoTests.Iniciar_DosVeces_FallaYElEscenarioNoCambia`, `EscenariosCatalogoTests.Partida_ElEscenarioNoCambiaDuranteLaPartida` |
-| CA-23.8 | `ArenaVivaCasosDeUsoTests.Configurar_ConEscenarioYObstaculosALaVez_Falla`, `ArenaVivaCasosDeUsoTests.Configurar_SinEscenario_UsaElMapaClasicoComoAntes`, `EscenariosCatalogoTests.Obtener_SinIdDevuelveElMapaClasicoYUnoDesconocidoFalla` |
+| CA-23.8 | `ArenaVivaCasosDeUsoTests.Configurar_ConEscenarioYObstaculosALaVez_Falla`, `ArenaVivaCasosDeUsoTests.Configurar_SinEscenario_UsaElMapaClasicoComoAntes`, `EscenariosCatalogoTests.Obtener_SinIdDevuelveElMapaClasicoYUnoDesconocidoFalla`, `EscenariosJsonTests.Aplicar_PoneElIdYLasTrampasDelEscenarioSinTocarElResto` |

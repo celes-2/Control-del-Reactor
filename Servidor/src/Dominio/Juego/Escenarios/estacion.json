@@ -1,0 +1,30 @@
+{
+  "id": "estacion",
+  "orden": 2,
+  "nombre": "Estación espacial",
+  "descripcion": "Corredores largos separados por muros, con trampas en los cuellos de botella y un anillo de pilares alrededor del reactor.",
+  "trampasAleatorias": 18,
+  "distanciaMinimaEntreTrampas": 2,
+  "filas": [
+    "WWWWWWWWWWWWWWWWWWWWWWWWWWWWWW",
+    "WS.............G............SW",
+    "W............................W",
+    "W..E...........E..........E..W",
+    "W.......t............t.......W",
+    "W..WWWWWtWWWWWWWWWWWWtWWWWW..W",
+    "W.......t............t.......W",
+    "W.....W........t.......W.....W",
+    "W.....W.....WWW.WWW....W.....W",
+    "W.....t.....W.....W...tW.....W",
+    "WG...tWt.E..D..R..D..E.tt...GW",
+    "W.....W.....W.....W....W.....W",
+    "W.....W.....WWW.WWW....W.....W",
+    "W.......t......t.....t.......W",
+    "W..WWWWWtWWWWWWWWWWWWtWWWWW..W",
+    "W.......t............t.......W",
+    "W..E...........E..........E..W",
+    "W............................W",
+    "WS.............G............SW",
+    "WWWWWWWWWWWWWWWWWWWWWWWWWWWWWW"
+  ]
+}

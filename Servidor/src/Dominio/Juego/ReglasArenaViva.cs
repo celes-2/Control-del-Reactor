@@ -15,11 +15,26 @@ public sealed record ReglasArenaViva
     /// <summary>Después de alcanzar a un jugador, el guardián se queda quieto este tiempo.</summary>
     public int SegundosPausaGuardian { get; init; } = 4;
 
-    /// <summary>Trampas que el servidor coloca al azar al empezar (mínimo 3: una de cada variante, CA-20.9).</summary>
-    public int TrampasAleatorias { get; init; } = 3;
+    public const int MinimoTrampas = 3;
+    public const int MaximoTrampas = 60;
+
+    /// <summary>
+    /// Trampas que el servidor coloca al azar al empezar (mínimo 3: las variantes quedan repartidas, CA-20.9).
+    /// Cada escenario trae su propia cantidad en su JSON (ver <see cref="EscenarioDef"/>); 3 es la del mapa clásico.
+    /// </summary>
+    public int TrampasAleatorias { get; init; } = MinimoTrampas;
+
+    /// <summary>Distancia mínima (en pasos) entre dos trampas aleatorias, para que queden repartidas.</summary>
+    public int DistanciaMinimaEntreTrampas { get; init; } = 2;
 
     /// <summary>Cada cuántos segundos cambia de estado una puerta.</summary>
     public int SegundosCicloPuertas { get; init; } = 6;
+
+    /// <summary>Veces que aparece la energía adicional en cada tanda de eventos (CA-22.1 pide al menos 3).</summary>
+    public int VecesEnergiaExtra { get; init; } = 6;
+
+    /// <summary>Veces que se sobrecarga el reactor en cada tanda de eventos (CA-22.3 pide al menos 2).</summary>
+    public int VecesSobrecarga { get; init; } = 2;
 
     /// <summary>Puntos del ícono de energía adicional para el primero que lo toca (CA-22.1).</summary>
     public int PuntosEnergiaExtra { get; init; } = 25;
@@ -48,8 +63,14 @@ public sealed record ReglasArenaViva
             throw new DominioException("El guardián debe tardar al menos 1 segundo por paso.");
         if (SegundosPausaGuardian < 0)
             throw new DominioException("La pausa del guardián no puede ser negativa.");
-        if (TrampasAleatorias < 3 || TrampasAleatorias > 9)
-            throw new DominioException("Las trampas aleatorias deben ser entre 3 y 9.");
+        if (TrampasAleatorias < MinimoTrampas || TrampasAleatorias > MaximoTrampas)
+            throw new DominioException($"Las trampas aleatorias deben ser entre {MinimoTrampas} y {MaximoTrampas}.");
+        if (DistanciaMinimaEntreTrampas < 1 || DistanciaMinimaEntreTrampas > 10)
+            throw new DominioException("La distancia mínima entre trampas debe ser entre 1 y 10.");
+        if (VecesEnergiaExtra < 3)
+            throw new DominioException("La energía adicional debe aparecer al menos 3 veces.");
+        if (VecesSobrecarga < 2)
+            throw new DominioException("El reactor debe sobrecargarse al menos 2 veces.");
         if (SegundosCicloPuertas < 1)
             throw new DominioException("El ciclo de las puertas debe ser de al menos 1 segundo.");
         if (PuntosEnergiaExtra < 0 || PuntosCeldaLluvia < 0)

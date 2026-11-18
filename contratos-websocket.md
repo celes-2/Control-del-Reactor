@@ -120,7 +120,9 @@ Reglas completas en `Docs/arena-viva.md`. Todo lo nuevo es **aditivo**: los camp
 ### Al crear la partida (REST)
 
 - `GET /api/escenarios` → `[{ id, nombre, descripcion, ancho, alto, filas, puertas: [{x,y}], inicioGuardianes: [{x,y}],
-  maxJugadores, minGuardianes: 2, maxGuardianes: 4, guardianesPorDefecto: 4 }]`. Ids: `laboratorio`, `estacion`, `militar`.
+  maxJugadores, minGuardianes: 2, maxGuardianes: 4, guardianesPorDefecto: 4, trampasAleatorias, puntosEnergia: [{x,y}] }]`.
+  Ids: `laboratorio`, `estacion`, `militar` (los tres de 30×20). Las posiciones de las trampas se conocen recién al
+  iniciar, en `live.traps`.
 - `POST /api/partidas` acepta además `escenarioId` (null = mapa clásico) y `cantidadGuardianes` (2 a 4, null = 4).
   Fuera de rango o id desconocido → 400. La respuesta trae `escenarioId` y `cantidadGuardianes`.
 

@@ -1,0 +1,30 @@
+{
+  "id": "laboratorio",
+  "orden": 1,
+  "nombre": "Laboratorio subterráneo",
+  "descripcion": "Pasillos cerrados y muchas puertas: cuatro laboratorios en las esquinas y una sala central del reactor con cuatro puertas automáticas.",
+  "trampasAleatorias": 14,
+  "distanciaMinimaEntreTrampas": 3,
+  "filas": [
+    "WWWWWWWWWWWWWWWWWWWWWWWWWWWWWW",
+    "WS.............G............SW",
+    "W............................W",
+    "W..WWWWW..WWWW.E.WWWW.WWWWW..W",
+    "W..W...W..............W...W..W",
+    "W..W.E.D..............D.E.W..W",
+    "W..W...W..WW.WWDWWWWW.W...W..W",
+    "W..WWWWW..W.........W.WWWWW..W",
+    "W.........W..E......W........W",
+    "W.........W.........W........W",
+    "WG........D....R....D.......GW",
+    "W.........W.........W........W",
+    "W..WWWWW..W......E..W.WWWWW..W",
+    "W..W...W..W.........W.W...W..W",
+    "W..W.E.D..WWWWWDWW.WW.D.E.W..W",
+    "W..W...W..............W...W..W",
+    "W..WWWWW..WWWW.E.WWWW.WWWWW..W",
+    "W............................W",
+    "WS.............G............SW",
+    "WWWWWWWWWWWWWWWWWWWWWWWWWWWWWW"
+  ]
+}

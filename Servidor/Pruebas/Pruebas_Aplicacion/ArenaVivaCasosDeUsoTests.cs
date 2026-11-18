@@ -201,7 +201,7 @@ public class ArenaVivaCasosDeUsoTests
     [Fact]
     [Trait("CA", "21.1")]
     [Trait("CA", "20.9")]
-    public async Task Iniciar_ActivaLaArenaVivaConCuatroGuardianesEnLosExtremosYTresTrampasDistintas()
+    public async Task Iniciar_ActivaLaArenaVivaConCuatroGuardianesEnLosExtremosYLasTrampasDelEscenario()
     {
         var ctx = new Contexto();
 
@@ -209,20 +209,18 @@ public class ArenaVivaCasosDeUsoTests
 
         Assert.Equal(EstadoPartida.EnCurso, vista.Estado);
         var viva = Assert.IsType<ArenaVivaVista>(vista.ArenaViva);
-        var mapa = Arena.DesdeFilas(Escenarios.Obtener("estacion").Filas);
-        var extremos = mapa.InicioGuardianes.Select(p => (p.X, p.Y)).ToHashSet();
+        var escenario = Escenarios.Obtener("estacion");
+        var extremos = escenario.CrearArena().InicioGuardianes.Select(p => (p.X, p.Y)).ToHashSet();
         Assert.Equal(extremos, viva.Guardianes.Select(g => (g.X, g.Y)).ToHashSet());
         Assert.All(viva.Guardianes, g => Assert.False(g.Temporal));
 
-        // Las trampas fijas del mapa (T) siguen ahí, y se suman 3 al azar: una de cada variante.
-        var fijas = mapa.Obstaculos.Where(o => o.Tipo == TipoObstaculo.Trampa).Select(o => (o.Posicion.X, o.Posicion.Y)).ToHashSet();
-        var alAzar = viva.Trampas.Where(t => !fijas.Contains((t.X, t.Y))).ToList();
-        Assert.Equal(fijas.Count + 3, viva.Trampas.Count);
-        Assert.Equal(3, alAzar.Count);
-        Assert.Equal(3, alAzar.Select(t => t.Variante).Distinct().Count());
+        // Las trampas al azar son las que dice el JSON del escenario, con las 3 variantes.
+        Assert.Equal(escenario.TrampasAleatorias, viva.Trampas.Count);
+        Assert.Equal(3, viva.Trampas.Select(t => t.Variante).Distinct().Count());
         Assert.NotEmpty(viva.Puertas);
         Assert.Equal(1, viva.MultiplicadorPuntos);
         Assert.Equal(viva.Trampas.Count, vista.Obstaculos.Count(o => o.Tipo == TipoObstaculo.Trampa && o.Variante is not null));
+        Assert.Equal((30, 20), (vista.Ancho, vista.Alto));
     }
 
     [Fact]
@@ -355,6 +353,9 @@ public class ArenaVivaCasosDeUsoTests
             Assert.Equal(4, e.InicioGuardianes.Count);
             Assert.Equal(4, e.MaxJugadores);
             Assert.Equal((2, 4, 4), (e.MinGuardianes, e.MaxGuardianes, e.GuardianesPorDefecto));
+            Assert.Equal(Escenarios.Obtener(e.Id).TrampasAleatorias, e.TrampasAleatorias);
+            Assert.NotEmpty(e.PuntosEnergia);
+            Assert.Equal((30, 20), (e.Ancho, e.Alto));
         });
     }
 }

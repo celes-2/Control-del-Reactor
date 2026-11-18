@@ -69,8 +69,9 @@ public class GuardianesTests
 
         var posiciones = partida.Guardianes.Select(g => g.Posicion).OrderBy(p => p.Y).ToList();
 
-        Assert.Equal(new Posicion(7, 1), posiciones[0]);
-        Assert.Equal(new Posicion(7, 9), posiciones[1]);
+        // En los escenarios de 30x20 los inicios de guardián están arriba, a los lados y abajo.
+        Assert.Equal(new Posicion(15, 1), posiciones[0]);
+        Assert.Equal(new Posicion(15, 18), posiciones[1]);
     }
 
     [Fact]
