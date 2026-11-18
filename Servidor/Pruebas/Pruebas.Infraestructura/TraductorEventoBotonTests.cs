@@ -11,11 +11,12 @@ public class TraductorEventoBotonTests
     // ---------- Positivas ----------
 
     [Theory]
+    [Trait("CA", "18.2")]
     [InlineData("UP", Accion.Arriba)]
     [InlineData("DOWN", Accion.Abajo)]
     [InlineData("LEFT", Accion.Izquierda)]
     [InlineData("RIGHT", Accion.Derecha)]
-    [InlineData("ACTION", Accion.Especial)]
+    [InlineData("ACTION", Accion.Extraer)]
     public void Traducir_CadaBotonValido_DevuelveSuAccion(string boton, Accion esperada)
     {
         var mensaje = "{\"button\":\"" + boton + "\",\"seq\":7}";
@@ -26,15 +27,6 @@ public class TraductorEventoBotonTests
         Assert.Equal("pico-01", evento.DeviceId);
         Assert.Equal(esperada, evento.Accion);
         Assert.Equal(7, evento.Seq);
-    }
-
-    [Fact]
-    public void Traducir_SinSeq_UsaCero()
-    {
-        var evento = TraductorEventoBoton.Traducir(Topic, "{\"button\":\"UP\"}");
-
-        Assert.NotNull(evento);
-        Assert.Equal(0, evento.Seq);
     }
 
     [Fact]
@@ -49,12 +41,15 @@ public class TraductorEventoBotonTests
     // ---------- Negativas: mensaje invalido ----------
 
     [Theory]
+    [Trait("CA", "18.8")]
     [InlineData("esto no es json")]
     [InlineData("")]
     [InlineData("[]")]
-    [InlineData("{\"seq\":3}")]                     // falta button
-    [InlineData("{\"button\":5}")]                  // button no es texto
-    [InlineData("{\"button\":\"JUMP\",\"seq\":1}")] // boton que no existe
+    [InlineData("{\"seq\":3}")]                       // falta button
+    [InlineData("{\"button\":5}")]                    // button no es texto
+    [InlineData("{\"button\":\"JUMP\",\"seq\":1}")]   // boton que no existe
+    [InlineData("{\"button\":\"UP\"}")]               // falta seq
+    [InlineData("{\"button\":\"UP\",\"seq\":\"7\"}")] // seq no es numero
     public void Traducir_MensajeInvalido_DevuelveNull(string mensaje)
     {
         Assert.Null(TraductorEventoBoton.Traducir(Topic, mensaje));
@@ -71,5 +66,34 @@ public class TraductorEventoBotonTests
     public void Traducir_TopicInvalido_DevuelveNull(string topic)
     {
         Assert.Null(TraductorEventoBoton.Traducir(topic, "{\"button\":\"UP\",\"seq\":1}"));
+    }
+    
+    // ---------- Estado del control (status) ----------
+
+    [Theory]
+    [Trait("CA", "18.8")]
+    [InlineData("online")]
+    [InlineData("ONLINE")]
+    [InlineData(" online ")]
+    public void ControlEnLinea_MensajeOnline_DevuelveDeviceId(string mensaje)
+    {
+        Assert.Equal("pico-01", TraductorEventoBoton.ControlEnLinea("arena/devices/pico-01/status", mensaje));
+    }
+
+    [Theory]
+    [Trait("CA", "18.8")]
+    [InlineData("arena/devices/pico-01/status", "offline")]  // se desconecto, no reinicia
+    [InlineData("arena/devices/pico-01/events", "online")]   // topic de eventos, no de estado
+    [InlineData("arena/devices//status", "online")]          // sin deviceId
+    public void ControlEnLinea_NoEsOnlineValido_DevuelveNull(string topic, string mensaje)
+    {
+        Assert.Null(TraductorEventoBoton.ControlEnLinea(topic, mensaje));
+    }
+
+    [Fact]
+    public void EsTopicEstado_DistingueEstadoDeEventos()
+    {
+        Assert.True(TraductorEventoBoton.EsTopicEstado("arena/devices/pico-01/status"));
+        Assert.False(TraductorEventoBoton.EsTopicEstado("arena/devices/pico-01/events"));
     }
 }

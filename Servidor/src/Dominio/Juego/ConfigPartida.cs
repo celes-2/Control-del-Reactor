@@ -51,6 +51,21 @@ public sealed record ConfigPartida
     /// <summary>Ya no se usa: las trampas congelan y restan puntos, no quitan vida.</summary>
     public int DanoTrampa { get; init; } = 20;
 
+    /// <summary>
+    /// Guardianes que hay en la arena, de 2 a 4 (US-21). Lo elige el anfitrión al crear la partida.
+    /// Todos se comportan igual: persiguen al jugador no congelado más cercano.
+    /// </summary>
+    public int CantidadGuardianes { get; init; } = MaximoGuardianes;
+
+    public const int MinimoGuardianes = 2;
+    public const int MaximoGuardianes = 4;
+
+    /// <summary>Id del escenario elegido (ver <see cref="Escenarios.Catalogo"/>). Null: el mapa por defecto.</summary>
+    public string? EscenarioId { get; init; }
+
+    /// <summary>Números de trampas, puertas, guardianes y eventos. Ver <see cref="ReglasArenaViva"/>.</summary>
+    public ReglasArenaViva ArenaViva { get; init; } = new();
+
     public void Validar()
     {
         if (MaxJugadores < 2 || MaxJugadores > Arena.MaxJugadores)
@@ -83,5 +98,9 @@ public sealed record ConfigPartida
             throw new DominioException("La vida inicial debe ser mayor que cero.");
         if (DanoTrampa < 0)
             throw new DominioException("El daño de las trampas no puede ser negativo.");
+        if (CantidadGuardianes < MinimoGuardianes || CantidadGuardianes > MaximoGuardianes)
+            throw new DominioException(
+                $"Los guardianes deben ser entre {MinimoGuardianes} y {MaximoGuardianes}.");
+        ArenaViva.Validar();
     }
 }
