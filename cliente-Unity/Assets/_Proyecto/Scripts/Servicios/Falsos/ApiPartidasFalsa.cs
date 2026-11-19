@@ -1,15 +1,20 @@
 using System.Collections.Generic;
+using System.Linq;
 using System.Threading.Tasks;
 
 namespace Reactor.Cliente.Servicios.Falsos
 {
     /// <summary>
     /// API de partidas para desarrollo sin servidor: siempre "crea" la partida demo y lista una partida abierta.
-    /// Los ajustes no cambian la partida falsa (el SocketFalso tiene sus propias reglas), pero las pantallas
-    /// de Configuración y Unirse se pueden probar completas.
+    /// Los escenarios salen de los archivos de StreamingAssets/Escenarios (editables), y el escenario y la cantidad de
+    /// guardianes que se elijan en Configuración los usa el SocketFalso al jugar.
     /// </summary>
     public sealed class ApiPartidasFalsa : IApiPartidas
     {
+        readonly SocketFalso socket;
+
+        public ApiPartidasFalsa(SocketFalso socket = null) => this.socket = socket;
+
         public string UltimoUsuario { get; private set; }
         public AjustesPartida UltimosAjustes { get; private set; }
 
@@ -17,71 +22,16 @@ namespace Reactor.Cliente.Servicios.Falsos
         {
             UltimoUsuario = usuarioId;
             UltimosAjustes = ajustes;
+            socket?.ConfigurarPartida(ajustes.EscenarioId, ajustes.CantidadGuardianes);
             await Task.Yield();
             return "partida-demo";
         }
 
-        /// <summary>Escenarios de prueba para ver el selector sin servidor (no son los reales).</summary>
+        /// <summary>Los escenarios de los archivos: lo que se ve en la vista previa es lo que se juega.</summary>
         public async Task<IReadOnlyList<EscenarioInfo>> ListarEscenariosAsync()
         {
             await Task.Yield();
-            return new List<EscenarioInfo>
-            {
-            new EscenarioInfo
-            {
-                Id = "laboratorio", Nombre = "Laboratorio", Descripcion = "Pasillos cerrados y puertas.", MaxJugadores = 4,
-                Filas = new[]
-                {
-                    "WWWWWWWWWWWWWWW",
-                    "WS...........SW",
-                    "W.WW.......WW.W",
-                    "W.W....T....W.W",
-                    "W....W...W....W",
-                    "W..T...R...T..W",
-                    "W....W...W....W",
-                    "W.W....T....W.W",
-                    "W.WW.......WW.W",
-                    "W.............W",
-                    "WWWWWWWWWWWWWWW",
-                },
-            },
-            new EscenarioInfo
-            {
-                Id = "estacion", Nombre = "Estación", Descripcion = "Corredores largos.", MaxJugadores = 4,
-                Filas = new[]
-                {
-                    "WWWWWWWWWWWWWWW",
-                    "WS..W.....W..SW",
-                    "W.W.W.WWW.W.W.W",
-                    "W.W...WTW...W.W",
-                    "W.WWWWW.WWWWW.W",
-                    "WT.....R.....TW",
-                    "W.WWWWW.WWWWW.W",
-                    "W.W...WTW...W.W",
-                    "W.W.W.WWW.W.W.W",
-                    "W...W.....W...W",
-                    "WWWWWWWWWWWWWWW",
-                },
-            },
-            new EscenarioInfo
-            {
-                Id = "militar", Nombre = "Base militar", Descripcion = "Terreno abierto con trampas.", MaxJugadores = 4,
-                Filas = new[]
-                {
-                    "WWWWWWWWWWWWWWW",
-                    "WS...........SW",
-                    "W.............W",
-                    "W....T...T....W",
-                    "W.............W",
-                    "W......R......W",
-                    "W.............W",
-                    "W....T...T....W",
-                    "W.............W",
-                    "W.............W",
-                    "WWWWWWWWWWWWWWW",
-                },
-            },
-            };
+            return EscenarioArchivo.CargarTodos().Select(e => e.AInfo()).ToList();
         }
 
         public async Task<IReadOnlyList<PartidaAbierta>> ListarAbiertasAsync()

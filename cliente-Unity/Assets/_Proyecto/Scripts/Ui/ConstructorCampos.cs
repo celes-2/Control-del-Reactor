@@ -7,7 +7,7 @@ namespace Reactor.Cliente.Ui
     /// <summary>Campos de texto armados por código (complementa a ConstructorUI).</summary>
     public static class ConstructorCampos
     {
-        static readonly Color FondoCampo = new Color(0.18f, 0.21f, 0.30f, 1f);
+        static readonly Color FondoCampo = ConstructorUI.AzulOscuro;
 
         public static TMP_InputField CrearCampo(
             RectTransform padre, string nombre, string indicacion, Vector2 posicion, Vector2 medida, bool contrasena = false)
@@ -26,7 +26,7 @@ namespace Reactor.Cliente.Ui
             texto.richText = false;
             ConstructorUI.Estirar(texto.rectTransform);
 
-            var marca = ConstructorUI.CrearTexto(area, "Indicacion", 40, FontStyles.Italic, new Color(1f, 1f, 1f, 0.35f), Vector2.zero, medida);
+            var marca = ConstructorUI.CrearTexto(area, "Indicacion", 40, FontStyles.Italic, new Color(ConstructorUI.AzulHielo.r, ConstructorUI.AzulHielo.g, ConstructorUI.AzulHielo.b, 0.6f), Vector2.zero, medida);
             marca.alignment = TextAlignmentOptions.MidlineLeft;
             marca.text = indicacion;
             ConstructorUI.Estirar(marca.rectTransform);
@@ -51,7 +51,7 @@ namespace Reactor.Cliente.Ui
             var etiqueta = boton.GetComponentInChildren<TextMeshProUGUI>();
             etiqueta.fontSize = 36;
             etiqueta.fontStyle = FontStyles.Underline;
-            etiqueta.color = new Color(0.62f, 0.78f, 1f, 1f);
+            etiqueta.color = ConstructorUI.AzulHielo;
             return boton;
         }
     }

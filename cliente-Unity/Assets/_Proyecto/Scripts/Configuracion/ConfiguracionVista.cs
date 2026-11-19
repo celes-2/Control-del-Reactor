@@ -1,5 +1,6 @@
 using System;
 using System.Collections;
+using System.Collections.Generic;
 using Reactor.Cliente.Presentadores;
 using Reactor.Cliente.Servicios;
 using Reactor.Cliente.Ui;
@@ -18,23 +19,28 @@ namespace Reactor.Cliente.Configuracion
     {
         [SerializeField, Tooltip("Segundos que se ve un aviso antes de borrarse.")] float segundosAviso = 4f;
 
-        static readonly Color Apagado = new Color(0.22f, 0.26f, 0.36f, 1f);
+        static readonly Color Apagado = ConstructorUI.Apagado;
 
         public event Action<CampoAjuste, int> AjusteCambiado;
         public event Action<ModoFin> ModoElegido;
         public event Action CrearPulsado;
         public event Action UnirsePulsado;
+        public event Action<string> EscenarioElegido;
+        public event Action VolverAEscenariosPulsado;
 
         RectTransform raiz;
         Image botonTiempo, botonPuntos;
         TextMeshProUGUI etiquetaValor, valor, congelamiento, jugadores, guardianes, aviso;
         Button botonCrear;
-        TextMeshProUGUI escenario;
-        Texture2D texturaEscenario;
-        RawImage vistaPreviaEscenario;
         Coroutine borrarAviso;
+        RectTransform grupoConfig, grupoSelector, contenedorTarjetas;
+        readonly List<Texture2D> texturasTarjetas = new List<Texture2D>();
 
-        void Awake() => ConstruirInterfaz();
+        void Awake()
+        {
+            ConstruirInterfaz();
+            MostrarPaso(true);
+        }
 
         public void MostrarModo(ModoFin modo)
         {
@@ -54,46 +60,73 @@ namespace Reactor.Cliente.Configuracion
 
         public void MostrarGuardianes(string texto) => guardianes.text = texto;
 
-        public void MostrarEscenario(EscenarioInfo info)
-        {
-            escenario.text = info.Nombre;
-            DibujarVistaPrevia(info);
-        }
+        // El escenario se elige en su propia pantalla; aquí no se muestra.
+        public void MostrarEscenario(EscenarioInfo info) { }
 
-        void DibujarVistaPrevia(EscenarioInfo info)
+        const int PixelesPorCelda = 4;
+
+        /// <summary>Dibuja el escenario real (paredes, trampas, energía, puertas, guardianes y adornos); null si no tiene dibujo.</summary>
+        Texture2D CrearTextura(EscenarioInfo info, out int ancho, out int alto)
         {
             var filas = info.Filas;
-            // El mapa clásico no trae dibujo: se oculta la vista previa.
-            if (filas.Count == 0) { vistaPreviaEscenario.enabled = false; return; }
-            var ancho = 0;
+            ancho = 0;
+            alto = filas.Count;
+            if (alto == 0) return null;
             foreach (var fila in filas) ancho = Mathf.Max(ancho, fila.Length);
 
-            if (texturaEscenario != null) Destroy(texturaEscenario);
-            texturaEscenario = new Texture2D(ancho, filas.Count, TextureFormat.RGBA32, false) { filterMode = FilterMode.Point };
-            for (var y = 0; y < filas.Count; y++)
+            var textura = new Texture2D(ancho * PixelesPorCelda, alto * PixelesPorCelda, TextureFormat.RGBA32, false)
+            {
+                filterMode = FilterMode.Point,
+            };
+            var tema = ColorTema(info.Tema);
+            // Si el escenario trae imágenes propias, la vista previa usa su color medio.
+            tema.Piso = EscenarioArchivo.ColorPromedio(info.TilePiso) ?? tema.Piso;
+            tema.Muro = EscenarioArchivo.ColorPromedio(info.TilePared) ?? tema.Muro;
+            for (var y = 0; y < alto; y++)
                 for (var x = 0; x < ancho; x++)
                 {
                     var c = x < filas[y].Length ? filas[y][x] : '#';
-                    // La fila 0 va arriba: la textura empieza abajo.
-                    texturaEscenario.SetPixel(x, filas.Count - 1 - y, ColorCelda(c));
+                    var color = c == '#' || c == 'W' ? tema.Muro : c == '.' ? tema.Piso : ColorCelda(c);
+                    PintarCelda(textura, x, y, alto, ancho, color, false);
                 }
-            foreach (var puerta in info.Puertas) PintarCelda(puerta.x, puerta.y, filas.Count, ancho, ColorPuerta);
-            foreach (var guardian in info.InicioGuardianes) PintarCelda(guardian.x, guardian.y, filas.Count, ancho, ColorGuardian);
-            texturaEscenario.Apply();
-            vistaPreviaEscenario.texture = texturaEscenario;
-            // Respeta la proporción del mapa dentro del recuadro de 165 x 121.
-            var escala = Mathf.Min(165f / ancho, 121f / filas.Count);
-            vistaPreviaEscenario.rectTransform.sizeDelta = new Vector2(ancho * escala, filas.Count * escala);
-            vistaPreviaEscenario.enabled = true;
+
+            // Marcas (más pequeñas que la celda, para ver el piso debajo): adornos, energía, trampas, puertas, guardianes.
+            foreach (var d in info.Decoracion) PintarCelda(textura, d.x, d.y, alto, ancho, tema.Adorno, true);
+            foreach (var e in info.PuntosEnergia) PintarCelda(textura, e.x, e.y, alto, ancho, ColorEnergia, true);
+            foreach (var tr in info.Trampas) PintarCelda(textura, tr.x, tr.y, alto, ancho, ConstructorUI.Rojo, true);
+            foreach (var puerta in info.Puertas) PintarCelda(textura, puerta.x, puerta.y, alto, ancho, ColorPuerta, false);
+            foreach (var guardian in info.InicioGuardianes) PintarCelda(textura, guardian.x, guardian.y, alto, ancho, ColorGuardian, true);
+            textura.Apply();
+            return textura;
         }
 
         static readonly Color ColorPuerta = new Color(0.85f, 0.55f, 0.20f);
         static readonly Color ColorGuardian = new Color(0.70f, 0.35f, 0.90f);
+        static readonly Color ColorEnergia = new Color(1f, 0.85f, 0.25f);
 
-        void PintarCelda(int x, int y, int alto, int ancho, Color color)
+        struct ColoresTema { public Color Piso, Muro, Adorno; }
+
+        static ColoresTema ColorTema(string tema)
+        {
+            switch (tema)
+            {
+                case "investigacion": return new ColoresTema { Piso = new Color(0.20f, 0.27f, 0.30f), Muro = new Color(0.62f, 0.74f, 0.80f), Adorno = new Color(0.55f, 0.90f, 1f) };
+                case "laboratorio": return new ColoresTema { Piso = new Color(0.13f, 0.22f, 0.17f), Muro = new Color(0.36f, 0.52f, 0.38f), Adorno = new Color(0.75f, 0.90f, 0.35f) };
+                case "estacion": return new ColoresTema { Piso = new Color(0.10f, 0.13f, 0.24f), Muro = new Color(0.42f, 0.46f, 0.64f), Adorno = new Color(0.40f, 0.75f, 1f) };
+                case "militar": return new ColoresTema { Piso = new Color(0.30f, 0.28f, 0.18f), Muro = new Color(0.46f, 0.50f, 0.32f), Adorno = new Color(0.78f, 0.72f, 0.45f) };
+                default: return new ColoresTema { Piso = new Color(0.07f, 0.09f, 0.15f), Muro = new Color(0.30f, 0.34f, 0.44f), Adorno = new Color(0.6f, 0.6f, 0.7f) };
+            }
+        }
+
+        /// <summary>Pinta una celda (4 x 4 píxeles). Con marca=true solo el centro de 2 x 2.</summary>
+        static void PintarCelda(Texture2D textura, int x, int y, int alto, int ancho, Color color, bool marca)
         {
             if (x < 0 || y < 0 || x >= ancho || y >= alto) return;
-            texturaEscenario.SetPixel(x, alto - 1 - y, color);
+            var desde = marca ? 1 : 0;
+            var hasta = marca ? PixelesPorCelda - 1 : PixelesPorCelda;
+            for (var py = desde; py < hasta; py++)
+                for (var px = desde; px < hasta; px++)
+                    textura.SetPixel(x * PixelesPorCelda + px, (alto - 1 - y) * PixelesPorCelda + py, color);
         }
 
         static Color ColorCelda(char c)
@@ -113,10 +146,80 @@ namespace Reactor.Cliente.Configuracion
 
         void OnDestroy()
         {
-            if (texturaEscenario != null) Destroy(texturaEscenario);
+            LiberarTarjetas();
         }
 
-        public void BloquearCrear(bool bloqueado) => botonCrear.interactable = !bloqueado;
+        public void MostrarPaso(bool eligiendoEscenario)
+        {
+            grupoSelector.gameObject.SetActive(eligiendoEscenario);
+            grupoConfig.gameObject.SetActive(!eligiendoEscenario);
+        }
+
+        void LiberarTarjetas()
+        {
+            foreach (var textura in texturasTarjetas)
+                if (textura != null) Destroy(textura);
+            texturasTarjetas.Clear();
+        }
+
+        public void MostrarSelectorEscenarios(IReadOnlyList<EscenarioInfo> escenarios, string idActual)
+        {
+            LiberarTarjetas();
+            for (var i = contenedorTarjetas.childCount - 1; i >= 0; i--)
+                Destroy(contenedorTarjetas.GetChild(i).gameObject);
+
+            var cantidad = escenarios.Count;
+            var anchoTarjeta = cantidad <= 4 ? 420f : 340f;
+            var paso = anchoTarjeta + 20f;
+            for (var i = 0; i < cantidad; i++)
+            {
+                var info = escenarios[i];
+                var id = info.Id;
+                var actual = id == (idActual ?? "");
+                var fondo = actual ? ConstructorUI.AzulHielo : ConstructorUI.Panel;
+                var texto = ConstructorUI.TextoSobre(fondo);
+                var x = (i - (cantidad - 1) / 2f) * paso;
+
+                var tarjeta = ConstructorUI.CrearBoton(contenedorTarjetas, info.Nombre, new Vector2(x, -35f),
+                    new Vector2(anchoTarjeta, 570f), fondo, () => EscenarioElegido?.Invoke(id));
+                var rt = (RectTransform)tarjeta.transform;
+                var etiquetaBoton = tarjeta.GetComponentInChildren<TextMeshProUGUI>();
+                etiquetaBoton.text = ""; // el nombre se escribe abajo, en su propio sitio
+
+                // Vista previa del escenario real.
+                var cajaAncho = anchoTarjeta - 40f;
+                var textura = CrearTextura(info, out var celdasAncho, out var celdasAlto);
+                if (textura != null)
+                {
+                    texturasTarjetas.Add(textura);
+                    var imagen = new GameObject("Vista previa", typeof(RectTransform), typeof(RawImage)).GetComponent<RawImage>();
+                    imagen.transform.SetParent(rt, false);
+                    imagen.texture = textura;
+                    imagen.raycastTarget = false;
+                    var escala = Mathf.Min(cajaAncho / celdasAncho, 260f / celdasAlto);
+                    ConstructorUI.Colocar(imagen.rectTransform, new Vector2(0f, 115f), new Vector2(celdasAncho * escala, celdasAlto * escala));
+                }
+                else
+                {
+                    var sinDibujo = ConstructorUI.CrearTexto(rt, "Sin vista previa", 26, FontStyles.Italic, texto,
+                        new Vector2(0f, 115f), new Vector2(cajaAncho, 260f));
+                    sinDibujo.text = "Mapa del servidor\n(sin vista previa)";
+                }
+
+                ConstructorUI.CrearTexto(rt, "Nombre", 32, FontStyles.Bold, texto, new Vector2(0f, -85f), new Vector2(cajaAncho, 100f))
+                    .text = info.Nombre;
+                var descripcion = ConstructorUI.CrearTexto(rt, "Descripcion", 24, FontStyles.Normal, texto,
+                    new Vector2(0f, -195f), new Vector2(cajaAncho, 110f));
+                descripcion.alignment = TextAlignmentOptions.Top;
+                descripcion.text = info.Descripcion;
+
+                if (celdasAncho > 0)
+                    ConstructorUI.CrearTexto(rt, "Datos", 22, FontStyles.Normal, texto, new Vector2(0f, -253f), new Vector2(cajaAncho, 50f))
+                        .text = $"{info.Trampas.Count} trampas  ·  {info.PuntosEnergia.Count} energías";
+            }
+        }
+
+        public void BloquearCrear(bool bloqueado) => ConstructorUI.Habilitar(botonCrear, !bloqueado);
 
         public void MostrarAviso(string texto)
         {
@@ -138,6 +241,13 @@ namespace Reactor.Cliente.Configuracion
 
             var fondo = ConstructorUI.CrearImagen(raiz, "Fondo", null, ConstructorUI.Fondo);
             ConstructorUI.Estirar(fondo.rectTransform);
+
+            // Dos pasos en la misma escena: primero elegir el escenario, después los ajustes.
+            var lienzo = raiz;
+            grupoConfig = NuevoGrupo(lienzo, "Ajustes");
+            grupoSelector = NuevoGrupo(lienzo, "Elegir escenario");
+            ConstruirSelector(grupoSelector);
+            raiz = grupoConfig;
 
             ConstructorUI.CrearTexto(raiz, "Titulo", 100, FontStyles.Bold, ConstructorUI.Arena,
                 new Vector2(0f, 400f), new Vector2(1500f, 130f)).text = "CONFIGURACION";
@@ -168,22 +278,45 @@ namespace Reactor.Cliente.Configuracion
             Etiqueta("Guardianes", -130f);
             guardianes = Selector(-130f, CampoAjuste.Guardianes);
 
-            // Fila 6: escenario, con vista previa a la derecha (US-23).
-            Etiqueta("Escenario", -230f);
-            escenario = Selector(-230f, CampoAjuste.Escenario);
-            var previa = new GameObject("Vista previa escenario", typeof(RectTransform), typeof(RawImage));
-            previa.transform.SetParent(raiz, false);
-            ConstructorUI.Colocar(previa.GetComponent<RectTransform>(), new Vector2(660f, -230f), new Vector2(165f, 121f));
-            vistaPreviaEscenario = previa.GetComponent<RawImage>();
-            vistaPreviaEscenario.raycastTarget = false;
 
-            botonCrear = ConstructorUI.CrearBoton(raiz, "Crear partida", new Vector2(-290f, -380f), new Vector2(520f, 100f),
+            // Tres botones en la misma fila: para cambiar de escenario se vuelve a su pantalla.
+            var tamano = new Vector2(460f, 100f);
+            var escenarios = ConstructorUI.CrearBoton(raiz, "Escenarios", new Vector2(-490f, -380f), tamano,
+                ConstructorUI.Azul, () => VolverAEscenariosPulsado?.Invoke());
+            botonCrear = ConstructorUI.CrearBoton(raiz, "Crear partida", new Vector2(0f, -380f), tamano,
                 ConstructorUI.Verde, () => CrearPulsado?.Invoke());
-            ConstructorUI.CrearBoton(raiz, "Unirse a una partida", new Vector2(290f, -380f), new Vector2(520f, 100f),
+            var unirse = ConstructorUI.CrearBoton(raiz, "Unirse a una partida", new Vector2(490f, -380f), tamano,
                 ConstructorUI.Azul, () => UnirsePulsado?.Invoke());
+            // Con tres botones el texto es más chico para que "Unirse a una partida" quepa en una línea.
+            foreach (var boton in new[] { escenarios, botonCrear, unirse })
+                boton.GetComponentInChildren<TextMeshProUGUI>().fontSize = 36;
 
+            raiz = lienzo; // el aviso se ve en los dos pasos
             aviso = ConstructorUI.CrearTexto(raiz, "Aviso", 40, FontStyles.Bold, new Color(1f, 0.55f, 0.45f),
                 new Vector2(0f, -465f), new Vector2(1500f, 70f));
+        }
+
+        static RectTransform NuevoGrupo(RectTransform padre, string nombre)
+        {
+            var grupo = new GameObject(nombre, typeof(RectTransform)).GetComponent<RectTransform>();
+            grupo.SetParent(padre, false);
+            ConstructorUI.Estirar(grupo);
+            return grupo;
+        }
+
+        void ConstruirSelector(RectTransform grupo)
+        {
+            ConstructorUI.CrearTexto(grupo, "Titulo", 100, FontStyles.Bold, ConstructorUI.Arena,
+                new Vector2(0f, 400f), new Vector2(1700f, 130f)).text = "ELIGE EL ESCENARIO";
+            ConstructorUI.CrearTexto(grupo, "Indicacion", 36, FontStyles.Normal, ConstructorUI.Gris,
+                new Vector2(0f, 315f), new Vector2(1500f, 60f)).text = "Toca uno para continuar con la configuración";
+
+            contenedorTarjetas = new GameObject("Tarjetas", typeof(RectTransform)).GetComponent<RectTransform>();
+            contenedorTarjetas.SetParent(grupo, false);
+            ConstructorUI.Estirar(contenedorTarjetas);
+
+            ConstructorUI.CrearBoton(grupo, "Unirse a una partida", new Vector2(0f, -380f), new Vector2(520f, 100f),
+                ConstructorUI.Azul, () => UnirsePulsado?.Invoke());
         }
 
         TextMeshProUGUI Etiqueta(string texto, float y)

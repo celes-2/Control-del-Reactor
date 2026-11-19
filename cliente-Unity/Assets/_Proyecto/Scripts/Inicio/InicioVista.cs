@@ -29,8 +29,8 @@ namespace Reactor.Cliente.Inicio
 
         static readonly Color Exito = new Color(0.45f, 0.9f, 0.6f);
         static readonly Color Fallo = new Color(1f, 0.55f, 0.45f);
-        static readonly Color PestanaInactiva = new Color(0.2f, 0.25f, 0.36f, 1f);
-        static readonly Color BarraFondo = new Color(0.2f, 0.24f, 0.34f, 1f);
+        static readonly Color PestanaInactiva = ConstructorUI.Apagado;
+        static readonly Color BarraFondo = ConstructorUI.Apagado;
         static readonly string[] EtiquetasEstadisticas =
             { "Partidas", "Victorias", "Derrotas", "Puntos totales", "Mejor puntaje", "Promedio" };
 

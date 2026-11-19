@@ -1,5 +1,7 @@
 using System.Collections;
+using System.Collections.Generic;
 using Reactor.Cliente.Contratos;
+using Reactor.Cliente.Servicios;
 using UnityEngine;
 using UnityEngine.Tilemaps;
 
@@ -21,6 +23,8 @@ namespace Reactor.Cliente.Arena
         [Header("Imágenes (opcional): si se dejan vacías se dibujan formas de color")]
         [SerializeField] Sprite spriteReactor;
         [SerializeField] Sprite spriteGuardian;
+        [Tooltip("Tamaño del guardián como fracción de la celda (1 = ocupa toda la celda; sube o baja hasta igualar al avatar).")]
+        [SerializeField, Range(0.3f, 2f)] float tamanoGuardian = 1f;
         [SerializeField] Sprite spriteTierraMovediza;
         [SerializeField] Sprite spriteCeldaEmergente;
         [SerializeField] Sprite spriteRed;
@@ -39,6 +43,59 @@ namespace Reactor.Cliente.Arena
         [SerializeField] Color colorFondo = new Color(0.07f, 0.08f, 0.11f);
 
         int alto;
+
+        // Tema del escenario: colores del mapa y adornos (ver ArteDecorativo y EscenarioArchivo).
+        sealed class Paleta
+        {
+            public Color Piso, PisoBorde, Muro, MuroBorde, Inicio, InicioBorde, Fondo;
+        }
+
+        static readonly Paleta PaletaBase = new Paleta
+        {
+            Piso = new Color(0.17f, 0.19f, 0.25f), PisoBorde = new Color(0.14f, 0.16f, 0.21f),
+            Muro = new Color(0.42f, 0.48f, 0.55f), MuroBorde = new Color(0.29f, 0.33f, 0.39f),
+            Inicio = new Color(0.18f, 0.36f, 0.31f), InicioBorde = new Color(0.30f, 0.65f, 0.52f),
+            Fondo = new Color(0.07f, 0.08f, 0.11f),
+        };
+
+        static readonly Dictionary<string, Paleta> Paletas = new Dictionary<string, Paleta>
+        {
+            ["investigacion"] = new Paleta
+            {
+                Piso = new Color(0.20f, 0.27f, 0.30f), PisoBorde = new Color(0.16f, 0.22f, 0.25f),
+                Muro = new Color(0.62f, 0.74f, 0.80f), MuroBorde = new Color(0.40f, 0.52f, 0.58f),
+                Inicio = new Color(0.20f, 0.42f, 0.45f), InicioBorde = new Color(0.40f, 0.85f, 0.85f),
+                Fondo = new Color(0.05f, 0.09f, 0.11f),
+            },
+            ["laboratorio"] = new Paleta
+            {
+                Piso = new Color(0.13f, 0.22f, 0.17f), PisoBorde = new Color(0.10f, 0.18f, 0.14f),
+                Muro = new Color(0.36f, 0.52f, 0.38f), MuroBorde = new Color(0.22f, 0.34f, 0.26f),
+                Inicio = new Color(0.20f, 0.40f, 0.26f), InicioBorde = new Color(0.45f, 0.90f, 0.50f),
+                Fondo = new Color(0.04f, 0.08f, 0.06f),
+            },
+            ["estacion"] = new Paleta
+            {
+                Piso = new Color(0.10f, 0.13f, 0.24f), PisoBorde = new Color(0.08f, 0.10f, 0.20f),
+                Muro = new Color(0.42f, 0.46f, 0.64f), MuroBorde = new Color(0.27f, 0.30f, 0.46f),
+                Inicio = new Color(0.16f, 0.28f, 0.52f), InicioBorde = new Color(0.40f, 0.75f, 1f),
+                Fondo = new Color(0.02f, 0.03f, 0.08f),
+            },
+            ["militar"] = new Paleta
+            {
+                Piso = new Color(0.30f, 0.28f, 0.18f), PisoBorde = new Color(0.25f, 0.23f, 0.14f),
+                Muro = new Color(0.46f, 0.50f, 0.32f), MuroBorde = new Color(0.30f, 0.33f, 0.20f),
+                Inicio = new Color(0.40f, 0.36f, 0.20f), InicioBorde = new Color(0.90f, 0.62f, 0.25f),
+                Fondo = new Color(0.10f, 0.09f, 0.05f),
+            },
+        };
+
+        readonly Dictionary<string, TileBase[]> tilesPorTema = new Dictionary<string, TileBase[]>();
+        bool paletaIniciada, tilesDelInspector;
+        TileBase inspectorPiso, inspectorMuro, inspectorInicio;
+        Color? fondoTema;
+        Transform raizDecoracion;
+        readonly List<SpriteRenderer> luces = new List<SpriteRenderer>();
 
         // Cámara que sigue al avatar propio cuando el mapa no cabe en pantalla.
         Transform objetivoCamara;
@@ -75,7 +132,7 @@ namespace Reactor.Cliente.Arena
                 destinosGuardianes.Add(destino);
                 var sr = guardianes[i];
                 if (!sr.gameObject.activeSelf || sr.transform.position == Vector3.zero) sr.transform.position = destino;
-                Escalar(sr, g.Temporal ? 0.6f : 0.8f);
+                Escalar(sr, g.Temporal ? tamanoGuardian * 0.75f : tamanoGuardian);
                 var tinte = g.Pausado ? new Color(0.45f, 0.4f, 0.55f, 0.8f)
                     : g.Temporal ? new Color(1f, 0.45f, 0.75f, 0.95f) : new Color(0.7f, 0.3f, 0.95f, 1f);
                 // Con imagen propia solo se atenúa al pausado y se tiñe levemente al temporal.
@@ -191,7 +248,7 @@ namespace Reactor.Cliente.Arena
             destinosGuardianes.Clear();
         }
 
-        public bool Dibujar(EscenarioMsg escenario)
+        public bool Dibujar(EscenarioMsg escenario, string escenarioId = null)
         {
             if (escenario == null || escenario.Filas == null || escenario.Ancho <= 0 || escenario.Filas.Count != escenario.Alto)
             {
@@ -200,7 +257,8 @@ namespace Reactor.Cliente.Arena
             }
 
             AsegurarTilemap();
-            AsegurarTiles();
+            var datos = EscenarioArchivo.Buscar(escenarioId);
+            AplicarPaleta(datos);
 
             tilemap.ClearAllTiles();
             alto = escenario.Alto;
@@ -217,8 +275,10 @@ namespace Reactor.Cliente.Arena
             }
 
             AjustarCamara(escenario.Ancho, escenario.Alto);
+            if (fondoTema.HasValue && Camera.main != null) Camera.main.backgroundColor = fondoTema.Value;
             CrearNucleo();
             LimpiarArenaViva();
+            DibujarDecoracion(datos, escenario);
             return true;
         }
 
@@ -290,6 +350,11 @@ namespace Reactor.Cliente.Arena
                     guardianes[i].transform.position = Vector3.MoveTowards(
                         guardianes[i].transform.position, destinosGuardianes[i], 6f * Time.deltaTime);
 
+            // Las luces decorativas (emergencia, balizas) parpadean.
+            var parpadeo = 0.45f + 0.55f * Mathf.Abs(Mathf.Sin(Time.time * 3f));
+            foreach (var luz in luces)
+                if (luz != null) luz.color = new Color(1f, 1f, 1f, parpadeo);
+
             // Las energías sueltas laten para que se noten.
             var latido = 0.38f + 0.06f * Mathf.Sin(Time.time * 6f);
             foreach (var sr in items)
@@ -357,6 +422,104 @@ namespace Reactor.Cliente.Arena
             capa.transform.SetParent(grid.transform, false);
             tilemap = capa.GetComponent<Tilemap>();
             capa.GetComponent<TilemapRenderer>().sortingOrder = 0;
+        }
+
+        /// <summary>Elige los colores del suelo y las paredes según el tema (si no hay tiles puestos a mano en el Inspector).</summary>
+        void AplicarPaleta(EscenarioArchivo datos)
+        {
+            if (!paletaIniciada)
+            {
+                // Los tiles puestos a mano en el Inspector se guardan aparte: solo se usan para escenarios sin archivo propio.
+                paletaIniciada = true;
+                inspectorPiso = tilePiso;
+                inspectorMuro = tileMuro;
+                inspectorInicio = tileInicio;
+                tilesDelInspector = tilePiso != null || tileMuro != null || tileInicio != null;
+            }
+            if (tilesDelInspector && datos == null)
+            {
+                tilePiso = inspectorPiso;
+                tileMuro = inspectorMuro;
+                tileInicio = inspectorInicio;
+                AsegurarTiles();
+                fondoTema = null;
+                return;
+            }
+
+            var tema = datos?.Tema;
+            var clave = tema != null && Paletas.ContainsKey(tema) ? tema : "";
+            var p = clave == "" ? PaletaBase : Paletas[clave];
+
+            // Los tiles son los mismos mientras no cambien el tema ni las imágenes pedidas.
+            var claveTiles = clave + "|" + datos?.TilePiso + "|" + datos?.TilePared;
+            if (!tilesPorTema.TryGetValue(claveTiles, out var tiles))
+            {
+                var imagenPiso = EscenarioArchivo.CargarImagenTile(datos?.TilePiso);
+                var pisoOriginal = datos?.TilePiso == EscenarioArchivo.TileOriginal && inspectorPiso != null;
+                var imagenPared = EscenarioArchivo.CargarImagenTile(datos?.TilePared);
+                tiles = new[]
+                {
+                    pisoOriginal ? inspectorPiso : imagenPiso != null ? CrearTileImagen(imagenPiso, Color.white) : CrearTile(p.Piso, p.PisoBorde),
+                    imagenPared != null ? CrearTileImagen(imagenPared, Color.white) : CrearTile(p.Muro, p.MuroBorde),
+                    // La salida de jugador es el piso con un tinte, para que se siga distinguiendo.
+                    pisoOriginal && inspectorInicio != null ? inspectorInicio
+                        : imagenPiso != null ? CrearTileImagen(imagenPiso, Color.Lerp(Color.white, p.InicioBorde, 0.6f)) : CrearTile(p.Inicio, p.InicioBorde),
+                };
+                tilesPorTema[claveTiles] = tiles;
+            }
+            tilePiso = tiles[0];
+            tileMuro = tiles[1];
+            tileInicio = tiles[2];
+            fondoTema = p.Fondo;
+            AsegurarTiles(); // completa el del reactor si falta
+        }
+
+        /// <summary>Tile con una imagen propia: una celda mide una unidad sin importar el tamaño de la imagen.</summary>
+        static TileBase CrearTileImagen(Texture2D imagen, Color tinte)
+        {
+            var tile = ScriptableObject.CreateInstance<Tile>();
+            tile.sprite = Sprite.Create(imagen, new Rect(0, 0, imagen.width, imagen.height), new Vector2(0.5f, 0.5f), imagen.width);
+            tile.color = tinte;
+            tile.colliderType = Tile.ColliderType.None;
+            return tile;
+        }
+
+        void LimpiarDecoracion()
+        {
+            luces.Clear();
+            if (raizDecoracion == null) return;
+            Destroy(raizDecoracion.gameObject);
+            raizDecoracion = null;
+        }
+
+        /// <summary>
+        /// Adornos del tema sobre el piso (solo visuales: no bloquean ni cambian nada del juego).
+        /// Solo se dibujan si el mapa del servidor mide lo mismo que el del archivo, y solo sobre celdas de piso.
+        /// </summary>
+        void DibujarDecoracion(EscenarioArchivo datos, EscenarioMsg escenario)
+        {
+            LimpiarDecoracion();
+            if (datos == null || datos.Ancho != escenario.Ancho || datos.Alto != escenario.Alto) return;
+
+            raizDecoracion = new GameObject("Decoracion").transform;
+            raizDecoracion.SetParent(transform, false);
+            for (var y = 0; y < datos.Alto; y++)
+                for (var x = 0; x < datos.Ancho; x++)
+                {
+                    var tipo = datos.Decoracion[y][x];
+                    if (tipo == '.' || escenario.Filas[y].Length <= x || escenario.Filas[y][x] != Celdas.Piso) continue;
+                    var sprite = ArteDecorativo.Para(datos.Tema, tipo);
+                    if (sprite == null) continue;
+
+                    var go = new GameObject($"Adorno_{tipo}_{x}_{y}");
+                    go.transform.SetParent(raizDecoracion, false);
+                    go.transform.position = CentroDeCelda(x, y);
+                    var sr = go.AddComponent<SpriteRenderer>();
+                    sr.sprite = sprite;
+                    sr.sortingOrder = 1; // sobre el piso, debajo de trampas, puertas y avatares
+                    Escalar(sr, 0.78f);
+                    if (ArteDecorativo.Parpadea(datos.Tema, tipo)) luces.Add(sr);
+                }
         }
 
         void AsegurarTiles()

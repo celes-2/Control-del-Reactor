@@ -98,7 +98,7 @@ namespace Reactor.Cliente.Presentadores
             e.AsignarColoresFaltantes();
             SegundosTranscurridos = e.SegundosTranscurridos;
             modoFin = string.IsNullOrEmpty(e.ModoFin) ? ModosFin.Tiempo : e.ModoFin;
-            vista.DibujarEscenario(e.Escenario);
+            vista.DibujarEscenario(e.Escenario, e.EscenarioId);
 
             vista.LimpiarJugadores();
             jugadores.Clear();

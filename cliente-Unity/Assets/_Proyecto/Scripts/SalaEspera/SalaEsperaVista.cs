@@ -67,7 +67,7 @@ namespace Reactor.Cliente.SalaEspera
         public void ConfigurarBotonIniciar(bool visible, bool habilitado)
         {
             botonIniciar.gameObject.SetActive(visible);
-            botonIniciar.interactable = habilitado;
+            ConstructorUI.Habilitar(botonIniciar, habilitado);
         }
 
         public void MostrarAviso(string texto)

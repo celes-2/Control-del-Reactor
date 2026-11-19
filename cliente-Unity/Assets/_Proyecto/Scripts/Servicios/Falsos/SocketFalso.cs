@@ -23,10 +23,10 @@ namespace Reactor.Cliente.Servicios.Falsos
 
         // Mismo formato que scenarios.json: W muro, . piso, S inicio, R reactor.
         // Mapa grande (30 x 20) para probar que la cámara sigue al avatar; la lógica no depende del tamaño.
-        const int AnchoMapa = 30, AltoMapa = 20;
-        static readonly string[] Mapa = ConstruirMapa();
+        const int AnchoMapa = 30, AltoMapa = 20; // solo para el mapa de respaldo, si no hay archivos
+        
 
-        static string[] ConstruirMapa()
+        static string[] MapaRespaldo()
         {
             var celdas = new char[AltoMapa][];
             for (var y = 0; y < AltoMapa; y++)
@@ -80,7 +80,9 @@ namespace Reactor.Cliente.Servicios.Falsos
         public event Action Conectado;
         public event Action<EstadoPartidaMsg> EstadoRecibido;
         public event Action<JugadorMovidoMsg> JugadorMovido;
+#pragma warning disable CS0067 // el servidor real ya no envía player:acted; se conserva por la interfaz
         public event Action<JugadorActuoMsg> JugadorActuo;
+#pragma warning restore CS0067
         public event Action<PuntajeMsg> PuntajeCambiado;
         public event Action<TickMsg> Tick;
         public event Action<TiempoExtraMsg> TiempoExtra;
@@ -105,6 +107,7 @@ namespace Reactor.Cliente.Servicios.Falsos
                 return;
             }
 
+            CargarEscenario();
             var inicios = BuscarInicios();
             if (inicios.Count < 2)
             {
@@ -131,7 +134,9 @@ namespace Reactor.Cliente.Servicios.Falsos
                 ValorFin = MinutosPartida,
                 SegundosRestantes = MinutosPartida * 60,
                 SegundosTranscurridos = 0,
-                Escenario = new EscenarioMsg { Ancho = Mapa[0].Length, Alto = Mapa.Length, Filas = Mapa.ToList() },
+                Escenario = new EscenarioMsg { Ancho = mapa[0].Length, Alto = mapa.Length, Filas = mapa.ToList() },
+                EscenarioId = escenario.Id,
+                CantidadGuardianes = CantidadGuardianes,
             };
             acumulado = 0f;
             esperaAcumulada = 0f;
@@ -194,13 +199,14 @@ namespace Reactor.Cliente.Servicios.Falsos
 
             var energia = Math.Min(EnergiaPorExtraccion, energiaReactor);
             energiaReactor -= energia;
-            jugador.Puntaje += energia; // 1 punto por unidad de energía
+            var puntos = energia * (doblesSim ? 2 : 1); // 1 punto por unidad de energía, x2 en "puntos dobles"
+            jugador.Puntaje += puntos;
             ultimaExtraccion[jugador.Id] = estado.SegundosTranscurridos;
 
             JugadorExtrajo?.Invoke(new JugadorExtrajoMsg
             {
                 JugadorId = jugador.Id,
-                Puntos = energia,
+                Puntos = puntos,
                 Puntaje = jugador.Puntaje,
                 EnergiaJugador = energia,
                 EnergiaReactor = energiaReactor,
@@ -301,14 +307,31 @@ namespace Reactor.Cliente.Servicios.Falsos
         static readonly int[] DuracionTrampa = { 3, 5, 2 }; // tierra movediza, celda emergente, red
         static readonly string[] TiposDeTrampa = { TiposTrampa.TierraMovediza, TiposTrampa.CeldaEmergente, TiposTrampa.Red };
 
-        // Trampas repartidas por toda la arena; las que caen en una pared se descartan al arrancar.
-        static readonly (int x, int y)[] PosicionesTrampas =
+        // Todo lo siguiente sale del archivo del escenario elegido (StreamingAssets/Escenarios).
+        EscenarioArchivo escenario;
+        string[] mapa = MapaRespaldo();
+        List<(int x, int y)> puertasSim = new List<(int x, int y)>();
+        List<(int x, int y)> puntosEnergiaSim = new List<(int x, int y)>();
+
+        /// <summary>Escenario ("laboratorio", ...) y guardianes (2 a 4) de la próxima partida; los fija ApiPartidasFalsa.</summary>
+        public string EscenarioId { get; private set; }
+        public int CantidadGuardianes { get; private set; } = 4;
+
+        public void ConfigurarPartida(string escenarioId, int guardianes)
         {
-            (5, 3), (10, 3), (13, 4), (17, 3), (26, 3), (22, 6), (3, 7), (7, 6), (11, 8), (18, 8), (13, 12), (20, 9),
-            (9, 12), (24, 13), (27, 9), (21, 15), (15, 17), (9, 15), (4, 17), (12, 18), (26, 17), (17, 14), (1, 9), (28, 6),
-        };
-        static readonly (int x, int y)[] PosicionesPuertas = { (3, 6), (20, 8), (10, 14), (26, 15), (15, 3), (8, 11) };
-        static readonly (int x, int y)[] PosicionesEnergia = { (11, 6), (22, 4), (6, 14), (25, 14), (18, 10), (13, 9), (3, 3), (27, 17) };
+            EscenarioId = escenarioId;
+            CantidadGuardianes = Math.Max(2, Math.Min(4, guardianes));
+        }
+
+        /// <summary>Lee el archivo cada vez que se conecta: se puede editar el escenario y volver a jugar sin reiniciar Unity.</summary>
+        void CargarEscenario()
+        {
+            escenario = EscenarioArchivo.Cargar(EscenarioId)
+                ?? EscenarioArchivo.DeFilas("respaldo", "Mapa de respaldo", MapaRespaldo());
+            mapa = escenario.FilasJuego;
+            puertasSim = escenario.Puertas;
+            puntosEnergiaSim = escenario.PuntosEnergia;
+        }
 
         readonly List<GuardianSim> guardianesSim = new List<GuardianSim>();
         readonly List<TrampaMsg> trampasSim = new List<TrampaMsg>();
@@ -321,16 +344,19 @@ namespace Reactor.Cliente.Servicios.Falsos
         void ReiniciarArenaViva()
         {
             guardianesSim.Clear();
-            var inicios = new[] { (1, 18), (28, 18), (14, 1), (28, 10) };
-            for (var i = 0; i < inicios.Length; i++)
-                guardianesSim.Add(new GuardianSim { Id = i + 1, X = inicios[i].Item1, Y = inicios[i].Item2 });
+            // Las salidas de guardián del archivo, en orden (arriba, izquierda, derecha, abajo, según cómo se dibujó).
+            var salidasG = escenario.InicioGuardianes.Count > 0
+                ? escenario.InicioGuardianes
+                : new List<(int x, int y)> { (1, 1), (AnchoMapa - 2, AltoMapa - 2), (AnchoMapa / 2, 1), (1, AltoMapa / 2) };
+            for (var i = 0; i < CantidadGuardianes; i++)
+            {
+                var (gx, gy) = salidasG[i % salidasG.Count];
+                guardianesSim.Add(new GuardianSim { Id = i + 1, X = gx, Y = gy });
+            }
 
             trampasSim.Clear();
-            for (var i = 0; i < PosicionesTrampas.Length; i++)
-            {
-                var (x, y) = PosicionesTrampas[i];
-                if (EsTransitable(x, y)) trampasSim.Add(new TrampaMsg { X = x, Y = y, Tipo = TiposDeTrampa[i % TiposDeTrampa.Length] });
-            }
+            foreach (var (x, y, tipo) in escenario.Trampas)
+                if (EsTransitable(x, y)) trampasSim.Add(new TrampaMsg { X = x, Y = y, Tipo = tipo });
 
             congeladosSim.Clear();
             itemSim = null;
@@ -339,8 +365,8 @@ namespace Reactor.Cliente.Servicios.Falsos
 
         bool PuertaCerrada(int x, int y, int segundo)
         {
-            for (var i = 0; i < PosicionesPuertas.Length; i++)
-                if (PosicionesPuertas[i].x == x && PosicionesPuertas[i].y == y) return !PuertaAbierta(i, segundo);
+            for (var i = 0; i < puertasSim.Count; i++)
+                if (puertasSim[i].x == x && puertasSim[i].y == y) return !PuertaAbierta(i, segundo);
             return false;
         }
 
@@ -443,8 +469,9 @@ namespace Reactor.Cliente.Servicios.Falsos
             // Energía suelta: unas 6 por partida (una cada 10 s), en un punto al azar, +25 y dura 8 s.
             if (segundo % 10 == 0)
             {
-                var (ex, ey) = PosicionesEnergia[azar.Next(PosicionesEnergia.Length)];
-                itemSim = EsTransitable(ex, ey) ? new ItemEnergiaMsg { Id = segundo / 10, X = ex, Y = ey, Puntos = 25 } : null;
+                var hayPuntos = puntosEnergiaSim.Count > 0;
+                var (ex, ey) = hayPuntos ? puntosEnergiaSim[azar.Next(puntosEnergiaSim.Count)] : (0, 0);
+                itemSim = hayPuntos && EsTransitable(ex, ey) ? new ItemEnergiaMsg { Id = segundo / 10, X = ex, Y = ey, Puntos = 25 } : null;
             }
             if (itemSim != null) itemSim.SegundosRestantes = 8 - segundo % 10;
             if (segundo % 10 >= 8) itemSim = null;
@@ -459,7 +486,7 @@ namespace Reactor.Cliente.Servicios.Falsos
                 MultiplicadorPuntos = doblesSim ? 2 : 1,
                 Guardianes = guardianesSim.Select(g => new GuardianMsg { Id = g.Id, X = g.X, Y = g.Y, Pausado = g.Pausa > 0 }).ToList(),
                 Trampas = trampasSim.ToList(),
-                Puertas = PosicionesPuertas
+                Puertas = puertasSim
                     .Select((p, i) => new PuertaMsg { X = p.x, Y = p.y, Abierta = PuertaAbierta(i, segundo) })
                     .Where(p => EsTransitable(p.X, p.Y)).ToList(),
                 Congelados = congeladosSim.Select(c => new CongeladoMsg { JugadorId = c.Key, Segundos = c.Value }).ToList(),
@@ -510,30 +537,30 @@ namespace Reactor.Cliente.Servicios.Falsos
             }
         }
 
-        static bool EsTransitable(int x, int y)
+        bool EsTransitable(int x, int y)
         {
-            if (y < 0 || y >= Mapa.Length || x < 0 || x >= Mapa[y].Length) return false;
-            var celda = Mapa[y][x];
+            if (y < 0 || y >= mapa.Length || x < 0 || x >= mapa[y].Length) return false;
+            var celda = mapa[y][x];
             return celda == Celdas.Piso || celda == Celdas.Inicio;
         }
 
         bool EstaOcupada(int x, int y, string excepto) =>
             jugadores.Values.Any(j => j.Id != excepto && j.X == x && j.Y == y);
 
-        static (int x, int y) BuscarReactor()
+        (int x, int y) BuscarReactor()
         {
-            for (int y = 0; y < Mapa.Length; y++)
-                for (int x = 0; x < Mapa[y].Length; x++)
-                    if (Mapa[y][x] == Celdas.Reactor) return (x, y);
+            for (int y = 0; y < mapa.Length; y++)
+                for (int x = 0; x < mapa[y].Length; x++)
+                    if (mapa[y][x] == Celdas.Reactor) return (x, y);
             return (-1, -1);
         }
 
-        static List<Vector2Int> BuscarInicios()
+        List<Vector2Int> BuscarInicios()
         {
             var inicios = new List<Vector2Int>();
-            for (int y = 0; y < Mapa.Length; y++)
-                for (int x = 0; x < Mapa[y].Length; x++)
-                    if (Mapa[y][x] == Celdas.Inicio) inicios.Add(new Vector2Int(x, y));
+            for (int y = 0; y < mapa.Length; y++)
+                for (int x = 0; x < mapa[y].Length; x++)
+                    if (mapa[y][x] == Celdas.Inicio) inicios.Add(new Vector2Int(x, y));
             return inicios;
         }
 

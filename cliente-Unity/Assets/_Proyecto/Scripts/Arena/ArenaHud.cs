@@ -3,6 +3,7 @@ using TMPro;
 using UnityEngine;
 using UnityEngine.UI;
 using Reactor.Cliente.Contratos;
+using Reactor.Cliente.Ui;
 
 namespace Reactor.Cliente.Arena
 {
@@ -166,6 +167,7 @@ namespace Reactor.Cliente.Arena
             rt.sizeDelta = tamano;
 
             var tmp = go.AddComponent<TextMeshProUGUI>();
+            ConstructorUI.AsegurarFuente(tmp);
             tmp.fontSize = fuente;
             tmp.alignment = alineacion;
             tmp.color = Color.white;

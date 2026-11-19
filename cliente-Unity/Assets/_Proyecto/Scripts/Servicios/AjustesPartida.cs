@@ -17,14 +17,14 @@ namespace Reactor.Cliente.Servicios
     public sealed class AjustesPartida
     {
         public const int MinSegundos = 60, MaxSegundos = 600, PasoSegundos = 30;
-        public const int MinPuntos = 5, MaxPuntos = 100, PasoPuntos = 5;
-        public const int MinCongelamiento = 1, MaxCongelamiento = 10;
+        public const int MinPuntos = 50, MaxPuntos = 1000, PasoPuntos = 50;
+        public const int MinCongelamiento = 0, MaxCongelamiento = 10;
         public const int MinJugadores = 2, MaxJugadoresPermitidos = 4;
         public const int MinGuardianes = 2, MaxGuardianes = 4;
 
         public ModoFin Modo { get; set; } = ModoFin.Tiempo;
         public int DuracionSegundos { get; set; } = 180;
-        public int PuntosObjetivo { get; set; } = 20;
+        public int PuntosObjetivo { get; set; } = 200;
         public int SegundosCongelamiento { get; set; } = 3;
         public int MaxJugadores { get; set; } = 4;
 

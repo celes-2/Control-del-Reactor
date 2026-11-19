@@ -41,9 +41,9 @@ namespace Reactor.Cliente.Arena
             contenedorAvatares.SetParent(transform, false);
         }
 
-        public void DibujarEscenario(EscenarioMsg escenario)
+        public void DibujarEscenario(EscenarioMsg escenario, string escenarioId)
         {
-            if (!mapa.Dibujar(escenario)) hud.MostrarAviso("No se pudo dibujar la arena.");
+            if (!mapa.Dibujar(escenario, escenarioId)) hud.MostrarAviso("No se pudo dibujar la arena.");
         }
 
         public void LimpiarJugadores()

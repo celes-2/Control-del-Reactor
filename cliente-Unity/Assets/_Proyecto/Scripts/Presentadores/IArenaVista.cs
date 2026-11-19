@@ -9,7 +9,7 @@ namespace Reactor.Cliente.Presentadores
     /// </summary>
     public interface IArenaVista
     {
-        void DibujarEscenario(EscenarioMsg escenario);
+        void DibujarEscenario(EscenarioMsg escenario, string escenarioId);
         void LimpiarJugadores();
         void MostrarJugador(JugadorMsg jugador);
         void MoverJugador(string jugadorId, int x, int y);

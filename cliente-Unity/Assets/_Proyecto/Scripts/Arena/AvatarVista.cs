@@ -166,6 +166,7 @@ namespace Reactor.Cliente.Arena
             go.transform.localPosition = posicion;
 
             var tmp = go.AddComponent<TextMeshPro>();
+            Reactor.Cliente.Ui.ConstructorUI.AsegurarFuente(tmp);
             tmp.rectTransform.sizeDelta = caja;
             tmp.text = texto;
             tmp.fontSize = tamano;

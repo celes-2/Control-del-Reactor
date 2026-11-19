@@ -41,6 +41,8 @@ namespace Reactor.Cliente.Presentadores
             vista.ModoElegido += AlElegirModo;
             vista.CrearPulsado += AlPulsarCrear;
             vista.UnirsePulsado += AlPulsarUnirse;
+            vista.EscenarioElegido += AlElegirEscenario;
+            vista.VolverAEscenariosPulsado += AlVolverAEscenarios;
         }
 
         public AjustesPartida Ajustes => ajustes;
@@ -50,6 +52,8 @@ namespace Reactor.Cliente.Presentadores
             ajustes = almacen.Cargar();
             ajustes.Normalizar();
             Refrescar();
+            vista.MostrarPaso(true); // primero se elige el escenario
+            vista.MostrarSelectorEscenarios(escenarios, ajustes.EscenarioId);
             _ = CargarEscenariosAsync();
         }
 
@@ -60,6 +64,8 @@ namespace Reactor.Cliente.Presentadores
             vista.ModoElegido -= AlElegirModo;
             vista.CrearPulsado -= AlPulsarCrear;
             vista.UnirsePulsado -= AlPulsarUnirse;
+            vista.EscenarioElegido -= AlElegirEscenario;
+            vista.VolverAEscenariosPulsado -= AlVolverAEscenarios;
         }
 
         void AlCambiarAjuste(CampoAjuste campo, int direccion)
@@ -74,6 +80,21 @@ namespace Reactor.Cliente.Presentadores
                 case CampoAjuste.Guardianes: ajustes.CambiarGuardianes(direccion); break;
             }
             Refrescar();
+        }
+
+        void AlVolverAEscenarios()
+        {
+            if (creando) return;
+            vista.MostrarSelectorEscenarios(escenarios, ajustes.EscenarioId);
+            vista.MostrarPaso(true);
+        }
+
+        void AlElegirEscenario(string id)
+        {
+            if (creando) return;
+            ajustes.EscenarioId = id ?? "";
+            Refrescar();
+            vista.MostrarPaso(false);
         }
 
         void AlElegirModo(ModoFin modo)
@@ -150,7 +171,11 @@ namespace Reactor.Cliente.Presentadores
             {
                 var lista = await api.ListarEscenariosAsync();
                 if (liberado) return;
-                var todos = new List<EscenarioInfo> { EscenarioInfo.Clasico };
+                var todos = new List<EscenarioInfo>();
+                // El mapa clásico solo se ofrece si el catálogo no trae ya uno con ese nombre (el servidor falso sí lo trae).
+                var yaEsta = false;
+                foreach (var e in lista) if (e.Nombre == EscenarioInfo.Clasico.Nombre) yaEsta = true;
+                if (!yaEsta) todos.Add(EscenarioInfo.Clasico);
                 todos.AddRange(lista);
                 escenarios = todos;
             }
@@ -161,6 +186,7 @@ namespace Reactor.Cliente.Presentadores
             }
             ajustes.AjustarA(escenarios); // si el guardado ya no existe, vuelve al clásico
             Refrescar();
+            vista.MostrarSelectorEscenarios(escenarios, ajustes.EscenarioId);
         }
 
         public static string FormatoTiempo(int segundos) => $"{segundos / 60}:{segundos % 60:00}";
