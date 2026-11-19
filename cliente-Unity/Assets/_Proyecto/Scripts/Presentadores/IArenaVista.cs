@@ -9,7 +9,7 @@ namespace Reactor.Cliente.Presentadores
     /// </summary>
     public interface IArenaVista
     {
-        void DibujarEscenario(EscenarioMsg escenario);
+        void DibujarEscenario(EscenarioMsg escenario, string escenarioId);
         void LimpiarJugadores();
         void MostrarJugador(JugadorMsg jugador);
         void MoverJugador(string jugadorId, int x, int y);
@@ -21,5 +21,13 @@ namespace Reactor.Cliente.Presentadores
         void MostrarRechazo(string texto);
         void OcultarRechazo();
         void MostrarReactor(int energia, int capacidad, string estado);
+        void MostrarExtraccion(string jugadorId);
+        void MarcarJugadorPropio(string jugadorId);
+
+        // Arena viva (Sprint 3)
+        void ActualizarArenaViva(ArenaVivaMsg vivo);
+        void MostrarEvento(string eventoId, string texto);
+        void OcultarEvento(string eventoId);
+        void MostrarCongelado(string jugadorId, int segundos);
     }
 }

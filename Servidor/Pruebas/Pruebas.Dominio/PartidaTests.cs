@@ -189,6 +189,7 @@ public class PartidaTests
     // ---------- Extracción de energía ----------
 
     [Fact]
+    [Trait("CA", "18.3")]
     public void Extraer_LejosDelReactor_NoHaceNada()
     {
         var (partida, ana, _) = CrearPartida();
@@ -201,6 +202,7 @@ public class PartidaTests
     }
 
     [Fact]
+    [Trait("CA", "18.3")]
     public void Extraer_JuntoAlReactor_PasaEnergiaAlJugador()
     {
         var (partida, ana, _) = CrearPartida();
@@ -214,6 +216,7 @@ public class PartidaTests
     }
 
     [Fact]
+    [Trait("CA", "18.3")]
     public void Extraer_ConElReactorVacio_DevuelveReactorVacio()
     {
         var config = new ConfigPartida { CapacidadReactor = 10, EnergiaPorExtraccion = 10, EnergiaObjetivo = 100 };
@@ -253,6 +256,9 @@ public class PartidaTests
     }
 
     [Fact]
+    [Trait("CA", "25.1")]
+    [Trait("CA", "25.2")]
+    [Trait("CA", "25.5")]
     public void Tick_AlAgotarseElTiempo_GanaQuienTengaMasPuntos()
     {
         var (partida, ana, _) = CrearPartida(new ConfigPartida { DuracionSegundos = 60 });
@@ -265,6 +271,7 @@ public class PartidaTests
     }
 
     [Fact]
+    [Trait("CA", "25.7")]
     public void Tick_DespuesDeFinalizar_NoCambiaNada()
     {
         var (partida, ana, _) = CrearPartida(new ConfigPartida { DuracionSegundos = 30 });
@@ -280,6 +287,7 @@ public class PartidaTests
     // ---------- Puntaje (US-15) ----------
 
     [Fact]
+    [Trait("CA", "19.4")]
     public void Mover_Bloqueado_NoSumaPuntos()
     {
         var (partida, ana, _) = CrearPartida();
@@ -292,6 +300,8 @@ public class PartidaTests
     // ---------- Fin por puntos (US-08, US-16) ----------
 
     [Fact]
+    [Trait("CA", "25.1")]
+    [Trait("CA", "25.2")]
     public void FinPorPuntos_GanaElPrimeroEnLlegarALaMeta()
     {
         var config = new ConfigPartida { ModoFin = ModoFin.Puntos, PuntosObjetivo = 20 };
@@ -303,7 +313,7 @@ public class PartidaTests
         partida.Ejecutar(beto.Id, Accion.Extraer);        // Beto 10
 
         Assert.Equal(EstadoPartida.EnCurso, partida.Estado);
-        partida.Tick(3);                                  // pasa el enfriamiento (3 s)
+        partida.Tick(1);                                  // pasa el enfriamiento
         partida.Ejecutar(ana.Id, Accion.Extraer);         // Ana 20: llega primero a la meta
 
         Assert.Equal(EstadoPartida.Finalizada, partida.Estado);
@@ -311,6 +321,7 @@ public class PartidaTests
     }
 
     [Fact]
+    [Trait("CA", "25.1")]
     public void FinPorPuntos_ElTiempoNoTerminaLaPartida()
     {
         var config = new ConfigPartida { ModoFin = ModoFin.Puntos, PuntosObjetivo = 5, DuracionSegundos = 10 };
@@ -322,6 +333,7 @@ public class PartidaTests
     }
 
     [Fact]
+    [Trait("CA", "25.1")]
     public void FinPorTiempo_LosPuntosNoTerminanLaPartida()
     {
         var config = new ConfigPartida { ModoFin = ModoFin.Tiempo, PuntosObjetivo = 2 };
@@ -335,6 +347,7 @@ public class PartidaTests
     // ---------- Empate (CA-16.4) ----------
 
     [Fact]
+    [Trait("CA", "25.6")]
     public void Empate_AlAcabarseElTiempo_SumaDosMinutosYSigueConLosMismosPuntos()
     {
         var (partida, ana, beto) = CrearPartida(new ConfigPartida { DuracionSegundos = 30 });
@@ -352,6 +365,7 @@ public class PartidaTests
     }
 
     [Fact]
+    [Trait("CA", "25.6")]
     public void Empate_ElDesempateSeResuelveEnLaProrroga()
     {
         var (partida, ana, _) = CrearPartida(new ConfigPartida { DuracionSegundos = 30 });

@@ -1,4 +1,5 @@
 using System;
+using System.Linq;
 using Reactor.Cliente.Servicios;
 
 namespace Reactor.Cliente.Presentadores
@@ -36,13 +37,33 @@ namespace Reactor.Cliente.Presentadores
                 var nombre = string.IsNullOrWhiteSpace(ganador.Nombre) ? "Un jugador" : ganador.Nombre;
                 vista.MostrarGanador(ganador, "¡FELICIDADES!", $"{nombre} gana con {ganador.Puntaje} puntos");
                 vista.MostrarPuntajes(resultado.Jugadores);
+                vista.MostrarEstadisticas(TextoEstadisticas());
                 vista.Celebrar();
             }
             else
             {
                 vista.MostrarSinGanador("FIN DE LA PARTIDA", "No hubo ganador");
                 vista.MostrarPuntajes(resultado.Jugadores);
+                vista.MostrarEstadisticas(TextoEstadisticas());
             }
+        }
+
+        /// <summary>Duración y extracciones; marca como "récord de la partida" a quien más extrajo.</summary>
+        string TextoEstadisticas()
+        {
+            var partes = new System.Collections.Generic.List<string>();
+            if (resultado.DuracionSegundos > 0)
+                partes.Add($"Duración {resultado.DuracionSegundos / 60:00}:{resultado.DuracionSegundos % 60:00}");
+
+            var extractores = resultado.Jugadores.Where(j => j.Extracciones > 0).ToList();
+            if (extractores.Count > 0)
+            {
+                partes.Add("Extracciones: " + string.Join(", ", extractores.Select(j => $"{j.Nombre} {j.Extracciones}")));
+                var mejor = extractores.OrderByDescending(j => j.Extracciones).First();
+                if (extractores.Count(j => j.Extracciones == mejor.Extracciones) == 1)
+                    partes.Add($"Más extracciones: {mejor.Nombre}");
+            }
+            return string.Join("   |   ", partes);
         }
 
         public void Dispose() => vista.VolverPulsado -= AlPulsarVolver;

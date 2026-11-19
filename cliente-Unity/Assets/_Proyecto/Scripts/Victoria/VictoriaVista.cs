@@ -39,6 +39,8 @@ namespace Reactor.Cliente.Victoria
 
         RectTransform raiz;
         RectTransform areaConfeti;
+        RectTransform podio;
+        TextMeshProUGUI estadisticas;
         TextMeshProUGUI titulo;
         TextMeshProUGUI subtitulo;
         TextMeshProUGUI puntajes;
@@ -104,16 +106,81 @@ namespace Reactor.Cliente.Victoria
 
         public void MostrarPuntajes(IReadOnlyList<JugadorResultado> jugadores)
         {
+            // El avatar grande del ganador se reemplaza por el podio (US-26): 1.º, 2.º y 3.º, solo los que existan.
+            anillo.gameObject.SetActive(false);
+            ConstruirPodio(jugadores);
+
+            // Del 4.º lugar en adelante (partidas de 4 jugadores) va en una línea de texto.
             var texto = new StringBuilder();
-            for (var i = 0; i < jugadores.Count; i++)
+            for (var i = 3; i < jugadores.Count; i++)
             {
                 var j = jugadores[i];
                 var color = ColorUtility.ToHtmlStringRGB(ConstructorUI.ParseColor(j.Color, Color.white));
                 var nombre = string.IsNullOrEmpty(j.Nombre) ? "Jugador" : j.Nombre;
-                var linea = $"{i + 1}.  <color=#{color}>{nombre}</color>   {j.Puntaje} pts";
-                texto.AppendLine(j.EsGanador ? $"<b>{linea}</b>" : linea);
+                texto.AppendLine($"{i + 1}.  <color=#{color}>{nombre}</color>   {j.Puntaje} pts");
             }
             puntajes.text = texto.ToString();
+        }
+
+        public void MostrarEstadisticas(string texto) => estadisticas.text = texto ?? "";
+
+        // ---------- Podio ----------
+
+        static readonly Color Plata = new Color(0.80f, 0.82f, 0.88f);
+        static readonly Color Bronce = new Color(0.80f, 0.52f, 0.28f);
+        static readonly Color TextoOscuro = new Color(0.08f, 0.10f, 0.15f);
+
+        void ConstruirPodio(IReadOnlyList<JugadorResultado> jugadores)
+        {
+            foreach (Transform hijo in podio) Destroy(hijo.gameObject);
+
+            // 1.º al centro (el más alto), 2.º a la izquierda y 3.º a la derecha.
+            float[] altos = { 280f, 220f, 180f };
+            float[] xs = { 0f, -400f, 400f };
+            Color[] metales = { ConstructorUI.Dorado, Plata, Bronce };
+            const float baseY = -300f;
+
+            var cantidad = Mathf.Min(3, jugadores.Count);
+            for (var lugar = 0; lugar < cantidad; lugar++)
+            {
+                var j = jugadores[lugar];
+                var alto = altos[lugar];
+                var x = xs[lugar];
+
+                var bloque = ConstructorUI.CrearImagen(podio, "Bloque" + (lugar + 1), null, metales[lugar]);
+                ConstructorUI.Colocar(bloque.rectTransform, new Vector2(x, baseY + alto / 2f), new Vector2(340f, alto));
+                ConstructorUI.CrearTexto(bloque.rectTransform, "Lugar", 72, FontStyles.Bold, TextoOscuro,
+                    new Vector2(0f, alto / 2f - 45f), new Vector2(300f, 80f)).text = (lugar + 1).ToString();
+                ConstructorUI.CrearTexto(bloque.rectTransform, "Nombre", 40, FontStyles.Bold, TextoOscuro,
+                    new Vector2(0f, alto / 2f - 105f), new Vector2(320f, 50f)).text = string.IsNullOrEmpty(j.Nombre) ? "Jugador" : j.Nombre;
+                ConstructorUI.CrearTexto(bloque.rectTransform, "Puntos", 36, FontStyles.Normal, TextoOscuro,
+                    new Vector2(0f, alto / 2f - 150f), new Vector2(320f, 44f)).text = j.Puntaje + " pts";
+
+                // Avatar sobre el bloque: aro con el color del jugador, imagen (o inicial) y avatar propio al llegar.
+                var color = ConstructorUI.ParseColor(j.Color, Color.white);
+                var aro = ConstructorUI.CrearImagen(podio, "AroPodio" + (lugar + 1), circulo, color);
+                ConstructorUI.Colocar(aro.rectTransform, new Vector2(x, baseY + alto + 105f), new Vector2(190f, 190f));
+                var foto = ConstructorUI.CrearImagen(aro.rectTransform, "Avatar", circulo, ConstructorUI.Panel);
+                ConstructorUI.Colocar(foto.rectTransform, Vector2.zero, new Vector2(160f, 160f));
+                var letra = ConstructorUI.CrearTexto(foto.rectTransform, "Inicial", 90, FontStyles.Bold, color, Vector2.zero, new Vector2(160f, 160f));
+
+                var imagen = ImagenDe(j);
+                if (imagen != null)
+                {
+                    foto.sprite = imagen; foto.color = Color.white; foto.preserveAspect = true;
+                }
+                else
+                {
+                    letra.text = string.IsNullOrEmpty(j.Nombre) ? "?" : j.Nombre.Substring(0, 1).ToUpperInvariant();
+                }
+
+                AvatarImagenes.CargarPropio(j.AvatarId, sprite =>
+                {
+                    if (foto == null) return;
+                    foto.sprite = sprite; foto.color = Color.white; foto.preserveAspect = true;
+                    letra.text = "";
+                });
+            }
         }
 
         public void Celebrar()
@@ -134,6 +201,8 @@ namespace Reactor.Cliente.Victoria
             anillo.gameObject.SetActive(false);
             subtitulo.text = texto;
             puntajes.text = "";
+            estadisticas.text = "";
+            foreach (Transform hijo in podio) Destroy(hijo.gameObject);
         }
 
         // ---------- Construcción de la interfaz ----------
@@ -158,11 +227,16 @@ namespace Reactor.Cliente.Victoria
             ConstructorUI.Colocar(avatar.rectTransform, Vector2.zero, new Vector2(270f, 270f));
             inicial = ConstructorUI.CrearTexto(avatar.rectTransform, "Inicial", 150, FontStyles.Bold, Color.white, Vector2.zero, new Vector2(270f, 270f));
 
-            subtitulo = ConstructorUI.CrearTexto(raiz, "Subtitulo", 56, FontStyles.Bold, Color.white, new Vector2(0f, -110f), new Vector2(1500f, 90f));
-            puntajes = ConstructorUI.CrearTexto(raiz, "Puntajes", 46, FontStyles.Normal, Color.white, new Vector2(0f, -290f), new Vector2(900f, 220f));
-            puntajes.alignment = TextAlignmentOptions.Top;
+            subtitulo = ConstructorUI.CrearTexto(raiz, "Subtitulo", 56, FontStyles.Bold, Color.white, new Vector2(0f, 270f), new Vector2(1500f, 90f));
 
-            ConstructorUI.CrearBoton(raiz, "Volver", new Vector2(0f, -460f), new Vector2(420f, 90f), ConstructorUI.Azul,
+            podio = new GameObject("Podio", typeof(RectTransform)).GetComponent<RectTransform>();
+            podio.SetParent(raiz, false);
+            ConstructorUI.Estirar(podio);
+
+            estadisticas = ConstructorUI.CrearTexto(raiz, "Estadisticas", 34, FontStyles.Normal, ConstructorUI.Gris, new Vector2(0f, -345f), new Vector2(1700f, 50f));
+            puntajes = ConstructorUI.CrearTexto(raiz, "Puntajes", 36, FontStyles.Normal, Color.white, new Vector2(0f, -400f), new Vector2(1200f, 60f));
+
+            ConstructorUI.CrearBoton(raiz, "Volver", new Vector2(0f, -490f), new Vector2(420f, 90f), ConstructorUI.Azul,
                 () => VolverPulsado?.Invoke());
         }
 

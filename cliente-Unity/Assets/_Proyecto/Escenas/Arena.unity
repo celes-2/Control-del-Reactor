@@ -575,6 +575,18 @@ MonoBehaviour:
   tileMuro: {fileID: 11400000, guid: 95753505d600f9e458607c5fb2353aba, type: 2}
   tileInicio: {fileID: 11400000, guid: e2e5476d7c621374bb1d45bb609c9d87, type: 2}
   tileReactor: {fileID: 11400000, guid: 16c2f5d507b01ed4db0e24bae60310fb, type: 2}
+  spriteReactor: {fileID: 0}
+  spriteGuardian: {fileID: -3457559654234702399, guid: 2a3d1cc65ea629a4896a23af28b0c0ff, type: 3}
+  tamanoGuardian: 1.6
+  spriteTierraMovediza: {fileID: -8038976213705442086, guid: bf3a787113b56d041b83e2340f189a1a, type: 3}
+  spriteCeldaEmergente: {fileID: -1540426309290004842, guid: fb968c74c66c1dd4f8a72f9e9839afc4, type: 3}
+  spriteRed: {fileID: 4723107735738678597, guid: a515967ac88f34c4880bbb4ff69a7c3a, type: 3}
+  spritePuertaCerrada: {fileID: -6247638238413722649, guid: 4661825709e7bad4c90703de81226e9a, type: 3}
+  spritePuertaAbierta: {fileID: 0}
+  spriteEnergia: {fileID: 7775617911691489326, guid: 00ccf2b1eaeef3f4cb6cb46116c96f5d, type: 3}
+  tamanoMaximoParaVerEntero: 21
+  celdasVisibles: 11
+  suavizadoCamara: 6
   margenCamara: 2
   colorFondo: {r: 0.07, g: 0.08, b: 0.11, a: 1}
 --- !u!4 &1273945525

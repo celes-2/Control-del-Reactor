@@ -57,7 +57,7 @@ namespace Reactor.Cliente.Arranque
                 if (!iniciarEnAcceso)
                     Sesion.Iniciar("token-falso", SocketFalso.Jugador1, "Ana"); // en modo falso, el jugador local es Ana (anfitriona)
                 Socket = falso;
-                Api = new ApiPartidasFalsa();
+                Api = new ApiPartidasFalsa(falso);
                 Auth = new ApiAuthFalsa(SocketFalso.Jugador1);
                 PerfilApi = new ApiPerfilFalsa(SocketFalso.Jugador1);
                 Avatares = new AvatarCacheFalsa();

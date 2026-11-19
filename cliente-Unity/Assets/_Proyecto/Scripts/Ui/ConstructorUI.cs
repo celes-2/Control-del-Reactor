@@ -13,15 +13,30 @@ namespace Reactor.Cliente.Ui
     /// </summary>
     public static class ConstructorUI
     {
-        public static readonly Color Fondo = new Color(0.04f, 0.06f, 0.12f, 1f);
-        public static readonly Color Dorado = new Color(1f, 0.82f, 0.2f, 1f);
-        public static readonly Color Panel = new Color(0.11f, 0.14f, 0.22f, 1f);
-        public static readonly Color Azul = new Color(0.2f, 0.55f, 0.95f, 1f);
-        public static readonly Color Verde = new Color(0.18f, 0.72f, 0.42f, 1f);
-        public static readonly Color Rojo = new Color(0.91f, 0.30f, 0.24f, 1f);
-        public static readonly Color Gris = new Color(0.62f, 0.66f, 0.74f, 1f);
-        public static readonly Color Arena = new Color(1.00f, 0.92f, 0.80f, 1f);
+        // Paleta del juego (los nombres de abajo se conservan para no tocar las demás pantallas).
+        public static readonly Color AzulOscuro = Hex("#005187");
+        public static readonly Color AzulAcero = Hex("#4d82be");
+        public static readonly Color AzulCielo = Hex("#84b6f4");
+        public static readonly Color AzulHielo = Hex("#c4dafa");
+        public static readonly Color BlancoFrio = Hex("#fcffff");
 
+        public static readonly Color Fondo = AzulOscuro;
+        public static readonly Color Panel = AzulAcero;
+        public static readonly Color Dorado = BlancoFrio;     // títulos y elementos destacados
+        public static readonly Color Azul = AzulHielo;        // botón secundario
+        public static readonly Color Verde = AzulCielo;       // botón principal
+        public static readonly Color Gris = AzulHielo;        // texto suave
+        public static readonly Color Arena = AzulHielo;
+        public static readonly Color Apagado = Color.Lerp(AzulOscuro, AzulAcero, 0.5f);
+        public static readonly Color Rojo = new Color(0.91f, 0.30f, 0.24f, 1f); // alertas y trampas (fuera de paleta a propósito)
+
+        static Color Hex(string hex) => ColorUtility.TryParseHtmlString(hex, out var c) ? c : Color.magenta;
+
+        /// <summary>Texto azul oscuro sobre fondos claros y blanco frío sobre fondos oscuros.</summary>
+        public static Color TextoSobre(Color fondo) =>
+            (0.299f * fondo.r + 0.587f * fondo.g + 0.114f * fondo.b) > 0.55f ? AzulOscuro : BlancoFrio;
+
+        static TMP_FontAsset respaldo;
         static Sprite circulo;
 
         public static RectTransform CrearLienzo(Transform padre, string nombre)
@@ -56,9 +71,10 @@ namespace Reactor.Cliente.Ui
             var objeto = new GameObject(nombre, typeof(RectTransform), typeof(TextMeshProUGUI));
             objeto.transform.SetParent(padre, false);
             var texto = objeto.GetComponent<TextMeshProUGUI>();
+            AsegurarFuente(texto);
             texto.fontSize = tamano;
             texto.fontStyle = estilo;
-            texto.color = color;
+            texto.color = color == Color.white ? BlancoFrio : color;
             texto.alignment = TextAlignmentOptions.Center;
             texto.richText = true;
             texto.raycastTarget = false;
@@ -79,9 +95,19 @@ namespace Reactor.Cliente.Ui
             boton.colors = colores;
             if (alPulsar != null) boton.onClick.AddListener(alPulsar);
 
-            var etiqueta = CrearTexto(imagen.rectTransform, "Etiqueta", 44, FontStyles.Bold, Color.white, Vector2.zero, medida);
+            var etiqueta = CrearTexto(imagen.rectTransform, "Etiqueta", 44, FontStyles.Bold, TextoSobre(color), Vector2.zero, medida);
             etiqueta.text = texto;
             return boton;
+        }
+
+        /// <summary>Habilita o deshabilita un botón y cambia el color de su texto para que se lea en los dos estados.</summary>
+        public static void Habilitar(Button boton, bool habilitado)
+        {
+            boton.interactable = habilitado;
+            var imagen = boton.targetGraphic as Image;
+            var etiqueta = boton.GetComponentInChildren<TextMeshProUGUI>();
+            if (etiqueta != null && imagen != null)
+                etiqueta.color = habilitado ? TextoSobre(imagen.color) : BlancoFrio;
         }
 
         public static void Colocar(RectTransform rt, Vector2 posicion, Vector2 medida)
@@ -97,6 +123,14 @@ namespace Reactor.Cliente.Ui
             rt.anchorMin = Vector2.zero;
             rt.anchorMax = Vector2.one;
             rt.offsetMin = rt.offsetMax = Vector2.zero;
+        }
+
+        /// <summary>Si TextMesh Pro perdió su fuente por defecto, se usa Liberation Sans directamente.</summary>
+        public static void AsegurarFuente(TMP_Text texto)
+        {
+            if (TMP_Settings.defaultFontAsset != null) return;
+            if (respaldo == null) respaldo = Resources.Load<TMP_FontAsset>("Fonts & Materials/LiberationSans SDF");
+            if (respaldo != null) texto.font = respaldo;
         }
 
         public static Color ParseColor(string hex, Color porDefecto) =>

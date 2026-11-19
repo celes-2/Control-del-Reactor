@@ -30,6 +30,11 @@ namespace Reactor.Cliente.Servicios
         public event Action<TickMsg> Tick;
         public event Action<TiempoExtraMsg> TiempoExtra;
         public event Action<PartidaFinalizadaMsg> PartidaFinalizada;
+        public event Action<ArenaActualizadaMsg> ArenaActualizada;
+        public event Action<EventoIniciadoMsg> EventoIniciado;
+        public event Action<EventoTerminadoMsg> EventoTerminado;
+        public event Action<JugadorCongeladoMsg> JugadorCongelado;
+        public event Action<ItemRecogidoMsg> ItemRecogido;
         public event Action<string> Error;
 
         public GameSocket(string url, SessionStore sesion)
@@ -144,6 +149,11 @@ namespace Reactor.Cliente.Servicios
                     case TiposMensaje.Tick: Tick?.Invoke(datos.ToObject<TickMsg>()); break;
                     case TiposMensaje.TiempoExtra: TiempoExtra?.Invoke(datos.ToObject<TiempoExtraMsg>()); break;
                     case TiposMensaje.PartidaFinalizada: PartidaFinalizada?.Invoke(datos.ToObject<PartidaFinalizadaMsg>()); break;
+                    case TiposMensaje.ArenaActualizada: ArenaActualizada?.Invoke(datos.ToObject<ArenaActualizadaMsg>()); break;
+                    case TiposMensaje.EventoIniciado: EventoIniciado?.Invoke(datos.ToObject<EventoIniciadoMsg>()); break;
+                    case TiposMensaje.EventoTerminado: EventoTerminado?.Invoke(datos.ToObject<EventoTerminadoMsg>()); break;
+                    case TiposMensaje.JugadorCongelado: JugadorCongelado?.Invoke(datos.ToObject<JugadorCongeladoMsg>()); break;
+                    case TiposMensaje.ItemRecogido: ItemRecogido?.Invoke(datos.ToObject<ItemRecogidoMsg>()); break;
                     case TiposMensaje.Error: Error?.Invoke(datos.ToObject<ErrorMsg>()?.Mensaje ?? "Error del servidor."); break;
                     default: Debug.LogWarning($"Tipo de mensaje desconocido: {tipo}"); break;
                 }

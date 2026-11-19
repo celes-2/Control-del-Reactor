@@ -17,6 +17,9 @@ namespace Reactor.Cliente.Presentadores
         void MostrarSinGanador(string titulo, string subtitulo);
         void MostrarPuntajes(IReadOnlyList<JugadorResultado> jugadores);
 
+        /// <summary>Duración y extracciones de la partida; texto vacío si no hay datos.</summary>
+        void MostrarEstadisticas(string texto);
+
         /// <summary>Confeti y música de victoria.</summary>
         void Celebrar();
 

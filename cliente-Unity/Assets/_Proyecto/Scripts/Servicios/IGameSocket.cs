@@ -20,6 +20,11 @@ namespace Reactor.Cliente.Servicios
         event Action<TickMsg> Tick;
         event Action<TiempoExtraMsg> TiempoExtra;
         event Action<PartidaFinalizadaMsg> PartidaFinalizada;
+        event Action<ArenaActualizadaMsg> ArenaActualizada;
+        event Action<EventoIniciadoMsg> EventoIniciado;
+        event Action<EventoTerminadoMsg> EventoTerminado;
+        event Action<JugadorCongeladoMsg> JugadorCongelado;
+        event Action<ItemRecogidoMsg> ItemRecogido;
         event Action<string> Error;
 
         void Conectar(string partidaId);

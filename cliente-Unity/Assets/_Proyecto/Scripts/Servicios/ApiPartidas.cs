@@ -31,6 +31,9 @@ namespace Reactor.Cliente.Servicios
                 duracionSegundos = ajustes.DuracionSegundos,
                 puntosObjetivo = ajustes.PuntosObjetivo,
                 segundosCongelamiento = ajustes.SegundosCongelamiento,
+                // Vacío = mapa clásico: el servidor lo entiende como null.
+                escenarioId = string.IsNullOrEmpty(ajustes.EscenarioId) ? null : ajustes.EscenarioId,
+                cantidadGuardianes = ajustes.CantidadGuardianes,
             });
 
             var solicitud = new UnityWebRequest(servidor + "/api/partidas", UnityWebRequest.kHttpVerbPOST)
@@ -72,6 +75,54 @@ namespace Reactor.Cliente.Servicios
                 }
                 return lista;
             });
+        }
+
+        public Task<IReadOnlyList<EscenarioInfo>> ListarEscenariosAsync()
+        {
+            var solicitud = new UnityWebRequest(servidor + "/api/escenarios", UnityWebRequest.kHttpVerbGET)
+            {
+                downloadHandler = new DownloadHandlerBuffer(),
+                timeout = 10,
+            };
+
+            return Enviar<IReadOnlyList<EscenarioInfo>>(solicitud, texto =>
+            {
+                var lista = new List<EscenarioInfo>();
+                foreach (var item in JArray.Parse(texto))
+                {
+                    lista.Add(new EscenarioInfo
+                    {
+                        Id = item["id"]?.ToString() ?? "",
+                        Nombre = item["nombre"]?.ToString() ?? "",
+                        Descripcion = item["descripcion"]?.ToString() ?? "",
+                        Filas = LeerLista(item["filas"]),
+                        Puertas = LeerPosiciones(item["puertas"]),
+                        InicioGuardianes = LeerPosiciones(item["inicioGuardianes"]),
+                        MaxJugadores = item["maxJugadores"]?.Value<int>() ?? 0,
+                        MinGuardianes = item["minGuardianes"]?.Value<int>() ?? 2,
+                        MaxGuardianes = item["maxGuardianes"]?.Value<int>() ?? 4,
+                        GuardianesPorDefecto = item["guardianesPorDefecto"]?.Value<int>() ?? 4,
+                    });
+                }
+                return lista;
+            });
+        }
+
+        static List<string> LeerLista(JToken token)
+        {
+            var lista = new List<string>();
+            if (token is JArray filas)
+                foreach (var fila in filas) lista.Add(fila.ToString());
+            return lista;
+        }
+
+        static List<(int x, int y)> LeerPosiciones(JToken token)
+        {
+            var lista = new List<(int x, int y)>();
+            if (token is JArray posiciones)
+                foreach (var p in posiciones)
+                    lista.Add((p["x"]?.Value<int>() ?? 0, p["y"]?.Value<int>() ?? 0));
+            return lista;
         }
 
         /// <summary>Manda la solicitud y entrega el resultado en el hilo principal de Unity.</summary>
