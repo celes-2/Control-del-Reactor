@@ -43,6 +43,7 @@ public class PartidaCasosDeUsoTests
         public ObtenerPartida Obtener { get; }
         public ListarPartidasEnEspera Listar { get; }
         public EjecutarAccion Ejecutar { get; }
+        public BuscarPartidaActiva BuscarActiva { get; }
 
         public Contexto()
         {
@@ -53,6 +54,7 @@ public class PartidaCasosDeUsoTests
             Obtener = new ObtenerPartida(partidas);
             Listar = new ListarPartidasEnEspera(partidas);
             Ejecutar = new EjecutarAccion(partidas);
+            BuscarActiva = new BuscarPartidaActiva(partidas);
         }
 
         public async Task<Usuario> CrearUsuarioAsync(
@@ -69,6 +71,33 @@ public class PartidaCasosDeUsoTests
 
         public async Task<PartidaVista> CrearPartidaAsync(Usuario anfitrion, ConfigPartida? config = null) =>
             await Configurar.EjecutarAsync(new CrearPartidaComando(anfitrion.Id, config ?? new ConfigPartida()));
+    }
+
+    // ---------- US-30: partida activa (móvil) ----------
+
+    [Fact]
+    public async Task BuscarActiva_JugadorEnUnaPartida_DevuelveEsaPartida()
+    {
+        var ctx = new Contexto();
+        var ana = await ctx.CrearUsuarioAsync("Ana");
+        var vista = await ctx.CrearPartidaAsync(ana);
+
+        var activa = await ctx.BuscarActiva.EjecutarAsync(ana.Id);
+
+        Assert.Equal(vista.Id, activa);
+    }
+
+    [Fact]
+    public async Task BuscarActiva_JugadorSinPartida_DevuelveNull()
+    {
+        var ctx = new Contexto();
+        var ana = await ctx.CrearUsuarioAsync("Ana");
+        var beto = await ctx.CrearUsuarioAsync("Beto");
+        await ctx.CrearPartidaAsync(ana);
+
+        var activa = await ctx.BuscarActiva.EjecutarAsync(beto.Id);
+
+        Assert.Null(activa);
     }
 
     // ---------- Crear / configurar ----------
@@ -420,3 +449,4 @@ public class PartidaCasosDeUsoTests
         await Assert.ThrowsAsync<NoEncontradoException>(() => ctx.Obtener.EjecutarAsync(Guid.NewGuid()));
     }
 }
+

@@ -10,6 +10,8 @@ public static class TiposMensaje
     public const string MatchJoin = "match:join";
     public const string MatchStart = "match:start";
 
+    public const string MatchWatch = "match:watch";   // US-30: el móvil mira la partida sin unirse
+
     // Servidor -> cliente
     public const string MatchState = "match:state";
     public const string PlayerMoved = "player:moved";

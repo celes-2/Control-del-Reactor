@@ -23,3 +23,13 @@ public sealed class ListarPartidasEnEspera(IPartidaRepo partidas)
                 partida.Jugadores.FirstOrDefault()?.Nombre ?? string.Empty),
             ct);
 }
+
+/// <summary>
+/// US-30: la partida activa (en espera o en curso) del jugador, o null si no está en ninguna.
+/// La usa el móvil para mirar en vivo la partida que el jugador está jugando, sin unirlo a otra.
+/// </summary>
+public sealed class BuscarPartidaActiva(IPartidaRepo partidas)
+{
+    public Task<Guid?> EjecutarAsync(Guid usuarioId, CancellationToken ct = default) =>
+        partidas.BuscarPartidaDeJugadorAsync(usuarioId, ct);
+}

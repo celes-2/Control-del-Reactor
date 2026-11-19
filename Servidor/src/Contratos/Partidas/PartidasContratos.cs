@@ -59,6 +59,10 @@ public sealed record PartidaRespuesta(
 
 public sealed record PartidaResumenRespuesta(Guid Id, int Jugadores, int MaxJugadores, string Anfitrion);
 
+
+/// <summary>US-30: "GET /api/partidas/activa". Si el jugador no está en ninguna partida, el servidor responde 204 sin cuerpo.</summary>
+public sealed record PartidaActivaRespuesta(Guid Id);
+
 public sealed record PosicionRespuesta(int X, int Y);
 
 /// <summary>
