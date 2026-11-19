@@ -10,7 +10,7 @@ using Xunit;
 
 namespace PruebasAplicacion;
 
-/// <summary>US-04: historial, estadísticas, logros y ranking, con persistencia REAL en JSON temporal.</summary>
+/// <summary>US-04, US-27 y US-28: historial, estadísticas, logros y ranking, con persistencia REAL en JSON temporal.</summary>
 public sealed class Pruebas_PerfilHistorial : IDisposable
 {
     private static readonly Guid Ana = Guid.Parse("11111111-1111-1111-1111-111111111111");
@@ -36,35 +36,36 @@ public sealed class Pruebas_PerfilHistorial : IDisposable
 
     /// <summary>Partida de 5 s en la que Ana extrae una vez y Beto queda en 0. Recorre en zigzag buscando el reactor.</summary>
     private static Partida PartidaConAnaPunteando()
-{
-   var partida = Dominio.Juego.Partida.Crear(new ConfigPartida { DuracionSegundos = 5 });    partida.Unirse(Ana, "Ana", Guid.NewGuid());
-    partida.Unirse(Beto, "Beto", Guid.NewGuid());
-    partida.Iniciar();
-
-    var extracciones = new List<ResultadoAccion>();
-    var movimientos = new List<ResultadoAccion>();
-
-    for (var fila = 0; fila < 15; fila++)
     {
-        var lado = fila % 2 == 0 ? Accion.Derecha : Accion.Izquierda;
-        for (var paso = 0; paso < 20; paso++)
-        {
-            var r = partida.Ejecutar(Ana, Accion.Extraer);
-            if (r == ResultadoAccion.EnergiaExtraida)
-                return partida;
-            extracciones.Add(r);
-            movimientos.Add(partida.Ejecutar(Ana, lado));
-        }
-        movimientos.Add(partida.Ejecutar(Ana, Accion.Abajo));
-    }
+        var partida = Dominio.Juego.Partida.Crear(new ConfigPartida { DuracionSegundos = 5 }); partida.Unirse(Ana, "Ana", Guid.NewGuid());
+        partida.Unirse(Beto, "Beto", Guid.NewGuid());
+        partida.Iniciar();
 
-    throw new InvalidOperationException(
-        $"Extraer dio: {string.Join(", ", extracciones.Distinct())} | " +
-        $"mover dio: {string.Join(", ", movimientos.Distinct())} | estado: {partida.Estado}");
-}
+        var extracciones = new List<ResultadoAccion>();
+        var movimientos = new List<ResultadoAccion>();
+
+        for (var fila = 0; fila < 15; fila++)
+        {
+            var lado = fila % 2 == 0 ? Accion.Derecha : Accion.Izquierda;
+            for (var paso = 0; paso < 20; paso++)
+            {
+                var r = partida.Ejecutar(Ana, Accion.Extraer);
+                if (r == ResultadoAccion.EnergiaExtraida)
+                    return partida;
+                extracciones.Add(r);
+                movimientos.Add(partida.Ejecutar(Ana, lado));
+            }
+            movimientos.Add(partida.Ejecutar(Ana, Accion.Abajo));
+        }
+
+        throw new InvalidOperationException(
+            $"Extraer dio: {string.Join(", ", extracciones.Distinct())} | " +
+            $"mover dio: {string.Join(", ", movimientos.Distinct())} | estado: {partida.Estado}");
+    }
     // ---------- Estadísticas y logros (dominio puro) ----------
 
     [Fact]
+    [Trait("CA", "28.4")]
     public void Estadisticas_SinPartidas_EstanEnCero()
     {
         var e = Estadisticas.Calcular(Ana, []);
@@ -75,6 +76,7 @@ public sealed class Pruebas_PerfilHistorial : IDisposable
     }
 
     [Fact]
+    [Trait("CA", "28.4")]
     public void Estadisticas_SumanPartidasVictoriasYPuntos()
     {
         var partidas = new[] { Partida(Ana, 30, 10), Partida(Beto, 5, 20), Partida(Ana, 40, 1) };
@@ -90,6 +92,8 @@ public sealed class Pruebas_PerfilHistorial : IDisposable
     }
 
     [Fact]
+    [Trait("CA", "28.4")]
+    [Trait("CA", "28.9")]
     public void Estadisticas_IgnoranPartidasDondeNoParticipo()
     {
         var ajena = new RegistroPartida(Guid.NewGuid(), DateTime.UtcNow, 60, "Tiempo", 0, Beto,
@@ -108,13 +112,13 @@ public sealed class Pruebas_PerfilHistorial : IDisposable
     [Fact]
     public void Logros_SeObtienenAlCumplirLaMeta()
     {
-        var logros = Logro.Evaluar(new Estadisticas(PartidasJugadas: 6, Victorias: 5, PuntosTotales: 100, MejorPuntaje: 30))
+        var logros = Logro.Evaluar(new Estadisticas(PartidasJugadas: 6, Victorias: 5, PuntosTotales: 500, MejorPuntaje: 30))
             .ToDictionary(l => l.Id);
 
         Assert.True(logros["primera-partida"].Obtenido);
         Assert.True(logros["primera-victoria"].Obtenido);
         Assert.True(logros["cinco-victorias"].Obtenido);
-        Assert.True(logros["cien-puntos"].Obtenido);
+        Assert.True(logros["quinientos-puntos"].Obtenido);
     }
 
     [Fact]
@@ -126,13 +130,17 @@ public sealed class Pruebas_PerfilHistorial : IDisposable
         Assert.True(logros["primera-victoria"].Obtenido);
         Assert.False(logros["cinco-victorias"].Obtenido);
         Assert.Equal(2, logros["cinco-victorias"].Progreso);
-        Assert.False(logros["cien-puntos"].Obtenido);
-        Assert.Equal(60, logros["cien-puntos"].Progreso);
+        Assert.False(logros["quinientos-puntos"].Obtenido);
+        Assert.Equal(60, logros["quinientos-puntos"].Progreso);
+        Assert.Equal(Logro.MetaPuntos, logros["quinientos-puntos"].Meta);
     }
 
     // ---------- Ranking (dominio puro) ----------
 
     [Fact]
+    [Trait("CA", "27.2")]
+    [Trait("CA", "27.3")]
+    [Trait("CA", "27.5")]
     public void Ranking_PorVictorias_GanaQuienMasPartidasGano()
     {
         var partidas = new[] { Partida(Beto, 5, 20), Partida(Beto, 1, 9), Partida(Ana, 50, 2) };
@@ -145,6 +153,8 @@ public sealed class Pruebas_PerfilHistorial : IDisposable
     }
 
     [Fact]
+    [Trait("CA", "27.2")]
+    [Trait("CA", "27.5")]
     public void Ranking_PorPuntos_GanaQuienMasPuntosSumo()
     {
         var partidas = new[] { Partida(Beto, 5, 20), Partida(Beto, 1, 9), Partida(Ana, 50, 2) };
@@ -156,6 +166,7 @@ public sealed class Pruebas_PerfilHistorial : IDisposable
     }
 
     [Fact]
+    [Trait("CA", "27.6")]
     public void Ranking_EmpateInVictorias_DesempataPorPuntos()
     {
         var partidas = new[] { Partida(Ana, 10, 5), Partida(Beto, 3, 40) };
@@ -166,6 +177,7 @@ public sealed class Pruebas_PerfilHistorial : IDisposable
     }
 
     [Fact]
+    [Trait("CA", "27.2")]
     public void Ranking_RespetaElLimite_YSinPartidasEstaVacio()
     {
         var partidas = new[] { Partida(Ana, 10, 5) };
@@ -174,9 +186,52 @@ public sealed class Pruebas_PerfilHistorial : IDisposable
         Assert.Empty(Ranking.Construir([], CriterioRanking.Puntos));
     }
 
+    [Fact]
+    [Trait("CA", "27.6")]
+    public void Ranking_EmpateEnVictoriasYPuntos_DesempataPorNombre()
+    {
+        var zoe = Guid.NewGuid();
+        var ana = Guid.NewGuid();
+        // Zoe aparece primero en las partidas: si no se ordenara por nombre, quedaria primera.
+        var partidas = new[]
+        {
+            new RegistroPartida(Guid.NewGuid(), DateTime.UtcNow, 60, "Tiempo", 0, zoe,
+                [new JugadorRegistro(zoe, "Zoe", null, 30, true), new JugadorRegistro(ana, "Ana", null, 10, false)]),
+            new RegistroPartida(Guid.NewGuid(), DateTime.UtcNow, 60, "Tiempo", 0, ana,
+                [new JugadorRegistro(zoe, "Zoe", null, 10, false), new JugadorRegistro(ana, "Ana", null, 30, true)]),
+        };
+
+        // 1 victoria y 40 puntos cada una: decide el nombre.
+        Assert.Equal(new[] { "Ana", "Zoe" }, Ranking.Construir(partidas, CriterioRanking.Victorias).Select(x => x.Nombre));
+        Assert.Equal(new[] { "Ana", "Zoe" }, Ranking.Construir(partidas, CriterioRanking.Puntos).Select(x => x.Nombre));
+    }
+
+    [Fact]
+    [Trait("CA", "27.9")]
+    public async Task Ranking_CoincideConElHistorialDeCadaJugador()
+    {
+        var repo = NuevoRepo();
+        await repo.RegistrarAsync(Partida(Ana, 30, 10));
+        await repo.RegistrarAsync(Partida(Beto, 5, 20));
+        await repo.RegistrarAsync(Partida(Ana, 40, 1));
+
+        var ranking = Ranking.Construir(await repo.ListarTodasAsync(), CriterioRanking.Victorias);
+
+        Assert.Equal(2, ranking.Count);
+        foreach (var fila in ranking)
+        {
+            var propias = Estadisticas.Calcular(fila.UsuarioId, await repo.ListarDeJugadorAsync(fila.UsuarioId));
+            Assert.Equal(propias.PartidasJugadas, fila.Partidas);
+            Assert.Equal(propias.Victorias, fila.Victorias);
+            Assert.Equal(propias.PuntosTotales, fila.PuntosTotales);
+        }
+    }
+
     // ---------- Historial en JSON ----------
 
     [Fact]
+    [Trait("CA", "27.7")]
+    [Trait("CA", "28.6")]
     public async Task Historial_GuardaYSobreviveAlReinicio()
     {
         var partida = Partida(Ana, 10, 5);
@@ -191,6 +246,8 @@ public sealed class Pruebas_PerfilHistorial : IDisposable
     }
 
     [Fact]
+    [Trait("CA", "27.8")]
+    [Trait("CA", "28.8")]
     public async Task Historial_RegistrarLaMismaPartidaDosVeces_NoDuplica()
     {
         var repo = NuevoRepo();
@@ -202,6 +259,7 @@ public sealed class Pruebas_PerfilHistorial : IDisposable
     }
 
     [Fact]
+    [Trait("CA", "28.3")]
     public async Task Historial_DeUnJugador_VieneDeLaMasRecienteAlaMasAntigua()
     {
         var repo = NuevoRepo();
@@ -226,6 +284,8 @@ public sealed class Pruebas_PerfilHistorial : IDisposable
         [], [], Ana, ModoFin.Tiempo, 20, 60, 1);
 
     [Fact]
+    [Trait("CA", "28.1")]
+    [Trait("CA", "28.2")]
     public async Task Registrar_PartidaFinalizada_GuardaGanadorPuntajesYProrrogas()
     {
         var repo = NuevoRepo();
@@ -246,6 +306,7 @@ public sealed class Pruebas_PerfilHistorial : IDisposable
     }
 
     [Theory]
+    [Trait("CA", "28.1")]
     [InlineData(EstadoPartida.Espera)]
     [InlineData(EstadoPartida.EnCurso)]
     public async Task Registrar_PartidaQueNoTermino_NoGuardaNada(EstadoPartida estado)
@@ -257,6 +318,8 @@ public sealed class Pruebas_PerfilHistorial : IDisposable
     }
 
     [Fact]
+    [Trait("CA", "27.8")]
+    [Trait("CA", "28.8")]
     public async Task Registrar_DosVecesLaMismaPartida_GuardaUnaSola()
     {
         var repo = NuevoRepo();
@@ -271,12 +334,14 @@ public sealed class Pruebas_PerfilHistorial : IDisposable
     // ---------- Decorador: guarda sin tocar el reloj ni los botones ----------
 
     [Fact]
+    [Trait("CA", "27.4")]
+    [Trait("CA", "28.5")]
     public async Task Decorador_AlTerminarPorTiempo_GuardaLaPartidaEnElHistorial()
     {
         var historial = NuevoRepo();
         var repo = new PartidaRepoConHistorial(
             new PartidaEnMemoriaRepositorio(), new RegistrarResultadoPartida(historial, reloj));
-        
+
         var partida = PartidaConAnaPunteando();
         await repo.AgregarAsync(partida);
 
@@ -290,12 +355,14 @@ public sealed class Pruebas_PerfilHistorial : IDisposable
     }
 
     [Fact]
+    [Trait("CA", "27.8")]
+    [Trait("CA", "28.8")]
     public async Task Decorador_ConsultarUnaPartidaTerminadaVariasVeces_NoDuplica()
     {
         var historial = NuevoRepo();
         var repo = new PartidaRepoConHistorial(
             new PartidaEnMemoriaRepositorio(), new RegistrarResultadoPartida(historial, reloj));
-        
+
         var partida = PartidaConAnaPunteando();
         await repo.AgregarAsync(partida);
         await repo.UsarAsync(partida.Id, p => { p.Tick(5); return 0; });
@@ -314,7 +381,7 @@ public sealed class Pruebas_PerfilHistorial : IDisposable
             new PartidaEnMemoriaRepositorio(),
             new RegistrarResultadoPartida(new HistorialQueFalla(), reloj),
             (id, _) => fallos.Add(id));
-        
+
         var partida = PartidaConAnaPunteando();
         await repo.AgregarAsync(partida);
 
@@ -323,7 +390,7 @@ public sealed class Pruebas_PerfilHistorial : IDisposable
         Assert.Equal(EstadoPartida.Finalizada, estado);   // el jugador no se entera del fallo
         Assert.Equal(new[] { partida.Id }, fallos);
     }
-    
+
 
     // ---------- Perfil, historial y ranking (servicio) ----------
 
@@ -351,6 +418,8 @@ public sealed class Pruebas_PerfilHistorial : IDisposable
     }
 
     [Fact]
+    [Trait("CA", "28.4")]
+    [Trait("CA", "28.7")]
     public async Task Perfil_DevuelveDatosEstadisticasYLogros()
     {
         var perfil = await (await ServicioConPartidasAsync()).ObtenerPerfilAsync(Ana);
@@ -375,6 +444,8 @@ public sealed class Pruebas_PerfilHistorial : IDisposable
     }
 
     [Fact]
+    [Trait("CA", "28.2")]
+    [Trait("CA", "28.3")]
     public async Task Historial_MuestraElResultadoDesdeElPuntoDeVistaDelJugador()
     {
         var servicio = await ServicioConPartidasAsync();
@@ -387,6 +458,7 @@ public sealed class Pruebas_PerfilHistorial : IDisposable
     }
 
     [Fact]
+    [Trait("CA", "28.3")]
     public async Task Historial_RespetaElLimite()
     {
         var servicio = await ServicioConPartidasAsync();
@@ -395,6 +467,7 @@ public sealed class Pruebas_PerfilHistorial : IDisposable
     }
 
     [Fact]
+    [Trait("CA", "27.2")]
     public async Task Ranking_ConCriterioValido_DevuelveLaLista()
     {
         var servicio = await ServicioConPartidasAsync();
@@ -407,6 +480,7 @@ public sealed class Pruebas_PerfilHistorial : IDisposable
     }
 
     [Fact]
+    [Trait("CA", "27.5")]
     public async Task Ranking_ConCriterioInvalido_Falla()
     {
         var servicio = await ServicioConPartidasAsync();

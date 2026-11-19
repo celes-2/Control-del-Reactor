@@ -44,13 +44,19 @@ public sealed record Logro(string Id, string Nombre, string Descripcion, int Pro
 {
     public bool Obtenido => Progreso >= Meta;
 
-    /// <summary>Los 4 logros del Sprint 2.</summary>
+    /// <summary>
+    /// Meta del logro de puntos. En el Sprint 3 subió de 100 a 500 (aprobado por el grupo): con 10 puntos
+    /// por extracción, 100 puntos se lograban en una sola partida.
+    /// </summary>
+    public const int MetaPuntos = 500;
+
+    /// <summary>Los 4 logros del perfil.</summary>
     public static IReadOnlyList<Logro> Evaluar(Estadisticas e) =>
     [
         new("primera-partida", "Primera partida", "Juega tu primera partida.", Math.Min(e.PartidasJugadas, 1), 1),
         new("primera-victoria", "Primera victoria", "Gana una partida.", Math.Min(e.Victorias, 1), 1),
         new("cinco-victorias", "Cinco victorias", "Gana 5 partidas.", Math.Min(e.Victorias, 5), 5),
-        new("cien-puntos", "100 puntos", "Acumula 100 puntos entre todas tus partidas.", Math.Min(e.PuntosTotales, 100), 100),
+        new("quinientos-puntos", "500 puntos", "Acumula 500 puntos entre todas tus partidas.", Math.Min(e.PuntosTotales, MetaPuntos), MetaPuntos),
     ];
 }
 
@@ -66,9 +72,11 @@ public sealed record EntradaRanking(
 public static class Ranking
 {
     /// <summary>
-    /// Ordena a todos los jugadores con partidas. Por victorias: más victorias, luego más puntos.
-    /// Por puntos: más puntos, luego más victorias. Último desempate: nombre. El nombre y el avatar
-    /// que se muestran son los de la partida más reciente del jugador.
+    /// Ordena a todos los jugadores con partidas (regla DEC-8, CA-27.5 y CA-27.6):
+    /// por victorias (por defecto): más victorias, luego más puntos acumulados;
+    /// por puntos: más puntos acumulados, luego más victorias.
+    /// Último desempate en ambos: nombre en orden alfabético, para que el orden sea siempre el mismo.
+    /// El nombre y el avatar que se muestran son los de la partida más reciente del jugador.
     /// </summary>
     public static IReadOnlyList<EntradaRanking> Construir(
         IEnumerable<RegistroPartida> partidas, CriterioRanking criterio, int limite = 10)
@@ -81,7 +89,7 @@ public static class Ranking
                 acumulado.TryGetValue(j.UsuarioId, out var a);
                 var masReciente = a.Nombre is null || partida.Fin >= a.Visto;
                 acumulado[j.UsuarioId] = (
-                    masReciente ? j.Nombre : a.Nombre,
+                    masReciente ? j.Nombre : a.Nombre!,
                     masReciente ? j.AvatarId : a.Avatar,
                     masReciente ? partida.Fin : a.Visto,
                     a.Partidas + 1,

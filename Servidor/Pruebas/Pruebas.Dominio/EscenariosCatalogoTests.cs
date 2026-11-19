@@ -33,8 +33,8 @@ public class EscenariosCatalogoTests
         var definicion = Escenarios.Obtener(id);
         var arena = Arena.DesdeFilas(definicion.Filas);
 
-        Assert.Equal(15, arena.Ancho);
-        Assert.Equal(11, arena.Alto);
+        Assert.Equal(30, arena.Ancho);
+        Assert.Equal(20, arena.Alto);
         Assert.Equal(4, arena.CantidadPuntosDeAparicion);
         Assert.Equal(4, arena.InicioGuardianes.Count);
         Assert.NotEmpty(arena.Obstaculos);
@@ -163,8 +163,8 @@ public class EscenariosCatalogoTests
 
         Assert.Equal(id, partida.Config.EscenarioId);
         Assert.Equal(arena.ComoFilas(), partida.Arena.ComoFilas());
-        Assert.Equal(15, partida.Config.Ancho);
-        Assert.Equal(11, partida.Config.Alto);
+        Assert.Equal(30, partida.Config.Ancho);
+        Assert.Equal(20, partida.Config.Alto);
     }
 
     [Theory]

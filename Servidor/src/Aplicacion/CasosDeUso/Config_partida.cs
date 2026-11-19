@@ -13,7 +13,7 @@ public sealed record CrearPartidaComando(
 /// Caso de uso: crear y configurar una partida nueva. Quien la crea queda como anfitrión
 /// y entra automáticamente. La configuración se valida en el dominio.
 /// Si no se envían obstáculos se usa un escenario del catálogo (US-23): el de Config.EscenarioId
-/// o, si no se eligió ninguno, el mapa clásico 15x11. El ancho y el alto se toman del escenario.
+/// o, si no se eligió ninguno, el mapa clásico 15x11. El tamaño y las trampas aleatorias se toman del escenario.
 /// Si se envían obstáculos, se arma una arena en blanco con el tamaño de la configuración
 /// (no se puede pedir escenario y obstáculos a la vez).
 /// </summary>
@@ -40,10 +40,9 @@ public sealed class ConfigurarPartida(IUsuarioRepo usuarios, IPartidaRepo partid
     {
         var escenario = Escenarios.Obtener(config.EscenarioId);
 
-        // Se guarda el id tal como está en el catálogo ("Laboratorio" -> "laboratorio"); sin elección queda null.
-        var elegido = string.IsNullOrWhiteSpace(config.EscenarioId) ? null : escenario.Id;
-
-        return Partida.Crear(config with { EscenarioId = elegido }, Arena.DesdeFilas(escenario.Filas));
+        // El escenario pone su id tal como está en el catálogo ("Laboratorio" -> "laboratorio"; el clásico queda null)
+        // y cuántas trampas se reparten al azar (viene en su JSON).
+        return Partida.Crear(escenario.Aplicar(config), escenario.CrearArena());
     }
 
     private static Partida CrearConObstaculos(ConfigPartida config, IReadOnlyList<Obstaculo> obstaculos)

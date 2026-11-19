@@ -40,8 +40,13 @@ Nombres de campo en inglés y `camelCase`. Los ids son texto (GUID). Posiciones:
 |---|---|---|
 | `match:join` | `{ "matchId": "..." }` | cualquier jugador |
 | `match:start` | `{}` | solo el anfitrión, con 2 o más jugadores |
+| `match:watch` | `{ "matchId": "..." }` | el móvil (US-30): mira sin unirse; recibe `match:state` y los mensajes de la sala, no los rechazos privados |
 
 Unity **nunca** envía movimientos: los botones llegan desde la Pico por MQTT. El servidor decide.
+
+`match:watch` (US-30, Palma) es **aditivo**: Unity no lo usa y no cambia nada de lo anterior. La conexión del móvil
+entra como espectador, aparte de los jugadores, así que **no reemplaza** la conexión de Unity del mismo usuario.
+El móvil obtiene el id de su partida con `GET /api/partidas/activa` (204 si no está en ninguna).
 
 ## Servidor → cliente
 
@@ -120,7 +125,9 @@ Reglas completas en `Docs/arena-viva.md`. Todo lo nuevo es **aditivo**: los camp
 ### Al crear la partida (REST)
 
 - `GET /api/escenarios` → `[{ id, nombre, descripcion, ancho, alto, filas, puertas: [{x,y}], inicioGuardianes: [{x,y}],
-  maxJugadores, minGuardianes: 2, maxGuardianes: 4, guardianesPorDefecto: 4 }]`. Ids: `laboratorio`, `estacion`, `militar`.
+  maxJugadores, minGuardianes: 2, maxGuardianes: 4, guardianesPorDefecto: 4, trampasAleatorias, puntosEnergia: [{x,y}] }]`.
+  Ids: `laboratorio`, `estacion`, `militar` (los tres de 30×20). Las posiciones de las trampas se conocen recién al
+  iniciar, en `live.traps`.
 - `POST /api/partidas` acepta además `escenarioId` (null = mapa clásico) y `cantidadGuardianes` (2 a 4, null = 4).
   Fuera de rango o id desconocido → 400. La respuesta trae `escenarioId` y `cantidadGuardianes`.
 

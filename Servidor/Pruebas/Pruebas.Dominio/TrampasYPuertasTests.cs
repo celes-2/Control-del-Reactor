@@ -236,7 +236,7 @@ public class TrampasYPuertasTests
 
     [Theory]
     [InlineData(2)]
-    [InlineData(10)]
+    [InlineData(61)]
     [Trait("CA", "20.9")]
     public void Config_TrampasAleatoriasFueraDeRango_Falla(int trampas)
     {

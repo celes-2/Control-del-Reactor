@@ -91,7 +91,9 @@ internal static class PartidaMapeo
         e.MaxJugadores,
         e.MinGuardianes,
         e.MaxGuardianes,
-        e.GuardianesPorDefecto);
+        e.GuardianesPorDefecto,
+        e.TrampasAleatorias,
+        e.PuntosEnergia.Select(p => new PosicionRespuesta(p.X, p.Y)).ToList());
 
     public static PartidaResumenRespuesta ARespuesta(this PartidaResumen r) =>
         new(r.Id, r.Jugadores, r.MaxJugadores, r.Anfitrion);

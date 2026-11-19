@@ -12,6 +12,7 @@ namespace API.TiempoReal;
 /// <summary>
 /// Atiende la conexion WebSocket de un Unity: ws://IP:8080/ws/partida?userId=ID
 /// Recibe match:join y match:start, y responde con match:state o error.
+/// US-30: el móvil manda match:watch para mirar una partida como espectador, sin unirse.
 /// Los movimientos NO llegan por aqui: llegan de la Pico por MQTT.
 /// </summary>
 public sealed class ManejadorWebSocket(
@@ -32,7 +33,8 @@ public sealed class ManejadorWebSocket(
         }
 
         var identidad = contexto.RequestServices.GetRequiredService<API.Seguridad.ResolutorIdentidad>();
-        if (identidad.Resolver(contexto) is not { } usuarioId)        {
+        if (identidad.Resolver(contexto) is not { } usuarioId)
+        {
             contexto.Response.StatusCode = StatusCodes.Status401Unauthorized;
             await contexto.Response.WriteAsync("No autorizado o credenciales inválidas.");
             return;
@@ -42,6 +44,7 @@ public sealed class ManejadorWebSocket(
         var conexion = new ConexionJugador(usuarioId, socket);
         var ct = contexto.RequestAborted;
         Guid? partidaActual = null;
+        Guid? partidaMirada = null;   // US-30: partida que mira el móvil (solo ver)
 
         log.LogInformation("WebSocket abierto: jugador {UsuarioId}", usuarioId);
         try
@@ -61,8 +64,11 @@ public sealed class ManejadorWebSocket(
 
                 try
                 {
-                    partidaActual = await ProcesarAsync(
-                        contexto.RequestServices, conexion, mensaje.Value.Tipo, mensaje.Value.Data, partidaActual, ct);
+                    if (mensaje.Value.Tipo == TiposMensaje.MatchWatch)
+                        partidaMirada = await MirarAsync(conexion, mensaje.Value.Data, partidaMirada, ct);
+                    else
+                        partidaActual = await ProcesarAsync(
+                            contexto.RequestServices, conexion, mensaje.Value.Tipo, mensaje.Value.Data, partidaActual, ct);
                 }
                 catch (Exception ex) when (ex is DominioException or NoEncontradoException)
                 {
@@ -79,6 +85,8 @@ public sealed class ManejadorWebSocket(
         {
             if (partidaActual is { } id)
                 salas.Quitar(id, conexion);
+            if (partidaMirada is { } mirada)
+                salas.QuitarEspectador(mirada, conexion);
             await CerrarAsync(socket);
             log.LogInformation("WebSocket cerrado: jugador {UsuarioId}", usuarioId);
         }
@@ -132,6 +140,27 @@ public sealed class ManejadorWebSocket(
         salas.Agregar(partidaId, conexion);
 
         await publicador.EnviarEstadoAsync(partidaId, ct);
+    }
+
+    /// <summary>
+    /// US-30: el móvil mira una partida sin unirse. Entra como espectador (no reemplaza la conexión
+    /// de Unity del mismo jugador) y recibe la foto actual solo él, para no molestar a los Unity.
+    /// </summary>
+    private async Task<Guid?> MirarAsync(
+        ConexionJugador conexion, JsonElement data, Guid? anterior, CancellationToken ct)
+    {
+        var partidaId = LeerMatchId(data)
+            ?? throw new DominioException("match:watch necesita data.matchId con el id de la partida.");
+
+        // Lanza NoEncontradoException si la partida no existe.
+        var estado = await publicador.ObtenerEstadoAsync(partidaId, ct);
+
+        if (anterior is { } otra && otra != partidaId)
+            salas.QuitarEspectador(otra, conexion);
+        salas.AgregarEspectador(partidaId, conexion);
+
+        await conexion.EnviarAsync(TiposMensaje.MatchState, estado, ct);
+        return partidaId;
     }
 
     private static Guid? LeerMatchId(JsonElement data) =>

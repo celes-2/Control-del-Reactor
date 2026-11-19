@@ -17,6 +17,7 @@ services:
       Smtp__Password: ${SMTP_PASSWORD}
       Smtp__From: ${SMTP_FROM}
       PublicBaseUrl: ${PUBLIC_BASE_URL}
+      GitHub__ClientId: ${GITHUB_CLIENT_ID}
     ports:
       - "8080:8080"       # REST y WebSocket (Unity se conecta aquí)
     volumes:

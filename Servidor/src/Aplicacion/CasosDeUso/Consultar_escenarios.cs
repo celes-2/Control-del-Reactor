@@ -8,7 +8,8 @@ public sealed record PosicionVista(int X, int Y);
 /// Un escenario del catálogo, para que el cliente lo muestre antes de crear la partida (US-23).
 /// Filas va en el formato que Unity ya entiende (W . S R T): las puertas salen como su estado inicial
 /// (W cerrada, . abierta) y los inicios de guardián como piso. Las puertas y los inicios de guardián
-/// también se listan aparte, por si el cliente quiere dibujarlos.
+/// también se listan aparte, por si el cliente quiere dibujarlos. TrampasAleatorias es cuántas se reparten al
+/// iniciar (sus posiciones se conocen recién en match:state); PuntosEnergia, dónde puede aparecer la energía.
 /// </summary>
 public sealed record EscenarioVista(
     string Id,
@@ -22,7 +23,9 @@ public sealed record EscenarioVista(
     int MaxJugadores,
     int MinGuardianes,
     int MaxGuardianes,
-    int GuardianesPorDefecto);
+    int GuardianesPorDefecto,
+    int TrampasAleatorias,
+    IReadOnlyList<PosicionVista> PuntosEnergia);
 
 /// <summary>Consulta: los escenarios que se pueden elegir al crear una partida.</summary>
 public sealed class ListarEscenarios
@@ -32,7 +35,7 @@ public sealed class ListarEscenarios
 
     private static EscenarioVista Desde(EscenarioDef definicion)
     {
-        var arena = Arena.DesdeFilas(definicion.Filas);
+        var arena = definicion.CrearArena();
 
         return new EscenarioVista(
             definicion.Id,
@@ -49,6 +52,8 @@ public sealed class ListarEscenarios
             arena.CantidadPuntosDeAparicion,
             ConfigPartida.MinimoGuardianes,
             ConfigPartida.MaximoGuardianes,
-            new ConfigPartida().CantidadGuardianes);
+            new ConfigPartida().CantidadGuardianes,
+            definicion.TrampasAleatorias,
+            arena.PuntosEnergia.Select(p => new PosicionVista(p.X, p.Y)).ToList());
     }
 }

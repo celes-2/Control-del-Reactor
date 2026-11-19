@@ -59,11 +59,16 @@ public sealed record PartidaRespuesta(
 
 public sealed record PartidaResumenRespuesta(Guid Id, int Jugadores, int MaxJugadores, string Anfitrion);
 
+
+/// <summary>US-30: "GET /api/partidas/activa". Si el jugador no está en ninguna partida, el servidor responde 204 sin cuerpo.</summary>
+public sealed record PartidaActivaRespuesta(Guid Id);
+
 public sealed record PosicionRespuesta(int X, int Y);
 
 /// <summary>
 /// GET /api/escenarios. Filas usa solo W . S R T (las puertas salen con su estado inicial).
-/// Puertas e InicioGuardianes van aparte para dibujarlas en la vista previa.
+/// Puertas, InicioGuardianes y PuntosEnergia van aparte para dibujarlos en la vista previa.
+/// TrampasAleatorias: cuántas trampas se reparten al iniciar (las posiciones llegan en match:state).
 /// </summary>
 public sealed record EscenarioRespuesta(
     string Id,
@@ -77,4 +82,6 @@ public sealed record EscenarioRespuesta(
     int MaxJugadores,
     int MinGuardianes,
     int MaxGuardianes,
-    int GuardianesPorDefecto);
+    int GuardianesPorDefecto,
+    int TrampasAleatorias,
+    IReadOnlyList<PosicionRespuesta> PuntosEnergia);

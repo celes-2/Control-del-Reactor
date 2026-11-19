@@ -10,13 +10,15 @@ namespace Dominio.Juego;
 /// así que con una semilla fija se puede probar paso a paso.
 ///
 /// Reglas (documentadas en Docs/arena-viva.md):
-///  - Al empezar se colocan al azar las trampas aleatorias: una de cada variante como mínimo.
+///  - Al empezar se colocan al azar las trampas aleatorias (cuántas, lo dice el escenario), repartidas entre las
+///    3 variantes, separadas entre sí, lejos del reactor, de los inicios y de los puntos de energía.
 ///  - Los guardianes empiezan en los extremos (celdas G del escenario, o los puntos medios de los bordes).
 ///  - Un guardián da un paso cada SegundosPorPasoGuardian hacia el jugador no congelado más cercano.
 ///    Si queda a una celda de un jugador, lo congela; si ya estaba congelado, le suma tiempo (CA-21.10).
 ///    Después se queda quieto SegundosPausaGuardian. Alcanzar a un jugador nunca cambia su puntaje (CA-21.9).
-///  - Las puertas cambian de estado cada SegundosCicloPuertas y nunca se cierran sobre alguien.
-///  - Eventos programados al azar durante toda la partida: energía extra x3, sobrecarga x2, invasión de
+///  - Las puertas cambian de estado cada SegundosCicloPuertas, cada una con un desfase distinto, y nunca se
+///    cierran sobre alguien.
+///  - Eventos programados al azar durante toda la partida: energía extra (6), sobrecarga (2), invasión de
 ///    guardianes, puntos dobles y rutas alternativas (o lluvia de energía si no hay puertas).
 ///    Un evento no se activa dos veces a la vez: si ya está activo, se pospone.
 /// </summary>
@@ -62,34 +64,60 @@ internal sealed class ArenaViva
         ColocarTrampas();
         CrearGuardianesIniciales();
 
+        // Mitad abiertas y mitad cerradas, y cada una cambia en un segundo distinto (no todas a la vez).
+        var ciclo = _reglas.SegundosCicloPuertas;
         var indice = 0;
-        foreach (var puerta in _partida.Arena.Puertas)
-            puerta.Reiniciar(abierta: indice++ % 2 == 1, _reglas.SegundosCicloPuertas);
+        foreach (var puerta in _partida.Arena.Puertas.OrderBy(p => p.Posicion.Y).ThenBy(p => p.Posicion.X))
+        {
+            puerta.Reiniciar(abierta: indice % 2 == 1, segundosParaCambio: ciclo - indice % ciclo);
+            indice++;
+        }
 
         ProgramarLote(desde: 0);
     }
 
+    /// <summary>
+    /// Coloca las trampas aleatorias (CA-20.9). Primero busca en las celdas marcadas con t (si el escenario
+    /// las tiene) y después en el resto del piso libre, siempre al azar. Ninguna queda pegada al reactor, a un
+    /// inicio de jugador o de guardián, ni sobre un punto de energía. Entre trampas se respeta la distancia mínima;
+    /// si el escenario no alcanza, se acercan lo necesario. Las variantes se reparten parejo.
+    /// </summary>
     private void ColocarTrampas()
     {
         var arena = _partida.Arena;
-        var variantes = Enum.GetValues<TipoTrampa>();
+        var cantidad = _reglas.TrampasAleatorias;
 
-        // Primero las celdas lejos de los puntos de inicio y del reactor; si no alcanzan, cualquier celda libre.
-        var candidatas = CeldasLibres(arena)
-            .Where(c => c.DistanciaManhattan(arena.PosicionReactor) >= 2 && LejosDeInicios(arena, c, 3) &&
-                        arena.InicioGuardianes.All(g => g.DistanciaManhattan(c) >= 2))
-            .ToList();
+        bool Permitida(Posicion c) =>
+            arena.EsCeldaLibre(c) && !arena.PuntosEnergia.Contains(c) &&
+            c.DistanciaManhattan(arena.PosicionReactor) >= 2 && LejosDeInicios(arena, c, 3) &&
+            arena.InicioGuardianes.All(g => g.DistanciaManhattan(c) >= 2);
 
-        if (candidatas.Count < _reglas.TrampasAleatorias)
-            candidatas = CeldasLibres(arena).Where(c => c.DistanciaManhattan(arena.PosicionReactor) >= 2).ToList();
+        var preferidas = arena.CeldasParaTrampas.Where(Permitida).ToList();
+        var resto = CeldasLibres(arena).Where(c => Permitida(c) && !preferidas.Contains(c)).ToList();
+        Mezclar(preferidas);
+        Mezclar(resto);
+        var candidatas = preferidas.Concat(resto).ToList();
 
-        if (candidatas.Count < _reglas.TrampasAleatorias)
+        var elegidas = new List<Posicion>();
+        for (var distancia = _reglas.DistanciaMinimaEntreTrampas; distancia >= 1 && elegidas.Count < cantidad; distancia--)
+        {
+            foreach (var celda in candidatas)
+            {
+                if (elegidas.Count == cantidad)
+                    break;
+                if (!elegidas.Contains(celda) && elegidas.All(e => e.DistanciaManhattan(celda) >= distancia))
+                    elegidas.Add(celda);
+            }
+        }
+
+        if (elegidas.Count < cantidad)
             throw new DominioException("La arena no tiene espacio para colocar las trampas.");
 
-        Mezclar(candidatas);
-
-        for (var i = 0; i < _reglas.TrampasAleatorias; i++)
-            arena.AgregarTrampa(candidatas[i], variantes[i % variantes.Length]);
+        // Variantes repartidas parejo y en orden al azar: con 3 trampas sale una de cada una.
+        var variantes = Enum.GetValues<TipoTrampa>().ToList();
+        Mezclar(variantes);
+        for (var i = 0; i < elegidas.Count; i++)
+            arena.AgregarTrampa(elegidas[i], variantes[i % variantes.Count]);
     }
 
     private static bool LejosDeInicios(Arena arena, Posicion celda, int distancia)
@@ -169,14 +197,12 @@ internal sealed class ArenaViva
     /// </summary>
     private void ProgramarLote(int desde)
     {
-        var tipos = new List<TipoEvento>
-        {
-            TipoEvento.EnergiaExtra, TipoEvento.EnergiaExtra, TipoEvento.EnergiaExtra,
-            TipoEvento.SobrecargaReactor, TipoEvento.SobrecargaReactor,
-            TipoEvento.InvasionGuardianes,
-            TipoEvento.PuntosDobles,
-            _partida.Arena.Puertas.Count > 0 ? TipoEvento.RutasAlternativas : TipoEvento.LluviaEnergia
-        };
+        var tipos = new List<TipoEvento>();
+        tipos.AddRange(Enumerable.Repeat(TipoEvento.EnergiaExtra, _reglas.VecesEnergiaExtra));
+        tipos.AddRange(Enumerable.Repeat(TipoEvento.SobrecargaReactor, _reglas.VecesSobrecarga));
+        tipos.Add(TipoEvento.InvasionGuardianes);
+        tipos.Add(TipoEvento.PuntosDobles);
+        tipos.Add(_partida.Arena.Puertas.Count > 0 ? TipoEvento.RutasAlternativas : TipoEvento.LluviaEnergia);
         Mezclar(tipos);
 
         var horizonte = Math.Max(_partida.Config.DuracionSegundos, tipos.Count + 1);
@@ -359,13 +385,19 @@ internal sealed class ArenaViva
         _terminada = true;
     }
 
+    /// <summary>
+    /// Una celda al azar para la energía: entre los puntos E del escenario si tiene; si no hay (o están todos
+    /// ocupados), en cualquier piso libre. Nunca donde ya hay alguien u otra energía.
+    /// </summary>
     private Posicion? ElegirCeldaParaItem(IReadOnlyCollection<Posicion>? yaElegidas = null)
     {
         var arena = _partida.Arena;
-        var candidatas = CeldasLibres(arena)
-            .Where(c => !HayAlguienEn(c) && _items.All(i => i.Posicion != c) &&
-                        (yaElegidas is null || !yaElegidas.Contains(c)))
-            .ToList();
+        bool Sirve(Posicion c) =>
+            !HayAlguienEn(c) && _items.All(i => i.Posicion != c) && (yaElegidas is null || !yaElegidas.Contains(c));
+
+        var candidatas = arena.PuntosEnergia.Where(Sirve).ToList();
+        if (candidatas.Count == 0)
+            candidatas = CeldasLibres(arena).Where(Sirve).ToList();
 
         return candidatas.Count == 0 ? null : candidatas[_azar.Next(candidatas.Count)];
     }
