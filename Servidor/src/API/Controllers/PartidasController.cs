@@ -19,6 +19,7 @@ public sealed class PartidasController(
     IniciarPartida iniciarPartida,
     ObtenerPartida obtenerPartida,
     ListarPartidasEnEspera listarPartidas,
+    BuscarPartidaActiva buscarPartidaActiva,
     ResolutorIdentidad identidad) : ControllerBase
 {
     [HttpPost]
@@ -39,6 +40,15 @@ public sealed class PartidasController(
     {
         var resumenes = await listarPartidas.EjecutarAsync(ct);
         return Ok(resumenes.Select(r => r.ARespuesta()).ToList());
+    }
+
+
+    /// <summary>US-30: id de la partida en la que está quien consulta. 204 si no está en ninguna.</summary>
+    [HttpGet("activa")]
+    public async Task<ActionResult<PartidaActivaRespuesta>> Activa(CancellationToken ct)
+    {
+        var id = await buscarPartidaActiva.EjecutarAsync(UsuarioDe(Guid.Empty), ct);
+        return id is { } partidaId ? Ok(new PartidaActivaRespuesta(partidaId)) : NoContent();
     }
 
     [HttpGet("{id:guid}")]
