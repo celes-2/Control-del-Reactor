@@ -18,7 +18,8 @@ namespace Dominio.Juego;
 ///    Después se queda quieto SegundosPausaGuardian. Alcanzar a un jugador nunca cambia su puntaje (CA-21.9).
 ///  - Las puertas cambian de estado cada SegundosCicloPuertas, cada una con un desfase distinto, y nunca se
 ///    cierran sobre alguien.
-///  - Eventos programados al azar durante toda la partida: energía extra (6), sobrecarga (2), invasión de
+///  - Eventos programados al azar durante toda la partida: energía extra (6), sobrecarga (2: la primera entre
+///    los segundos 20 y 45 de una partida de 3 minutos, la otra en la segunda mitad), invasión de
 ///    guardianes, puntos dobles y rutas alternativas (o lluvia de energía si no hay puertas).
 ///    Un evento no se activa dos veces a la vez: si ya está activo, se pospone.
 ///  - Arma paralizadora (pedido del profesor en clase): ACCIÓN lejos del reactor dispara. Paraliza
@@ -201,28 +202,67 @@ internal sealed class ArenaViva
     /// Programa un lote de eventos repartidos en la duración de la partida, con algo de azar en el momento.
     /// Cuando se acaba el lote se programa otro, así una partida por puntos (sin tiempo límite) o con prórroga
     /// sigue teniendo eventos.
+    /// La sobrecarga del reactor tiene su propia ventana para que se vea en todas las partidas: la primera cae al
+    /// azar entre el 11 % y el 25 % de la duración (segundos 20 a 45 en una partida de 3 minutos) y las demás en la
+    /// segunda mitad (segundos 90 a 153). Nunca a menos de 2 s de otro evento.
     /// </summary>
     private void ProgramarLote(int desde)
     {
         var tipos = new List<TipoEvento>();
         tipos.AddRange(Enumerable.Repeat(TipoEvento.EnergiaExtra, _reglas.VecesEnergiaExtra));
-        tipos.AddRange(Enumerable.Repeat(TipoEvento.SobrecargaReactor, _reglas.VecesSobrecarga));
         tipos.Add(TipoEvento.InvasionGuardianes);
         tipos.Add(TipoEvento.PuntosDobles);
         tipos.Add(_partida.Arena.Puertas.Count > 0 ? TipoEvento.RutasAlternativas : TipoEvento.LluviaEnergia);
         Mezclar(tipos);
 
-        var horizonte = Math.Max(_partida.Config.DuracionSegundos, tipos.Count + 1);
+        var horizonte = Math.Max(_partida.Config.DuracionSegundos, tipos.Count + _reglas.VecesSobrecarga + 1);
         var hueco = Math.Max(2, horizonte / (tipos.Count + 1));
         var ultimo = desde;
+        var lote = new List<(int Segundo, TipoEvento Tipo)>();
 
         for (var i = 0; i < tipos.Count; i++)
         {
             var variacion = _azar.Next(-(hueco / 4), hueco / 4 + 1);
             var segundo = Math.Max(ultimo + 2, desde + hueco * (i + 1) + variacion);
-            _calendario.Add((segundo, tipos[i]));
+            lote.Add((segundo, tipos[i]));
             ultimo = segundo;
         }
+
+        // Sobrecargas: la primera temprano y el resto repartidas en la segunda mitad (CA-22.3: al menos 2, al azar).
+        var ventanas = new List<(int Desde, int Hasta)>
+        {
+            (desde + Math.Max(2, (int)Math.Round(horizonte * 0.11)), desde + Math.Max(3, (int)Math.Round(horizonte * 0.25)))
+        };
+        var resto = _reglas.VecesSobrecarga - 1;
+        var inicioMitad = horizonte / 2;
+        var largoMitad = Math.Max(resto, (int)Math.Round(horizonte * 0.85) - inicioMitad);
+        for (var k = 0; k < resto; k++)
+        {
+            var a = inicioMitad + largoMitad * k / resto;
+            var b = inicioMitad + largoMitad * (k + 1) / resto - 1;
+            ventanas.Add((desde + a, desde + Math.Max(a, b)));
+        }
+
+        foreach (var (inicio, fin) in ventanas)
+            lote.Add((ElegirSegundoLibre(lote, inicio, fin), TipoEvento.SobrecargaReactor));
+
+        _calendario.AddRange(lote.OrderBy(e => e.Segundo));
+    }
+
+    /// <summary>Un segundo al azar en [inicio, fin] que quede a 2 s o más de los eventos ya elegidos.</summary>
+    private int ElegirSegundoLibre(List<(int Segundo, TipoEvento Tipo)> elegidos, int inicio, int fin)
+    {
+        var libres = Enumerable.Range(inicio, fin - inicio + 1)
+            .Where(s => elegidos.All(e => Math.Abs(e.Segundo - s) >= 2))
+            .ToList();
+        if (libres.Count > 0)
+            return libres[_azar.Next(libres.Count)];
+
+        // Ventana llena (partidas muy cortas): el primer segundo libre después de la ventana.
+        var segundo = fin + 1;
+        while (elegidos.Any(e => Math.Abs(e.Segundo - segundo) < 2))
+            segundo++;
+        return segundo;
     }
 
     // ------------------------------------------------------------------ paso del tiempo

@@ -462,6 +462,31 @@ public class EventosEspecialesTests
         Assert.Equal(inicios.Count, inicios.Distinct().Count());
     }
 
+    [Theory]
+    [InlineData("laboratorio")]
+    [InlineData("estacion")]
+    [InlineData("militar")]
+    [Trait("CA", "22.3")]
+    public void Sobrecarga_LaPrimeraCaeEntreLos20YLos45SegundosYLaOtraEnLaSegundaMitad(string escenario)
+    {
+        for (var semilla = 0; semilla < 50; semilla++)
+        {
+            var (partida, _) = AyudaArenaViva.CrearEscenario(escenario, semilla: semilla);
+            var calendario = partida.EventosProgramados;
+            var sobrecargas = calendario
+                .Where(e => e.Tipo == TipoEvento.SobrecargaReactor).Select(e => e.Segundo).OrderBy(s => s).ToList();
+
+            Assert.Equal(2, sobrecargas.Count);
+            Assert.InRange(sobrecargas[0], 20, 45);
+            Assert.InRange(sobrecargas[1], 90, 153);
+
+            // Ningún otro evento a menos de 2 s, y el calendario sigue en orden.
+            Assert.All(calendario.Where(e => e.Tipo != TipoEvento.SobrecargaReactor),
+                e => Assert.All(sobrecargas, s => Assert.True(Math.Abs(e.Segundo - s) >= 2)));
+            Assert.Equal(calendario.OrderBy(e => e.Segundo).Select(e => e.Segundo), calendario.Select(e => e.Segundo));
+        }
+    }
+
     [Fact]
     [Trait("CA", "22.3")]
     public void Sobrecarga_ElMomentoCambiaSegunElAzar()
