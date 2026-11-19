@@ -64,6 +64,9 @@ public sealed class Partida
     /// <summary>Por cuánto se multiplican los puntos que se ganan ahora.</summary>
     public int MultiplicadorPuntos => _viva?.Multiplicador ?? 1;
 
+    /// <summary>Arma paralizadora: segundos que le faltan al jugador para volver a disparar (0 = lista).</summary>
+    public int SegundosRecargaArma(Guid jugadorId) => _viva?.SegundosRecargaArma(jugadorId, SegundosTranscurridos) ?? 0;
+
     /// <summary>Eventos programados que todavía no ocurren (para pruebas y diagnóstico).</summary>
     public IReadOnlyList<(int Segundo, TipoEvento Tipo)> EventosProgramados => _viva?.Calendario ?? [];
 
@@ -293,8 +296,10 @@ public sealed class Partida
 
     private ResultadoAccion Extraer(Jugador jugador)
     {
+        // Arma paralizadora (Paquete B): con arena viva, ACCIÓN lejos del reactor dispara en vez de rechazarse.
+        // Sin arena viva todo sigue como antes (LejosDelReactor).
         if (!Reactor.EstaAdyacente(jugador.Posicion))
-            return ResultadoAccion.LejosDelReactor;
+            return _viva?.Disparar(jugador, SegundosTranscurridos) ?? ResultadoAccion.LejosDelReactor;
 
         if (Reactor.Desactivado)
             return ResultadoAccion.ReactorDesactivado;

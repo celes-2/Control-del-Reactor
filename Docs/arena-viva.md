@@ -67,6 +67,23 @@ Este documento cumple CA-22.10: activación, duración y efecto de cada evento, 
   puede moverse ni extraer (el servidor responde `Congelado` / `JUGADOR_CONGELADO`) y se recupera solo al llegar a 0
   (CA-21.5, CA-21.6). Todos reciben `player:frozen` y el campo `frozen` de `arena:update` (CA-21.7).
 
+### Arma paralizadora (defensa contra los guardianes)
+
+Pedido del profesor en clase (verbal, Sprint 3); no tiene un criterio escrito en el enunciado. Reglas definidas por
+Faby el 18 nov 2026:
+
+| Regla | Valor |
+|---|---|
+| Cómo se dispara | Botón **ACCIÓN** (el mismo del control físico) **lejos del reactor**. Junto al reactor, ACCIÓN sigue extrayendo. |
+| A quién afecta | Solo a **guardianes** (normales y de la invasión) a **2 pasos o menos** del jugador, en cualquier dirección (es una onda: no la tapan los muros). Nunca a jugadores. |
+| Efecto | El guardián queda **paralizado 5 s**: no se mueve ni congela a nadie, aunque un jugador quede pegado a él. Un segundo disparo no suma: deja la parálisis otra vez en 5 s. |
+| Recarga | Después de disparar, ese jugador espera **15 s**. El disparo se gasta aunque no haya ningún guardián cerca. Mientras recarga, ACCIÓN lejos del reactor responde `ARMA_RECARGANDO`. Cada jugador tiene su propia recarga. |
+| Puntos | No suma ni resta puntos. |
+| Restricciones | Un jugador congelado no puede disparar. Sin arena viva (partidas sin `IniciarPartida` con azar), ACCIÓN lejos del reactor se rechaza como antes (`LEJOS_DEL_REACTOR`). |
+
+Se avisa a todos con `weapon:fired` (quién disparó, qué guardianes quedaron paralizados, la parálisis y la recarga).
+Cada guardián lleva `stunnedSeconds` en `live.guardians` y cada jugador `weaponCooldown` en `match:state`.
+
 ## 5. Eventos especiales (US-22)
 
 **Activación.** Al iniciar se arma un calendario con un lote de 11 eventos en orden aleatorio, repartidos a lo largo de la
@@ -153,6 +170,7 @@ Todos están en `ReglasArenaViva` (dentro de `ConfigPartida.ArenaViva`) y se val
 | `SegundosPuntosDobles` / `MultiplicadorPuntosDobles` | 15 / 2 |
 | `SegundosRutasAlternativas` | 15 |
 | `CeldasLluviaEnergia` / `PuntosCeldaLluvia` / `SegundosLluviaEnergia` | 3 / 10 / 12 |
+| `AlcanceArma` / `SegundosParalisisArma` / `SegundosRecargaArma` | 2 / 5 / 15 |
 
 ## 8. Mensajes al cliente
 
@@ -162,7 +180,7 @@ Detalle en `contratos-websocket.md`. Resumen: `match:state` trae `scenarioId`, `
 
 ## 9. Trazabilidad (criterio → pruebas)
 
-Las pruebas están marcadas con `[Trait("CA", "…")]`; se pueden filtrar con
+Las pruebas están marcadas con `[Trait("CA", "…")]` (las del arma, con `[Trait("Requisito", "Arma paralizadora")]`); se pueden filtrar con
 `dotnet test --filter "CA=22.3"`. CA-20.2 y la parte visual de CA-22.5 los completa Unity (Celeste): el servidor
 envía el tipo de cada obstáculo, guardián, ítem y evento para que se dibujen distintos.
 
@@ -181,7 +199,7 @@ envía el tipo de cada obstáculo, guardián, ítem y evento para que se dibujen
 | CA-21.2 | `GuardianesTests.Guardian_BloqueaElPasoDeLosJugadores`, `GuardianesTests.Guardian_DaUnPasoCadaDosSegundosHaciaElJugadorMasCercano`, `GuardianesTests.Guardian_NoAtraviesaMuros` |
 | CA-21.3 | `GuardianesTests.Guardian_AlAlcanzarAUnJugadorLoCongelaYSeQuedaQuieto` |
 | CA-21.4 | `ArenaVivaTiempoRealTests.EstadoPartida_ConArenaViva_IncluyeEscenarioLiveYCongelados`, `GuardianesTests.Congelado_NoPuedeActuarYLuegoRecuperaLasAcciones` |
-| CA-21.5 | `ArenaVivaCasosDeUsoTests.Ejecutar_EstandoCongelado_NoSeMueve`, `GuardianesTests.Congelado_NoPuedeActuarYLuegoRecuperaLasAcciones` |
+| CA-21.5 | `ArenaVivaCasosDeUsoTests.Ejecutar_EstandoCongelado_NoSeMueve`, `ArmaParalizadoraTests.Congelado_NoPuedeDisparar`, `GuardianesTests.Congelado_NoPuedeActuarYLuegoRecuperaLasAcciones` |
 | CA-21.6 | `GuardianesTests.Congelado_NoPuedeActuarYLuegoRecuperaLasAcciones`, `TrampasYPuertasTests.Trampa_ElJugadorQuedaInmovilizadoYLuegoRecuperaElMovimiento` |
 | CA-21.7 | `ArenaVivaCasosDeUsoTests.Ejecutar_CaerEnUnaTrampa_RestaCincoCongelaYDevuelveLaNovedad`, `ArenaVivaTiempoRealTests.AMensaje_Congelamiento_EsPlayerFrozenConOrigenYTrampa`, `ArenaVivaTiempoRealTests.Publicador_CaerEnTrampa_MandaPlayerFrozenATodos`, `ArenaVivaTiempoRealTests.Reloj_CuandoUnGuardianAlcanzaAUnJugador_LoTraeEnLasNovedades`, `GuardianesTests.Guardian_AlAlcanzarARegistraUnaNovedadParaTodos`, `TrampasYPuertasTests.Trampa_RegistraUnaNovedadDeCongelamientoConLaVariante` |
 | CA-21.8 | `GuardianesTests.Jugador_NoPuedeCongelarseNiDescongelarseDesdeFueraDelDominio` |
@@ -206,3 +224,4 @@ envía el tipo de cada obstáculo, guardián, ítem y evento para que se dibujen
 | CA-23.6 | `EscenariosCatalogoTests.Escenario_ElReactorSeAlcanzaSinDependerDeLasPuertas`, `EscenariosCatalogoTests.Escenario_ElReactorTieneSusCuatroVecinasLibresYTodoSeAlcanzaDesdeLosInicios` |
 | CA-23.7 | `ArenaVivaCasosDeUsoTests.Iniciar_DosVeces_FallaYElEscenarioNoCambia`, `EscenariosCatalogoTests.Partida_ElEscenarioNoCambiaDuranteLaPartida` |
 | CA-23.8 | `ArenaVivaCasosDeUsoTests.Configurar_ConEscenarioYObstaculosALaVez_Falla`, `ArenaVivaCasosDeUsoTests.Configurar_SinEscenario_UsaElMapaClasicoComoAntes`, `EscenariosCatalogoTests.Obtener_SinIdDevuelveElMapaClasicoYUnoDesconocidoFalla`, `EscenariosJsonTests.Aplicar_PoneElIdYLasTrampasDelEscenarioSinTocarElResto` |
+| Arma paralizadora (sin CA) | `ArenaVivaTiempoRealTests.AMensaje_ArmaDisparada_EsWeaponFiredConLosGuardianesParalizados`, `ArenaVivaTiempoRealTests.EstadoPartida_MuestraRecargaDelJugadorYGuardianesParalizados`, `ArenaVivaTiempoRealTests.Publicador_ArmaRecargando_RechazaSoloAlJugador`, `ArenaVivaTiempoRealTests.Publicador_Disparo_MandaWeaponFiredATodosSinMoverAlJugador`, `ArenaVivaTiempoRealTests.Rechazo_ArmaRecargando_TieneSuCodigo`, `ArmaParalizadoraTests.Accion_LejosDelReactor_DisparaYParalizaAlGuardianCercano`, `ArmaParalizadoraTests.Congelado_NoPuedeDisparar`, `ArmaParalizadoraTests.DisparoVacio_SeGastaIgualYEntraEnRecarga`, `ArmaParalizadoraTests.Disparo_NoAfectaJugadoresNiPuntajes`, `ArmaParalizadoraTests.DosDisparos_LaParalisisNoSeAcumula`, `ArmaParalizadoraTests.GuardianParalizado_NoSeMueveNiCongelaYDespuesVuelveAPerseguir`, `ArmaParalizadoraTests.JugadorJuntoAUnGuardianParalizado_NoQuedaCongelado`, `ArmaParalizadoraTests.JuntoAlReactor_AccionSigueExtrayendo`, `ArmaParalizadoraTests.Recarga_EsDeCadaJugador`, `ArmaParalizadoraTests.Recargando_NoDisparaHastaQuePasenQuinceSegundos`, `ArmaParalizadoraTests.Reglas_ValoresPorDefectoYValidacion`, `ArmaParalizadoraTests.SinArenaViva_LejosDelReactorSigueRechazandoComoAntes` |

@@ -20,6 +20,14 @@ public sealed class Guardian
     /// <summary>Segundos que sigue quieto después de alcanzar a un jugador.</summary>
     public int SegundosPausa { get; internal set; }
 
+    /// <summary>
+    /// Segundos que sigue paralizado por el arma de un jugador. Paralizado no se mueve ni congela a nadie.
+    /// </summary>
+    public int SegundosParalizado { get; internal set; }
+
+    /// <summary>Activo = puede moverse y alcanzar jugadores (ni en pausa ni paralizado).</summary>
+    public bool Activo => SegundosPausa == 0 && SegundosParalizado == 0;
+
     internal Guardian(int id, Posicion posicion, bool temporal, int segundosParaPaso)
     {
         Id = id;

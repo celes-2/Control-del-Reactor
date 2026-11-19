@@ -18,6 +18,7 @@ public static class Rechazos
         ResultadoAccion.ReactorDesactivado => new RechazoData(usuarioId, "REACTOR_DESACTIVADO", "El reactor está en sobrecarga."),
         ResultadoAccion.ReactorVacio => new RechazoData(usuarioId, "REACTOR_VACIO", "El reactor está vacío, espera la recarga."),
         ResultadoAccion.Enfriamiento => new RechazoData(usuarioId, "ENFRIAMIENTO", "Espera un momento."),
+        ResultadoAccion.ArmaRecargando => new RechazoData(usuarioId, "ARMA_RECARGANDO", "Tu arma paralizadora se está recargando."),
         _ => null
     };
 

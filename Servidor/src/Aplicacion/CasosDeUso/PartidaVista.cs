@@ -6,9 +6,10 @@ namespace Aplicacion.CasosDeUso;
 // Así la API y el tiempo real nunca reciben (ni modifican) las entidades del dominio.
 
 /// <param name="SegundosCongelado">Sprint 3 (US-21): segundos que le quedan congelado; 0 = estado normal.</param>
+/// <param name="SegundosRecargaArma">Arma paralizadora: segundos para volver a disparar; 0 = lista.</param>
 public sealed record JugadorVista(
     Guid Id, string Nombre, Guid AvatarId, int X, int Y, int Vida, int Energia, bool Eliminado, int Puntaje,
-    int SegundosCongelado = 0);
+    int SegundosCongelado = 0, int SegundosRecargaArma = 0);
 
 /// <param name="Variante">Solo en las trampas (US-20): qué tipo de trampa es. Null en muros y puertas.</param>
 public sealed record ObstaculoVista(int X, int Y, TipoObstaculo Tipo, TipoTrampa? Variante = null);
@@ -55,7 +56,7 @@ public sealed record PartidaVista(
         p.Jugadores
             .Select(j => new JugadorVista(
                 j.Id, j.Nombre, j.AvatarId, j.Posicion.X, j.Posicion.Y, j.Vida, j.Energia, j.Eliminado, j.Puntaje,
-                j.SegundosCongelado))
+                j.SegundosCongelado, p.SegundosRecargaArma(j.Id)))
             .ToList(),
         p.Arena.Obstaculos
             .Select(o => new ObstaculoVista(
@@ -78,7 +79,8 @@ public sealed record PartidaResumen(Guid Id, int Jugadores, int MaxJugadores, st
 
 // ---------------------------------------------------------------- arena viva (Paquete B)
 
-public sealed record GuardianVista(int Id, int X, int Y, bool Temporal, int SegundosPausa);
+/// <param name="SegundosParalizado">Arma paralizadora: segundos que sigue paralizado; 0 = normal.</param>
+public sealed record GuardianVista(int Id, int X, int Y, bool Temporal, int SegundosPausa, int SegundosParalizado = 0);
 
 public sealed record TrampaVista(int X, int Y, TipoTrampa Variante);
 
@@ -112,7 +114,7 @@ public sealed record ArenaVivaVista(
 
         return new ArenaVivaVista(
             p.Guardianes
-                .Select(g => new GuardianVista(g.Id, g.Posicion.X, g.Posicion.Y, g.Temporal, g.SegundosPausa))
+                .Select(g => new GuardianVista(g.Id, g.Posicion.X, g.Posicion.Y, g.Temporal, g.SegundosPausa, g.SegundosParalizado))
                 .ToList(),
             p.Arena.Obstaculos
                 .Where(o => o.Tipo == TipoObstaculo.Trampa)

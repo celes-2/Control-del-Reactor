@@ -21,6 +21,10 @@ namespace Dominio.Juego;
 ///  - Eventos programados al azar durante toda la partida: energía extra (6), sobrecarga (2), invasión de
 ///    guardianes, puntos dobles y rutas alternativas (o lluvia de energía si no hay puertas).
 ///    Un evento no se activa dos veces a la vez: si ya está activo, se pospone.
+///  - Arma paralizadora (pedido del profesor en clase): ACCIÓN lejos del reactor dispara. Paraliza
+///    SegundosParalisisArma a todos los guardianes a AlcanceArma pasos o menos; paralizado no se mueve ni congela.
+///    Después el jugador espera SegundosRecargaArma para volver a disparar (se gasta aunque no le pegue a nadie).
+///    Nunca afecta a otros jugadores ni cambia puntajes.
 /// </summary>
 internal sealed class ArenaViva
 {
@@ -34,6 +38,9 @@ internal sealed class ArenaViva
     private readonly List<ItemEnergia> _items = [];
     private readonly List<EventoActivo> _eventos = [];
     private readonly List<(int Segundo, TipoEvento Tipo)> _calendario = [];
+
+    /// <summary>Arma paralizadora: segundo de partida desde el que cada jugador puede volver a disparar.</summary>
+    private readonly Dictionary<Guid, int> _armaListaEn = [];
 
     private int _proximoGuardian = 1;
     private int _proximoItem = 1;
@@ -453,6 +460,40 @@ internal sealed class ArenaViva
         return item;
     }
 
+    // ------------------------------------------------------------------ arma paralizadora
+
+    /// <summary>
+    /// El jugador dispara el arma paralizadora en el segundo <paramref name="segundoActual"/> de la partida.
+    /// Si todavía se está recargando, no pasa nada (<see cref="ResultadoAccion.ArmaRecargando"/>). Si no, paraliza
+    /// a los guardianes a AlcanceArma pasos o menos (sin importar muros: es una onda alrededor del jugador) y el
+    /// arma entra en recarga, le haya pegado a alguien o no.
+    /// </summary>
+    public ResultadoAccion Disparar(Jugador jugador, int segundoActual)
+    {
+        if (SegundosRecargaArma(jugador.Id, segundoActual) > 0)
+            return ResultadoAccion.ArmaRecargando;
+
+        _armaListaEn[jugador.Id] = segundoActual + _reglas.SegundosRecargaArma;
+
+        var alcanzados = _guardianes
+            .Where(g => g.Posicion.DistanciaManhattan(jugador.Posicion) <= _reglas.AlcanceArma)
+            .OrderBy(g => g.Id)
+            .ToList();
+
+        // No se acumula: un segundo disparo deja la parálisis en 5 s, no en 10.
+        foreach (var guardian in alcanzados)
+            guardian.SegundosParalizado = Math.Max(guardian.SegundosParalizado, _reglas.SegundosParalisisArma);
+
+        _partida.Registrar(new ArmaDisparadaNovedad(
+            jugador.Id, alcanzados.Select(g => g.Id).ToList(), _reglas.SegundosParalisisArma, _reglas.SegundosRecargaArma));
+
+        return ResultadoAccion.ArmaDisparada;
+    }
+
+    /// <summary>Segundos que le faltan al jugador para poder volver a disparar (0 = listo).</summary>
+    public int SegundosRecargaArma(Guid jugadorId, int segundoActual) =>
+        _armaListaEn.TryGetValue(jugadorId, out var lista) ? Math.Max(0, lista - segundoActual) : 0;
+
     /// <summary>Un jugador acaba de moverse: si quedó junto a un guardián activo, este lo alcanza.</summary>
     public void RevisarContacto(Jugador jugador)
     {
@@ -460,7 +501,7 @@ internal sealed class ArenaViva
             return;
 
         var guardian = _guardianes.FirstOrDefault(g =>
-            g.SegundosPausa == 0 && g.Posicion.DistanciaManhattan(jugador.Posicion) == 1);
+            g.Activo && g.Posicion.DistanciaManhattan(jugador.Posicion) == 1);
 
         if (guardian is not null)
             Alcanzar(guardian, jugador);
@@ -491,6 +532,13 @@ internal sealed class ArenaViva
     {
         foreach (var guardian in _guardianes.OrderBy(g => g.Id).ToList())
         {
+            // Paralizado por el arma: no se mueve ni congela a nadie hasta que se le pase.
+            if (guardian.SegundosParalizado > 0)
+            {
+                guardian.SegundosParalizado--;
+                continue;
+            }
+
             if (guardian.SegundosPausa > 0)
             {
                 guardian.SegundosPausa--;

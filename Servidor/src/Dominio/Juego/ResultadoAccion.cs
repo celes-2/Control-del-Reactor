@@ -15,5 +15,11 @@ public enum ResultadoAccion
     ReactorDesactivado,
 
     /// <summary>El jugador pisó la energía adicional de un evento y se llevó sus puntos.</summary>
-    EnergiaRecogida
+    EnergiaRecogida,
+
+    /// <summary>ACCIÓN lejos del reactor con arena viva: disparó el arma paralizadora (le haya pegado o no).</summary>
+    ArmaDisparada,
+
+    /// <summary>ACCIÓN lejos del reactor, pero el arma todavía se está recargando.</summary>
+    ArmaRecargando
 }

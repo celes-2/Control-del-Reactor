@@ -36,6 +36,15 @@ public sealed record ReglasArenaViva
     /// <summary>Veces que se sobrecarga el reactor en cada tanda de eventos (CA-22.3 pide al menos 2).</summary>
     public int VecesSobrecarga { get; init; } = 2;
 
+    /// <summary>Arma paralizadora: distancia (en pasos) a la que alcanza a los guardianes.</summary>
+    public int AlcanceArma { get; init; } = 2;
+
+    /// <summary>Arma paralizadora: segundos que el guardián queda paralizado.</summary>
+    public int SegundosParalisisArma { get; init; } = 5;
+
+    /// <summary>Arma paralizadora: segundos que el jugador espera para volver a disparar.</summary>
+    public int SegundosRecargaArma { get; init; } = 15;
+
     /// <summary>Puntos del ícono de energía adicional para el primero que lo toca (CA-22.1).</summary>
     public int PuntosEnergiaExtra { get; init; } = 25;
 
@@ -67,6 +76,8 @@ public sealed record ReglasArenaViva
             throw new DominioException($"Las trampas aleatorias deben ser entre {MinimoTrampas} y {MaximoTrampas}.");
         if (DistanciaMinimaEntreTrampas < 1 || DistanciaMinimaEntreTrampas > 10)
             throw new DominioException("La distancia mínima entre trampas debe ser entre 1 y 10.");
+        if (AlcanceArma < 1 || SegundosParalisisArma < 1 || SegundosRecargaArma < 1)
+            throw new DominioException("El alcance, la parálisis y la recarga del arma deben ser mayores que 0.");
         if (VecesEnergiaExtra < 3)
             throw new DominioException("La energía adicional debe aparecer al menos 3 veces.");
         if (VecesSobrecarga < 2)

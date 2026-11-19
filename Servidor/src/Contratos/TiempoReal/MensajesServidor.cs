@@ -4,7 +4,9 @@ namespace Contratos.TiempoReal;
 public sealed record EscenarioData(int Width, int Height, IReadOnlyList<string> Rows);
 
 /// <param name="FrozenSeconds">Sprint 3 (US-21): segundos que le quedan congelado; 0 = estado normal.</param>
-public sealed record JugadorData(Guid UserId, string Username, Guid AvatarId, int X, int Y, int Score, int FrozenSeconds = 0);
+/// <param name="WeaponCooldown">Arma paralizadora: segundos para volver a disparar; 0 = lista.</param>
+public sealed record JugadorData(
+    Guid UserId, string Username, Guid AvatarId, int X, int Y, int Score, int FrozenSeconds = 0, int WeaponCooldown = 0);
 
 /// <summary>Reactor dentro de "match:state". State: AVAILABLE | EMPTY | DISABLED.</summary>
 public sealed record ReactorData(int Energy, int Capacity, string State);
@@ -54,8 +56,11 @@ public sealed record ErrorData(string Message);
 
 // ---------------------------------------------------------------- Arena viva (Sprint 3, Paquete B)
 
-/// <summary>Guardián. Temporary: llegó con la invasión y se va al terminar. Paused: acaba de congelar a alguien.</summary>
-public sealed record GuardianData(int Id, int X, int Y, bool Temporary, bool Paused);
+/// <summary>
+/// Guardián. Temporary: llegó con la invasión y se va al terminar. Paused: acaba de congelar a alguien.
+/// StunnedSeconds: segundos que sigue paralizado por el arma de un jugador (0 = normal).
+/// </summary>
+public sealed record GuardianData(int Id, int X, int Y, bool Temporary, bool Paused, int StunnedSeconds = 0);
 
 /// <summary>Trampa. Kind: QUICKSAND (tierra movediza) | RISING_CELL (celda emergente) | NET (red inmovilizadora).</summary>
 public sealed record TrampaData(int X, int Y, string Kind);
@@ -101,3 +106,9 @@ public sealed record JugadorCongeladoData(Guid UserId, int Seconds, string Sourc
 
 /// <summary>"item:collected": alguien tomó la energía adicional. Llega junto con score:changed.</summary>
 public sealed record ItemRecogidoData(int ItemId, Guid UserId, int Points);
+
+/// <summary>
+/// "weapon:fired": un jugador disparó el arma paralizadora. GuardianIds: los que quedaron paralizados (puede
+/// venir vacía si no había ninguno cerca). Cooldown: segundos hasta que ese jugador pueda volver a disparar.
+/// </summary>
+public sealed record ArmaDisparadaData(Guid UserId, IReadOnlyList<int> GuardianIds, int StunSeconds, int Cooldown);
