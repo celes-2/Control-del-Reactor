@@ -11,6 +11,7 @@ builder.Services.AddPartidas();                              // casos de uso de 
 builder.Services.AddTiempoReal(builder.Configuration);       // WebSocket y adaptador MQTT (Palma)
 builder.Services.AddRegistroUsuarios(builder.Configuration, builder.Environment.IsDevelopment());
 builder.Services.AddAutenticacionJwt();
+builder.Services.AddLoginSocial(builder.Configuration);       // US-29 login con GitHub (Palma)
 builder.Services.AddHistorialPerfil(builder.Configuration);   // US-04
 
 var app = builder.Build();
