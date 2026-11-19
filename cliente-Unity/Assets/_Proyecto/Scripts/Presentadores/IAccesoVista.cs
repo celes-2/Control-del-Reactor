@@ -9,6 +9,7 @@ namespace Reactor.Cliente.Presentadores
         Verificar,
         Olvide,
         Restablecer,
+        GitHub,        // esperando que el jugador autorice el código en GitHub
     }
 
     /// <summary>Lo que el presentador puede pedirle a la escena de acceso (patrón MVP).</summary>
@@ -28,6 +29,15 @@ namespace Reactor.Cliente.Presentadores
 
         /// <summary>El jugador pulsó un enlace para cambiar de pantalla.</summary>
         event Action<ModoAcceso> ModoPulsado;
+
+        /// <summary>El jugador pulsó "Entrar con GitHub".</summary>
+        event Action GitHubPulsado;
+
+        /// <summary>El jugador canceló la espera del código de GitHub.</summary>
+        event Action GitHubCancelado;
+
+        /// <summary>Muestra el código que se escribe en la página de GitHub.</summary>
+        void MostrarCodigoGitHub(string codigo, string direccion);
 
         void MostrarModo(ModoAcceso modo);
         void MostrarAviso(string texto, bool exito);

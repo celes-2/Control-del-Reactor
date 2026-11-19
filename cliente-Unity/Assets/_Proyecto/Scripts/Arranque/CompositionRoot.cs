@@ -17,6 +17,9 @@ namespace Reactor.Cliente.Arranque
         [Tooltip("Activado: usa el servidor falso y el teclado. Desactivar para conectarse al servidor real.")]
         [SerializeField] bool usarServidorFalso = true;
 
+        /// <summary>true cuando se juega con los servicios falsos (sin servidor real).</summary>
+        public bool UsaServidorFalso => usarServidorFalso;
+
         [Tooltip("SOLO con el servidor falso: empezar en la pantalla de Acceso (login con cuentas falsas) en vez de entrar directo como Ana.")]
         [SerializeField] bool iniciarEnAcceso;
 
