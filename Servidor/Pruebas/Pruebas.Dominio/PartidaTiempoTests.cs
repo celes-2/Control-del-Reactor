@@ -64,6 +64,7 @@ public class PartidaTiempoTests
     }
 
     [Fact]
+    [Trait("CA", "25.7")]
     public void Tick_DespuesDeFinalizar_NoSigueSumando()
     {
         var (partida, ana, _) = CrearPartida(new ConfigPartida { DuracionSegundos = 30 });

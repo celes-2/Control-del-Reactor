@@ -18,11 +18,32 @@ namespace Reactor.Cliente.Arena
         [SerializeField] TileBase tileInicio;
         [SerializeField] TileBase tileReactor;
 
+        [Header("Imágenes (opcional): si se dejan vacías se dibujan formas de color")]
+        [SerializeField] Sprite spriteReactor;
+        [SerializeField] Sprite spriteGuardian;
+        [SerializeField] Sprite spriteTierraMovediza;
+        [SerializeField] Sprite spriteCeldaEmergente;
+        [SerializeField] Sprite spriteRed;
+        [SerializeField] Sprite spritePuertaCerrada;
+        [SerializeField] Sprite spritePuertaAbierta;
+        [SerializeField] Sprite spriteEnergia;
+
         [Header("Cámara")]
+        [Tooltip("Si el mapa tiene más filas o columnas que esto, la cámara se acerca y sigue a tu avatar. Si no, se ve entero.")]
+        [SerializeField, Min(5)] int tamanoMaximoParaVerEntero = 21;
+        [Tooltip("Cuántas filas se ven a la vez cuando la cámara sigue al avatar (menos = más cerca).")]
+        [SerializeField, Min(5)] int celdasVisibles = 11;
+        [Tooltip("Qué tan rápido alcanza la cámara a tu avatar (más alto = más pegada).")]
+        [SerializeField] float suavizadoCamara = 6f;
         [SerializeField] float margenCamara = 2f;
         [SerializeField] Color colorFondo = new Color(0.07f, 0.08f, 0.11f);
 
         int alto;
+
+        // Cámara que sigue al avatar propio cuando el mapa no cabe en pantalla.
+        Transform objetivoCamara;
+        bool camaraSigue;
+        Vector3 mundoMin, mundoMax;
 
         // Reactor vivo (Sprint 3): núcleo que pulsa y cambia según energía y estado.
         SpriteRenderer nucleo;
@@ -45,7 +66,7 @@ namespace Reactor.Cliente.Arena
             if (vivo == null || alto <= 0) return;
 
             var gs = vivo.Guardianes ?? new System.Collections.Generic.List<GuardianMsg>();
-            AjustarCantidad(guardianes, gs.Count, "Guardian", GeneradorSprites.Circulo(), 7);
+            AjustarCantidad(guardianes, gs.Count, "Guardian", spriteGuardian != null ? spriteGuardian : GeneradorSprites.Circulo(), 7);
             destinosGuardianes.Clear();
             for (var i = 0; i < gs.Count; i++)
             {
@@ -54,9 +75,12 @@ namespace Reactor.Cliente.Arena
                 destinosGuardianes.Add(destino);
                 var sr = guardianes[i];
                 if (!sr.gameObject.activeSelf || sr.transform.position == Vector3.zero) sr.transform.position = destino;
-                sr.transform.localScale = Vector3.one * (g.Temporal ? 0.6f : 0.8f);
-                sr.color = g.Pausado ? new Color(0.45f, 0.4f, 0.55f, 0.8f)
+                Escalar(sr, g.Temporal ? 0.6f : 0.8f);
+                var tinte = g.Pausado ? new Color(0.45f, 0.4f, 0.55f, 0.8f)
                     : g.Temporal ? new Color(1f, 0.45f, 0.75f, 0.95f) : new Color(0.7f, 0.3f, 0.95f, 1f);
+                // Con imagen propia solo se atenúa al pausado y se tiñe levemente al temporal.
+                sr.color = spriteGuardian == null ? tinte
+                    : g.Pausado ? new Color(0.6f, 0.6f, 0.7f, 0.8f) : g.Temporal ? new Color(1f, 0.8f, 0.9f, 1f) : Color.white;
                 sr.gameObject.SetActive(true);
             }
             for (var i = gs.Count; i < guardianes.Count; i++) guardianes[i].gameObject.SetActive(false);
@@ -67,8 +91,10 @@ namespace Reactor.Cliente.Arena
             {
                 var sr = trampas[i];
                 sr.transform.position = CentroDeCelda(ts[i].X, ts[i].Y);
-                sr.transform.localScale = Vector3.one * 0.62f;
-                sr.color = ColorTrampa(ts[i].Tipo);
+                var imagenTrampa = SpriteTrampa(ts[i].Tipo);
+                sr.sprite = imagenTrampa != null ? imagenTrampa : GeneradorSprites.Circulo();
+                Escalar(sr, imagenTrampa != null ? 0.9f : 0.62f);
+                sr.color = imagenTrampa != null ? Color.white : ColorTrampa(ts[i].Tipo);
                 sr.gameObject.SetActive(true);
             }
             for (var i = ts.Count; i < trampas.Count; i++) trampas[i].gameObject.SetActive(false);
@@ -80,23 +106,55 @@ namespace Reactor.Cliente.Arena
             {
                 var sr = puertas[i];
                 sr.transform.position = CentroDeCelda(ps[i].X, ps[i].Y);
-                sr.transform.localScale = Vector3.one * (ps[i].Abierta ? 0.5f : 0.95f);
-                // Cerrada: bloque ámbar sólido. Abierta: cuadro pequeño y tenue, para que se vea que se puede pasar.
-                sr.color = ps[i].Abierta ? new Color(0.9f, 0.6f, 0.2f, 0.35f) : new Color(0.9f, 0.55f, 0.15f, 1f);
+                var imagenPuerta = ps[i].Abierta ? spritePuertaAbierta : spritePuertaCerrada;
+                if (imagenPuerta != null)
+                {
+                    sr.sprite = imagenPuerta;
+                    Escalar(sr, 1f);
+                    sr.color = Color.white;
+                }
+                else
+                {
+                    sr.sprite = cuadroPuerta;
+                    Escalar(sr, ps[i].Abierta ? 0.5f : 0.95f);
+                    // Cerrada: bloque ámbar sólido. Abierta: cuadro pequeño y tenue, para que se vea que se puede pasar.
+                    sr.color = ps[i].Abierta ? new Color(0.9f, 0.6f, 0.2f, 0.35f) : new Color(0.9f, 0.55f, 0.15f, 1f);
+                }
                 sr.gameObject.SetActive(true);
             }
             for (var i = ps.Count; i < puertas.Count; i++) puertas[i].gameObject.SetActive(false);
 
             var its = vivo.Items ?? new System.Collections.Generic.List<ItemEnergiaMsg>();
-            AjustarCantidad(items, its.Count, "Energia", GeneradorSprites.Circulo(), 4);
+            AjustarCantidad(items, its.Count, "Energia", spriteEnergia != null ? spriteEnergia : GeneradorSprites.Circulo(), 4);
             for (var i = 0; i < its.Count; i++)
             {
                 var sr = items[i];
                 sr.transform.position = CentroDeCelda(its[i].X, its[i].Y);
-                sr.color = new Color(0.55f, 1f, 0.45f, 1f);
+                sr.color = spriteEnergia != null ? Color.white : new Color(0.55f, 1f, 0.45f, 1f);
                 sr.gameObject.SetActive(true);
             }
             for (var i = its.Count; i < items.Count; i++) items[i].gameObject.SetActive(false);
+        }
+
+        Sprite SpriteTrampa(string tipo)
+        {
+            switch (tipo)
+            {
+                case TiposTrampa.TierraMovediza: return spriteTierraMovediza;
+                case TiposTrampa.CeldaEmergente: return spriteCeldaEmergente;
+                case TiposTrampa.Red: return spriteRed;
+                default: return null;
+            }
+        }
+
+        /// <summary>Ajusta el tamaño para que la imagen ocupe esa fracción de la celda, sea cual sea su resolución.</summary>
+        static void Escalar(SpriteRenderer sr, float fraccionDeCelda)
+        {
+            if (sr.sprite == null) return;
+            var medida = sr.sprite.bounds.size;
+            var mayor = Mathf.Max(medida.x, medida.y);
+            if (mayor <= 0f) return;
+            sr.transform.localScale = Vector3.one * (fraccionDeCelda / mayor);
         }
 
         static Color ColorTrampa(string tipo)
@@ -218,7 +276,7 @@ namespace Reactor.Cliente.Arena
             go.transform.SetParent(transform, false);
             go.transform.position = CentroDeCelda(reactorX, reactorY);
             nucleo = go.AddComponent<SpriteRenderer>();
-            nucleo.sprite = GeneradorSprites.Circulo();
+            nucleo.sprite = spriteReactor != null ? spriteReactor : GeneradorSprites.Circulo();
             nucleo.sortingOrder = 5; // sobre el suelo, debajo de los avatares
             cargaReactor = 1f;
             estadoReactor = EstadosReactor.Disponible;
@@ -235,7 +293,7 @@ namespace Reactor.Cliente.Arena
             // Las energías sueltas laten para que se noten.
             var latido = 0.38f + 0.06f * Mathf.Sin(Time.time * 6f);
             foreach (var sr in items)
-                if (sr != null && sr.gameObject.activeSelf) sr.transform.localScale = Vector3.one * latido;
+                if (sr != null && sr.gameObject.activeSelf) Escalar(sr, latido);
 
             if (nucleo == null) return;
 
@@ -265,7 +323,9 @@ namespace Reactor.Cliente.Arena
 
             tamano += 0.25f * destello;
             color = Color.Lerp(color, Color.white, 0.6f * destello);
-            nucleo.transform.localScale = Vector3.one * tamano;
+            // Con imagen propia el estado se nota por el tamaño y un tinte suave, no por teñirla entera.
+            if (spriteReactor != null) color = Color.Lerp(Color.white, color, 0.35f);
+            Escalar(nucleo, tamano);
             nucleo.color = color;
         }
 
@@ -315,6 +375,27 @@ namespace Reactor.Cliente.Arena
             return tile;
         }
 
+        /// <summary>La cámara sigue a este objeto cuando el mapa es más grande que la pantalla.</summary>
+        public void SeguirA(Transform objetivo) => objetivoCamara = objetivo;
+
+        void LateUpdate()
+        {
+            if (!camaraSigue || objetivoCamara == null) return;
+            var cam = Camera.main;
+            if (cam == null) return;
+
+            float mitadAlto = cam.orthographicSize;
+            float mitadAncho = mitadAlto * cam.aspect;
+            var meta = objetivoCamara.position;
+            // No mostrar nada fuera del mapa; si el mapa es más chico que la vista en un eje, se centra.
+            meta.x = mundoMax.x - mundoMin.x <= mitadAncho * 2f ? (mundoMin.x + mundoMax.x) / 2f
+                : Mathf.Clamp(meta.x, mundoMin.x + mitadAncho, mundoMax.x - mitadAncho);
+            meta.y = mundoMax.y - mundoMin.y <= mitadAlto * 2f ? (mundoMin.y + mundoMax.y) / 2f
+                : Mathf.Clamp(meta.y, mundoMin.y + mitadAlto, mundoMax.y - mitadAlto);
+            meta.z = cam.transform.position.z;
+            cam.transform.position = Vector3.Lerp(cam.transform.position, meta, 1f - Mathf.Exp(-suavizadoCamara * Time.deltaTime));
+        }
+
         void AjustarCamara(int ancho, int altoMapa)
         {
             var cam = Camera.main;
@@ -327,6 +408,24 @@ namespace Reactor.Cliente.Arena
             var min = tilemap.CellToWorld(Vector3Int.zero);
             var max = tilemap.CellToWorld(new Vector3Int(ancho, altoMapa, 0));
             var centro = (min + max) / 2f;
+            mundoMin = min;
+            mundoMax = max;
+
+            // Mapa grande: vista cercana de ~celdasVisibles filas y la cámara sigue al avatar propio.
+            camaraSigue = Mathf.Max(ancho, altoMapa) > tamanoMaximoParaVerEntero;
+            if (camaraSigue)
+            {
+                cam.orthographic = true;
+                cam.orthographicSize = celdasVisibles / 2f + 0.5f;
+                cam.backgroundColor = colorFondo;
+                if (objetivoCamara != null)
+                {
+                    var p = objetivoCamara.position;
+                    cam.transform.position = new Vector3(p.x, p.y, cam.transform.position.z);
+                }
+                else cam.transform.position = new Vector3(centro.x, centro.y, cam.transform.position.z);
+                return;
+            }
 
             cam.orthographic = true;
             cam.transform.position = new Vector3(centro.x, centro.y, cam.transform.position.z);

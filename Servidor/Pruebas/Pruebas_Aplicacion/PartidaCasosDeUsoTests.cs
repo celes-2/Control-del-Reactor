@@ -307,6 +307,7 @@ public class PartidaCasosDeUsoTests
     }
 
     [Fact]
+    [Trait("CA", "19.4")]
     public async Task Ejecutar_UnMovimientoValido_DevuelvePosicionYNoSumaPuntos()
     {
         var (ctx, ana, _, partida) = await PartidaEnCursoAsync();
@@ -323,6 +324,7 @@ public class PartidaCasosDeUsoTests
     }
 
     [Fact]
+    [Trait("CA", "19.4")]
     public async Task Ejecutar_HaciaUnMuro_EsBloqueadoYNoSumaPuntos()
     {
         var (ctx, ana, _, _) = await PartidaEnCursoAsync();
@@ -336,6 +338,7 @@ public class PartidaCasosDeUsoTests
     }
 
     [Fact]
+    [Trait("CA", "19.7")]
     public async Task Ejecutar_CadaJugadorMueveSoloSuAvatar()
     {
         var (ctx, ana, beto, _) = await PartidaEnCursoAsync();

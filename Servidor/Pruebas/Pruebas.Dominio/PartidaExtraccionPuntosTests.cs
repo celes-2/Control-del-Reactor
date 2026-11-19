@@ -64,6 +64,9 @@ public class PartidaExtraccionPuntosTests
 
     [Fact]
     [Trait("CA", "18.4")]
+    [Trait("CA", "18.3")]
+    [Trait("CA", "19.1")]
+    [Trait("CA", "19.2")]
     public void Extraer_JuntoAlReactor_SumaUnPuntoPorUnidadDeEnergia()
     {
         var (partida, ana, _) = CrearPartida();
@@ -79,6 +82,8 @@ public class PartidaExtraccionPuntosTests
 
     [Fact]
     [Trait("CA", "18.4")]
+    [Trait("CA", "19.1")]
+    [Trait("CA", "19.2")]
     public void Extraer_ConPocaEnergiaEnElReactor_SumaSoloLoQueSalio()
     {
         var (partida, ana, _) = CrearPartida(new ConfigPartida { CapacidadReactor = 4 });
@@ -97,6 +102,7 @@ public class PartidaExtraccionPuntosTests
     [Fact]
     [Trait("CA", "18.5")]
     [Trait("CA", "19.5")]
+    [Trait("CA", "18.3")]
     public void Extraer_LejosDelReactor_NoSumaPuntos()
     {
         var (partida, ana, _) = CrearPartida();
@@ -111,6 +117,7 @@ public class PartidaExtraccionPuntosTests
     [Fact]
     [Trait("CA", "18.5")]
     [Trait("CA", "19.5")]
+    [Trait("CA", "18.3")]
     public void Extraer_ConElReactorVacio_NoCambiaElPuntaje()
     {
         var config = new ConfigPartida { CapacidadReactor = 10, RegeneracionPorSegundo = 0 };
@@ -128,6 +135,7 @@ public class PartidaExtraccionPuntosTests
     [Fact]
     [Trait("CA", "18.5")]
     [Trait("CA", "19.5")]
+    [Trait("CA", "18.3")]
     public void Extraer_ConElJugadorCongelado_NoSumaPuntos()
     {
         var (partida, ana, _) = CrearPartida();
@@ -144,6 +152,7 @@ public class PartidaExtraccionPuntosTests
     [Fact]
     [Trait("CA", "18.5")]
     [Trait("CA", "19.5")]
+    [Trait("CA", "18.3")]
     public void Extraer_ConLaPartidaSinIniciar_Falla_YNoSumaPuntos()
     {
         var (partida, ana, _) = CrearPartida(iniciar: false);
@@ -156,6 +165,7 @@ public class PartidaExtraccionPuntosTests
 
     [Fact]
     [Trait("CA", "18.8")]
+    [Trait("CA", "19.4")]
     public void Extraer_DosVecesEnElMismoSegundo_SoloCuentaUna()
     {
         var (partida, ana, _) = CrearPartida();
@@ -188,6 +198,7 @@ public class PartidaExtraccionPuntosTests
 
     [Fact]
     [Trait("CA", "18.8")]
+    [Trait("CA", "19.7")]
     public void Extraer_CadaJugadorTieneSuPropioEnfriamiento()
     {
         var (partida, ana, beto) = CrearPartida();
@@ -207,6 +218,8 @@ public class PartidaExtraccionPuntosTests
 
     [Fact]
     [Trait("CA", "25.1")]
+    [Trait("CA", "25.2")]
+    [Trait("CA", "25.5")]
     public void FinPorPuntos_AlExtraer_GanaQuienLlegaALaMeta()
     {
         var config = new ConfigPartida { ModoFin = ModoFin.Puntos, PuntosObjetivo = 10 };
@@ -273,6 +286,7 @@ public class PartidaExtraccionPuntosTests
 
     [Fact]
     [Trait("CA", "20.5")]
+    [Trait("CA", "19.1")]
     public void Mover_ATrampa_ConPuntos_RestaCinco()
     {
         var trampa = new Obstaculo(new Posicion(4, 6), TipoObstaculo.Trampa);
@@ -311,6 +325,8 @@ public class PartidaExtraccionPuntosTests
 
     [Fact]
     [Trait("CA", "22.3")]
+    [Trait("CA", "18.3")]
+    [Trait("CA", "18.5")]
     public void Extraer_ConElReactorDesactivado_SeRechaza_YAlReactivarseVuelveAFuncionar()
     {
         var (partida, ana, _) = CrearPartida();

@@ -125,7 +125,11 @@ public void MostrarJugador(JugadorMsg jugador)
         public void MarcarJugadorPropio(string jugadorId)
         {
             jugadorPropioId = jugadorId;
-            if (avatares.TryGetValue(jugadorId ?? "", out var avatar)) avatar.MarcarComoPropio();
+            if (avatares.TryGetValue(jugadorId ?? "", out var avatar))
+            {
+                avatar.MarcarComoPropio();
+                mapa.SeguirA(avatar.transform); // si el mapa es grande, la cámara lo acompaña
+            }
         }
 
         public void ActualizarArenaViva(ArenaVivaMsg vivo)

@@ -22,20 +22,37 @@ namespace Reactor.Cliente.Servicios.Falsos
         const int MinutosExtraPorEmpate = 2;
 
         // Mismo formato que scenarios.json: W muro, . piso, S inicio, R reactor.
-        static readonly string[] Mapa =
+        // Mapa grande (30 x 20) para probar que la cámara sigue al avatar; la lógica no depende del tamaño.
+        const int AnchoMapa = 30, AltoMapa = 20;
+        static readonly string[] Mapa = ConstruirMapa();
+
+        static string[] ConstruirMapa()
         {
-            "WWWWWWWWWWWWWWW",
-            "WS...........SW",
-            "W..WW.....WW..W",
-            "W..W.......W..W",
-            "W.............W",
-            "W......R......W",
-            "W.............W",
-            "W..W.......W..W",
-            "W..WW.....WW..W",
-            "WS...........SW",
-            "WWWWWWWWWWWWWWW",
-        };
+            var celdas = new char[AltoMapa][];
+            for (var y = 0; y < AltoMapa; y++)
+            {
+                celdas[y] = new char[AnchoMapa];
+                for (var x = 0; x < AnchoMapa; x++)
+                    celdas[y][x] = x == 0 || y == 0 || x == AnchoMapa - 1 || y == AltoMapa - 1 ? 'W' : '.';
+            }
+
+            // Columnas y paredes sueltas que dejan libres las celdas de las trampas, la puerta y el reactor.
+            foreach (var (px, py, ancho, alto) in new[]
+            {
+                (8, 7, 3, 2), (19, 3, 3, 2), (8, 14, 3, 2), (19, 14, 3, 2),
+                (4, 10, 2, 5), (24, 6, 2, 5), (12, 5, 6, 1), (12, 15, 6, 1),
+                (14, 7, 1, 2), (16, 12, 1, 2), (21, 11, 3, 1), (6, 17, 4, 1), (23, 17, 4, 1), (10, 10, 1, 3),
+                (2, 13, 1, 4), (27, 12, 1, 4), (14, 2, 1, 2), (7, 2, 3, 1),
+            })
+                for (var y = py; y < py + alto; y++)
+                    for (var x = px; x < px + ancho; x++)
+                        celdas[y][x] = 'W';
+
+            celdas[1][1] = 'S';
+            celdas[1][AnchoMapa - 2] = 'S';
+            celdas[AltoMapa / 2][AnchoMapa / 2] = 'R';
+            return celdas.Select(fila => new string(fila)).ToArray();
+        }
 
         const float SegundosParaQueEntreBeto = 3f;
 
@@ -73,10 +90,8 @@ namespace Reactor.Cliente.Servicios.Falsos
         public event Action<ArenaActualizadaMsg> ArenaActualizada;
         public event Action<EventoIniciadoMsg> EventoIniciado;
         public event Action<EventoTerminadoMsg> EventoTerminado;
-#pragma warning disable CS0067 // el socket falso no simula congelamientos ni recogidas
         public event Action<JugadorCongeladoMsg> JugadorCongelado;
         public event Action<ItemRecogidoMsg> ItemRecogido;
-#pragma warning restore CS0067
         public event Action<string> Error;
 
         public void Conectar(string partidaId)
@@ -122,6 +137,7 @@ namespace Reactor.Cliente.Servicios.Falsos
             esperaAcumulada = 0f;
             energiaReactor = CapacidadReactor;
             ultimaExtraccion.Clear();
+            ReiniciarArenaViva();
 
             Conectado?.Invoke();
             EmitirEstado();
@@ -147,20 +163,23 @@ namespace Reactor.Cliente.Servicios.Falsos
             var (dx, dy) = Delta(boton);
             if (dx == 0 && dy == 0) return;
 
+            // Congelado: no se mueve (el servidor real también lo rechaza).
+            if (congeladosSim.ContainsKey(jugadorId)) { Rechazar(jugadorId, "JUGADOR_CONGELADO"); return; }
+
             int nx = jugador.X + dx;
             int ny = jugador.Y + dy;
-            if (!EsTransitable(nx, ny) || EstaOcupada(nx, ny, jugadorId)) return; // bloqueado: el servidor no difunde nada
+            if (!PuedePasar(nx, ny) || EstaOcupada(nx, ny, jugadorId)) return; // bloqueado: el servidor no difunde nada
 
             jugador.X = nx;
             jugador.Y = ny;
-            // Moverse ya no da puntos: solo extraer energía del reactor los da.
-
-            JugadorMovido?.Invoke(new JugadorMovidoMsg { JugadorId = jugadorId, X = nx, Y = ny, Puntaje = jugador.Puntaje });
+            // Moverse ya no da puntos: solo extraer energía del reactor los da. Las trampas restan 5.
+            AlPisar(jugador);
         }
 
         /// <summary>Imita Partida.Extraer del servidor: mismas condiciones, mismos códigos de rechazo.</summary>
         void Extraer(JugadorMsg jugador)
         {
+            if (congeladosSim.ContainsKey(jugador.Id)) { Rechazar(jugador.Id, "JUGADOR_CONGELADO"); return; }
             var reactor = BuscarReactor();
             var distancia = Math.Abs(jugador.X - reactor.x) + Math.Abs(jugador.Y - reactor.y);
 
@@ -231,6 +250,9 @@ namespace Reactor.Cliente.Servicios.Falsos
         void EmitirEstado()
         {
             estado.Jugadores = jugadores.Values.Select(Copiar).ToList();
+            foreach (var j in estado.Jugadores)
+                j.SegundosCongelado = congeladosSim.TryGetValue(j.Id, out var s) ? s : 0;
+            estado.Vivo = estado.Estado == EstadosPartida.Espera ? null : ConstruirVivo(estado.SegundosTranscurridos);
             estado.Reactor = new ReactorMsg { Energia = energiaReactor, Capacidad = CapacidadReactor, Estado = EstadoDelReactor() };
             EstadoRecibido?.Invoke(estado);
         }
@@ -272,43 +294,180 @@ namespace Reactor.Cliente.Servicios.Falsos
             }
         }
 
+        // ---- Arena viva de mentira (para probar sin servidor) ----
+        sealed class GuardianSim { public int Id, X, Y, Pausa; }
+
+        const int SegundosCongelado = 3;
+        static readonly int[] DuracionTrampa = { 3, 5, 2 }; // tierra movediza, celda emergente, red
+        static readonly string[] TiposDeTrampa = { TiposTrampa.TierraMovediza, TiposTrampa.CeldaEmergente, TiposTrampa.Red };
+
+        // Trampas repartidas por toda la arena; las que caen en una pared se descartan al arrancar.
+        static readonly (int x, int y)[] PosicionesTrampas =
+        {
+            (5, 3), (10, 3), (13, 4), (17, 3), (26, 3), (22, 6), (3, 7), (7, 6), (11, 8), (18, 8), (13, 12), (20, 9),
+            (9, 12), (24, 13), (27, 9), (21, 15), (15, 17), (9, 15), (4, 17), (12, 18), (26, 17), (17, 14), (1, 9), (28, 6),
+        };
+        static readonly (int x, int y)[] PosicionesPuertas = { (3, 6), (20, 8), (10, 14), (26, 15), (15, 3), (8, 11) };
+        static readonly (int x, int y)[] PosicionesEnergia = { (11, 6), (22, 4), (6, 14), (25, 14), (18, 10), (13, 9), (3, 3), (27, 17) };
+
+        readonly List<GuardianSim> guardianesSim = new List<GuardianSim>();
+        readonly List<TrampaMsg> trampasSim = new List<TrampaMsg>();
+        readonly Dictionary<string, int> congeladosSim = new Dictionary<string, int>();
+        ItemEnergiaMsg itemSim;
+        bool doblesSim;
+        readonly System.Random azar = new System.Random();
+        const string IdEventoDemo = "evento-demo";
+
+        void ReiniciarArenaViva()
+        {
+            guardianesSim.Clear();
+            var inicios = new[] { (1, 18), (28, 18), (14, 1), (28, 10) };
+            for (var i = 0; i < inicios.Length; i++)
+                guardianesSim.Add(new GuardianSim { Id = i + 1, X = inicios[i].Item1, Y = inicios[i].Item2 });
+
+            trampasSim.Clear();
+            for (var i = 0; i < PosicionesTrampas.Length; i++)
+            {
+                var (x, y) = PosicionesTrampas[i];
+                if (EsTransitable(x, y)) trampasSim.Add(new TrampaMsg { X = x, Y = y, Tipo = TiposDeTrampa[i % TiposDeTrampa.Length] });
+            }
+
+            congeladosSim.Clear();
+            itemSim = null;
+            doblesSim = false;
+        }
+
+        bool PuertaCerrada(int x, int y, int segundo)
+        {
+            for (var i = 0; i < PosicionesPuertas.Length; i++)
+                if (PosicionesPuertas[i].x == x && PosicionesPuertas[i].y == y) return !PuertaAbierta(i, segundo);
+            return false;
+        }
+
+        // Cada puerta cambia cada 6 s (como el servidor), en un segundo distinto cada una.
+        static bool PuertaAbierta(int indice, int segundo) => ((segundo + indice * 2) / 6) % 2 == 0;
+
+        bool PuedePasar(int x, int y) => EsTransitable(x, y) && !PuertaCerrada(x, y, estado?.SegundosTranscurridos ?? 0);
+
+        /// <summary>Lo que ocurre cuando un jugador pisa una celda: trampa (-5 y congelado) o energía suelta (+25).</summary>
+        void AlPisar(JugadorMsg jugador)
+        {
+            foreach (var trampa in trampasSim)
+            {
+                if (trampa.X != jugador.X || trampa.Y != jugador.Y) continue;
+                jugador.Puntaje = Math.Max(0, jugador.Puntaje - 5);
+                var segundos = DuracionTrampa[Array.IndexOf(TiposDeTrampa, trampa.Tipo)];
+                // Mismo orden que el servidor: primero player:moved con el puntaje ya restado, luego player:frozen.
+                JugadorMovido?.Invoke(new JugadorMovidoMsg { JugadorId = jugador.Id, X = jugador.X, Y = jugador.Y, Puntaje = jugador.Puntaje });
+                Congelar(jugador.Id, segundos, "TRAP", trampa.Tipo);
+                return;
+            }
+
+            JugadorMovido?.Invoke(new JugadorMovidoMsg { JugadorId = jugador.Id, X = jugador.X, Y = jugador.Y, Puntaje = jugador.Puntaje });
+
+            if (itemSim != null && itemSim.X == jugador.X && itemSim.Y == jugador.Y)
+            {
+                var puntos = itemSim.Puntos * (doblesSim ? 2 : 1);
+                jugador.Puntaje += puntos;
+                PuntajeCambiado?.Invoke(new PuntajeMsg { JugadorId = jugador.Id, Puntaje = jugador.Puntaje });
+                ItemRecogido?.Invoke(new ItemRecogidoMsg { ItemId = itemSim.Id, JugadorId = jugador.Id, Puntos = puntos });
+                itemSim = null;
+            }
+        }
+
+        void Congelar(string jugadorId, int segundos, string origen, string tipoTrampa)
+        {
+            congeladosSim[jugadorId] = (congeladosSim.TryGetValue(jugadorId, out var antes) ? antes : 0) + segundos;
+            JugadorCongelado?.Invoke(new JugadorCongeladoMsg
+            {
+                JugadorId = jugadorId, Segundos = congeladosSim[jugadorId], Origen = origen, TipoTrampa = tipoTrampa,
+            });
+        }
+
         /// <summary>
-        /// Arena viva de mentira para probar el dibujo sin servidor: un guardián que patrulla, una trampa de cada tipo,
-        /// una puerta que se abre y se cierra, una energía que aparece y un evento de puntos dobles entre los segundos 10 y 20.
+        /// Avanza un segundo: los guardianes persiguen al jugador libre más cercano (se congela si lo alcanzan),
+        /// las puertas se abren y cierran, aparece una energía cada 12 s y hay puntos dobles entre los segundos 10 y 20.
         /// </summary>
         void SimularArenaViva(int segundo)
         {
-            const string idEvento = "evento-demo";
-            var tramo = segundo % 24; // ida y vuelta por la fila 4 (x de 1 a 13)
-            var guardianX = 1 + (tramo <= 12 ? tramo : 24 - tramo);
-            var dobles = segundo >= 10 && segundo < 20;
+            foreach (var id in congeladosSim.Keys.ToList())
+            {
+                congeladosSim[id]--;
+                if (congeladosSim[id] <= 0) congeladosSim.Remove(id);
+            }
 
-            if (segundo == 10)
+            foreach (var g in guardianesSim)
+            {
+                if (g.Pausa > 0) { g.Pausa--; continue; }
+                if (segundo % 2 != 0) continue; // el guardián da 1 paso cada 2 s, como en el servidor
+
+                var objetivo = jugadores.Values.Where(j => !congeladosSim.ContainsKey(j.Id))
+                    .OrderBy(j => Math.Abs(j.X - g.X) + Math.Abs(j.Y - g.Y)).FirstOrDefault();
+                if (objetivo == null) continue;
+
+                // Un paso hacia el objetivo, primero por el eje con más distancia; si hay pared prueba el otro.
+                var dx = Math.Sign(objetivo.X - g.X);
+                var dy = Math.Sign(objetivo.Y - g.Y);
+                var primeroX = Math.Abs(objetivo.X - g.X) >= Math.Abs(objetivo.Y - g.Y);
+                var pasos = primeroX ? new[] { (dx, 0), (0, dy), (0, 1), (0, -1) } : new[] { (0, dy), (dx, 0), (1, 0), (-1, 0) };
+                foreach (var (px, py) in pasos)
+                {
+                    if (px == 0 && py == 0) continue;
+                    if (!PuedePasar(g.X + px, g.Y + py) || guardianesSim.Any(o => o != g && o.X == g.X + px && o.Y == g.Y + py)) continue;
+                    g.X += px;
+                    g.Y += py;
+                    break;
+                }
+
+                // Contacto: quien esté pegado al guardián se congela y el guardián se queda quieto 4 s.
+                // Si ya estaba congelado, el tiempo se suma (CA-21.10): red 2 s + guardián 3 s = 5 s.
+                foreach (var j in jugadores.Values)
+                    if (Math.Abs(j.X - g.X) + Math.Abs(j.Y - g.Y) <= 1)
+                    {
+                        Congelar(j.Id, SegundosCongelado, "GUARDIAN", null);
+                        g.Pausa = 4;
+                        break;
+                    }
+            }
+
+            var eraDobles = doblesSim;
+            doblesSim = segundo >= 10 && segundo < 20;
+            if (!eraDobles && doblesSim)
                 EventoIniciado?.Invoke(new EventoIniciadoMsg
                 {
-                    IdEvento = idEvento, Tipo = TiposEvento.PuntosDobles, Duracion = 10,
+                    IdEvento = IdEventoDemo, Tipo = TiposEvento.PuntosDobles, Duracion = 10,
                     Mensaje = "¡Puntos dobles! Todo vale x2 durante 10 s.",
                 });
-            if (segundo == 20) EventoTerminado?.Invoke(new EventoTerminadoMsg { IdEvento = idEvento, Tipo = TiposEvento.PuntosDobles });
+            if (eraDobles && !doblesSim) EventoTerminado?.Invoke(new EventoTerminadoMsg { IdEvento = IdEventoDemo, Tipo = TiposEvento.PuntosDobles });
 
+            // Energía suelta: unas 6 por partida (una cada 10 s), en un punto al azar, +25 y dura 8 s.
+            if (segundo % 10 == 0)
+            {
+                var (ex, ey) = PosicionesEnergia[azar.Next(PosicionesEnergia.Length)];
+                itemSim = EsTransitable(ex, ey) ? new ItemEnergiaMsg { Id = segundo / 10, X = ex, Y = ey, Puntos = 25 } : null;
+            }
+            if (itemSim != null) itemSim.SegundosRestantes = 8 - segundo % 10;
+            if (segundo % 10 >= 8) itemSim = null;
+
+            ArenaActualizada?.Invoke(new ArenaActualizadaMsg { SegundosTranscurridos = segundo, Vivo = ConstruirVivo(segundo) });
+        }
+
+        ArenaVivaMsg ConstruirVivo(int segundo)
+        {
             var vivo = new ArenaVivaMsg
             {
-                MultiplicadorPuntos = dobles ? 2 : 1,
-                Guardianes = new List<GuardianMsg> { new GuardianMsg { Id = 1, X = guardianX, Y = 4 } },
-                Trampas = new List<TrampaMsg>
-                {
-                    new TrampaMsg { X = 5, Y = 4, Tipo = TiposTrampa.TierraMovediza },
-                    new TrampaMsg { X = 9, Y = 6, Tipo = TiposTrampa.CeldaEmergente },
-                    new TrampaMsg { X = 7, Y = 2, Tipo = TiposTrampa.Red },
-                },
-                Puertas = new List<PuertaMsg> { new PuertaMsg { X = 3, Y = 6, Abierta = (segundo / 5) % 2 == 0 } },
+                MultiplicadorPuntos = doblesSim ? 2 : 1,
+                Guardianes = guardianesSim.Select(g => new GuardianMsg { Id = g.Id, X = g.X, Y = g.Y, Pausado = g.Pausa > 0 }).ToList(),
+                Trampas = trampasSim.ToList(),
+                Puertas = PosicionesPuertas
+                    .Select((p, i) => new PuertaMsg { X = p.x, Y = p.y, Abierta = PuertaAbierta(i, segundo) })
+                    .Where(p => EsTransitable(p.X, p.Y)).ToList(),
+                Congelados = congeladosSim.Select(c => new CongeladoMsg { JugadorId = c.Key, Segundos = c.Value }).ToList(),
             };
-            if (segundo % 12 < 8)
-                vivo.Items.Add(new ItemEnergiaMsg { Id = segundo / 12, X = 11, Y = 6, Puntos = 25, SegundosRestantes = 8 - segundo % 12 });
-            if (dobles)
-                vivo.Eventos.Add(new EventoActivoMsg { Id = idEvento, Tipo = TiposEvento.PuntosDobles, Duracion = 10, SegundosRestantes = 20 - segundo });
-
-            ArenaActualizada?.Invoke(new ArenaActualizadaMsg { SegundosTranscurridos = segundo, Vivo = vivo });
+            if (itemSim != null) vivo.Items.Add(itemSim);
+            if (doblesSim)
+                vivo.Eventos.Add(new EventoActivoMsg { Id = IdEventoDemo, Tipo = TiposEvento.PuntosDobles, Duracion = 10, SegundosRestantes = 20 - segundo });
+            return vivo;
         }
 
         public void Cerrar()
