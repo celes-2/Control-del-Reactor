@@ -22,7 +22,7 @@ public static class MapeoTiempoReal
             v.SegundosTranscurridos,
             new EscenarioData(v.Ancho, v.Alto, v.Escenario),
             v.Jugadores
-                .Select(j => new JugadorData(j.Id, j.Nombre, j.AvatarId, j.X, j.Y, j.Puntaje, j.SegundosCongelado))
+                .Select(j => new JugadorData(j.Id, j.Nombre, j.AvatarId, j.X, j.Y, j.Puntaje, j.SegundosCongelado, j.SegundosRecargaArma))
                 .ToList(),
             new ReactorData(v.EnergiaReactor, v.CapacidadReactor, v.EstadoReactor.ATexto()),
             v.EscenarioId,
@@ -37,7 +37,7 @@ public static class MapeoTiempoReal
             return null;
 
         return new ArenaVivaData(
-            viva.Guardianes.Select(g => new GuardianData(g.Id, g.X, g.Y, g.Temporal, g.SegundosPausa > 0)).ToList(),
+            viva.Guardianes.Select(g => new GuardianData(g.Id, g.X, g.Y, g.Temporal, g.SegundosPausa > 0, g.SegundosParalizado)).ToList(),
             viva.Trampas.Select(t => new TrampaData(t.X, t.Y, t.Variante.ATexto())).ToList(),
             viva.Puertas.Select(p => new PuertaData(p.X, p.Y, p.Abierta)).ToList(),
             viva.Items.Select(i => new ItemEnergiaData(i.Id, i.X, i.Y, i.Puntos, i.SegundosRestantes)).ToList(),
@@ -62,6 +62,8 @@ public static class MapeoTiempoReal
             e.EventoId, e.Tipo.ATexto(), e.Segundos, MensajeDeEvento(e.Tipo, e.Segundos))),
         EventoTerminadoNovedad e => (TiposMensaje.EventEnded, new EventoTerminadoData(e.EventoId, e.Tipo.ATexto())),
         ItemRecogidoNovedad i => (TiposMensaje.ItemCollected, new ItemRecogidoData(i.ItemId, i.JugadorId, i.Puntos)),
+        ArmaDisparadaNovedad a => (TiposMensaje.WeaponFired, new ArmaDisparadaData(
+            a.JugadorId, a.GuardianesIds, a.SegundosParalisis, a.SegundosRecarga)),
         _ => null
     };
 

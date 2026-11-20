@@ -67,19 +67,39 @@ Este documento cumple CA-22.10: activación, duración y efecto de cada evento, 
   puede moverse ni extraer (el servidor responde `Congelado` / `JUGADOR_CONGELADO`) y se recupera solo al llegar a 0
   (CA-21.5, CA-21.6). Todos reciben `player:frozen` y el campo `frozen` de `arena:update` (CA-21.7).
 
+### Arma paralizadora (defensa contra los guardianes)
+
+Pedido del profesor en clase (verbal, Sprint 3); no tiene un criterio escrito en el enunciado. Reglas definidas por
+Faby el 18 nov 2026:
+
+| Regla | Valor |
+|---|---|
+| Cómo se dispara | Botón **ACCIÓN** (el mismo del control físico) **lejos del reactor**. Junto al reactor, ACCIÓN sigue extrayendo. |
+| A quién afecta | Solo a **guardianes** (normales y de la invasión) a **2 pasos o menos** del jugador, en cualquier dirección (es una onda: no la tapan los muros). Nunca a jugadores. |
+| Efecto | El guardián queda **paralizado 5 s**: no se mueve ni congela a nadie, aunque un jugador quede pegado a él. Un segundo disparo no suma: deja la parálisis otra vez en 5 s. |
+| Recarga | Después de disparar, ese jugador espera **15 s**. El disparo se gasta aunque no haya ningún guardián cerca. Mientras recarga, ACCIÓN lejos del reactor responde `ARMA_RECARGANDO`. Cada jugador tiene su propia recarga. |
+| Puntos | No suma ni resta puntos. |
+| Restricciones | Un jugador congelado no puede disparar. Sin arena viva (partidas sin `IniciarPartida` con azar), ACCIÓN lejos del reactor se rechaza como antes (`LEJOS_DEL_REACTOR`). |
+
+Se avisa a todos con `weapon:fired` (quién disparó, qué guardianes quedaron paralizados, la parálisis y la recarga).
+Cada guardián lleva `stunnedSeconds` en `live.guardians` y cada jugador `weaponCooldown` en `match:state`.
+
 ## 5. Eventos especiales (US-22)
 
-**Activación.** Al iniciar se arma un calendario con un lote de 11 eventos en orden aleatorio, repartidos a lo largo de la
-duración de la partida: el evento *i* cae cerca del segundo `hueco × (i+1)` (con `hueco = duración / 12`, unos 15 s en
-una partida de 3 minutos), corrido al azar hasta ±¼ de hueco, con al menos 2 s entre uno y otro y nunca en el primer
-segundo. Cuando el lote se acaba (prórroga por empate o modo por puntos) se programa otro igual.
+**Activación.** Al iniciar se arma un calendario con un lote de eventos en orden aleatorio, repartidos a lo largo de la
+duración de la partida. La energía adicional, la invasión y los dos creativos ocupan 9 lugares: el evento *i* cae cerca
+del segundo `hueco × (i+1)` (con `hueco = duración / 10`, unos 18 s en una partida de 3 minutos), corrido al azar hasta
+±¼ de hueco. La **sobrecarga** tiene su propia ventana para que se vea en todas las partidas: la **primera** cae al azar
+entre el **11 % y el 25 %** de la duración (**segundos 20 a 45** en una partida de 3 minutos) y la **segunda** en la
+segunda mitad (**segundos 90 a 153**). Entre dos eventos siempre hay al menos 2 s y ninguno cae en el primer segundo.
+Cuando el lote se acaba (prórroga por empate o modo por puntos) se programa otro igual.
 **Sin repeticiones accidentales** (CA-22.9): un evento del mismo tipo nunca está activo dos veces a la vez; si le toca
 empezar y ya está activo, se pospone 2 s.
 
 | Evento | Código | Veces por lote | Duración | Efecto | Al terminar |
 |---|---|---|---|---|---|
 | Energía adicional | `EXTRA_ENERGY` | 6 | 8 s | Aparece un ícono en uno de los puntos `E` del escenario, elegido al azar (si no hay puntos `E` libres, en cualquier piso libre). El primero que lo pisa gana **+25**. | Si nadie lo tomó, desaparece. Si alguien lo tomó, el evento termina en ese momento. |
-| Sobrecarga del reactor | `REACTOR_OVERLOAD` | 2 | 10 s | Se llama `Partida.DesactivarReactor(10)`: nadie puede extraer (`REACTOR_DESACTIVADO`). | El reactor vuelve a funcionar. |
+| Sobrecarga del reactor | `REACTOR_OVERLOAD` | 2 (1.ª entre los s 20 y 45; 2.ª entre los s 90 y 153) | 10 s | Se llama `Partida.DesactivarReactor(10)`: nadie puede extraer (`REACTOR_DESACTIVADO`). | El reactor vuelve a funcionar. |
 | Invasión de guardianes | `GUARDIAN_INVASION` | 1 | 30 s | Aparecen **5 guardianes más**, iguales a los normales, lejos de los jugadores y del reactor. | Los 5 temporales desaparecen. |
 | Puntos dobles *(creativo 1)* | `DOUBLE_POINTS` | 1 | 15 s | Extraer y recoger energía valen ×2. Las penalizaciones no se duplican. | Todo vuelve a valer lo normal. |
 | Rutas alternativas *(creativo 2)* | `ALTERNATE_ROUTES` | 1 | 15 s | Todas las puertas se abren al instante y quedan abiertas. | Las puertas retoman su ciclo de 6 s. |
@@ -153,6 +173,7 @@ Todos están en `ReglasArenaViva` (dentro de `ConfigPartida.ArenaViva`) y se val
 | `SegundosPuntosDobles` / `MultiplicadorPuntosDobles` | 15 / 2 |
 | `SegundosRutasAlternativas` | 15 |
 | `CeldasLluviaEnergia` / `PuntosCeldaLluvia` / `SegundosLluviaEnergia` | 3 / 10 / 12 |
+| `AlcanceArma` / `SegundosParalisisArma` / `SegundosRecargaArma` | 2 / 5 / 15 |
 
 ## 8. Mensajes al cliente
 
@@ -162,7 +183,7 @@ Detalle en `contratos-websocket.md`. Resumen: `match:state` trae `scenarioId`, `
 
 ## 9. Trazabilidad (criterio → pruebas)
 
-Las pruebas están marcadas con `[Trait("CA", "…")]`; se pueden filtrar con
+Las pruebas están marcadas con `[Trait("CA", "…")]` (las del arma, con `[Trait("Requisito", "Arma paralizadora")]`); se pueden filtrar con
 `dotnet test --filter "CA=22.3"`. CA-20.2 y la parte visual de CA-22.5 los completa Unity (Celeste): el servidor
 envía el tipo de cada obstáculo, guardián, ítem y evento para que se dibujen distintos.
 
@@ -181,7 +202,7 @@ envía el tipo de cada obstáculo, guardián, ítem y evento para que se dibujen
 | CA-21.2 | `GuardianesTests.Guardian_BloqueaElPasoDeLosJugadores`, `GuardianesTests.Guardian_DaUnPasoCadaDosSegundosHaciaElJugadorMasCercano`, `GuardianesTests.Guardian_NoAtraviesaMuros` |
 | CA-21.3 | `GuardianesTests.Guardian_AlAlcanzarAUnJugadorLoCongelaYSeQuedaQuieto` |
 | CA-21.4 | `ArenaVivaTiempoRealTests.EstadoPartida_ConArenaViva_IncluyeEscenarioLiveYCongelados`, `GuardianesTests.Congelado_NoPuedeActuarYLuegoRecuperaLasAcciones` |
-| CA-21.5 | `ArenaVivaCasosDeUsoTests.Ejecutar_EstandoCongelado_NoSeMueve`, `GuardianesTests.Congelado_NoPuedeActuarYLuegoRecuperaLasAcciones` |
+| CA-21.5 | `ArenaVivaCasosDeUsoTests.Ejecutar_EstandoCongelado_NoSeMueve`, `ArmaParalizadoraTests.Congelado_NoPuedeDisparar`, `GuardianesTests.Congelado_NoPuedeActuarYLuegoRecuperaLasAcciones` |
 | CA-21.6 | `GuardianesTests.Congelado_NoPuedeActuarYLuegoRecuperaLasAcciones`, `TrampasYPuertasTests.Trampa_ElJugadorQuedaInmovilizadoYLuegoRecuperaElMovimiento` |
 | CA-21.7 | `ArenaVivaCasosDeUsoTests.Ejecutar_CaerEnUnaTrampa_RestaCincoCongelaYDevuelveLaNovedad`, `ArenaVivaTiempoRealTests.AMensaje_Congelamiento_EsPlayerFrozenConOrigenYTrampa`, `ArenaVivaTiempoRealTests.Publicador_CaerEnTrampa_MandaPlayerFrozenATodos`, `ArenaVivaTiempoRealTests.Reloj_CuandoUnGuardianAlcanzaAUnJugador_LoTraeEnLasNovedades`, `GuardianesTests.Guardian_AlAlcanzarARegistraUnaNovedadParaTodos`, `TrampasYPuertasTests.Trampa_RegistraUnaNovedadDeCongelamientoConLaVariante` |
 | CA-21.8 | `GuardianesTests.Jugador_NoPuedeCongelarseNiDescongelarseDesdeFueraDelDominio` |
@@ -190,7 +211,7 @@ envía el tipo de cada obstáculo, guardián, ítem y evento para que se dibujen
 | CA-21.11 | `GuardianesTests.Guardian_SiElMasCercanoEstaCongelado_VaPorOtroJugador`, `GuardianesTests.Guardian_SiTodosEstanCongelados_NoSeMueve` |
 | CA-22.1 | `ArenaVivaTiempoRealTests.AMensaje_EnergiaRecogida_EsItemCollected`, `ArenaVivaTiempoRealTests.Aceptacion_PartidaDeTresMinutos_TieneTodosLosElementosDeLaArenaViva`, `EscenariosJsonTests.EnergiaAdicional_AparecePorLoMenosSeisVecesEnLosPuntosDelEscenario`, `EventosEspecialesTests.EnergiaExtra_AparecePisandoUnaCeldaLibreDeLaArena`, `EventosEspecialesTests.EnergiaExtra_DaVeinticincoPuntosYDuraOchoSegundos`, `EventosEspecialesTests.EnergiaExtra_ElPrimeroQueLaPisaSeLlevaLosPuntos`, `EventosEspecialesTests.EnergiaExtra_NoLaPuedenTomarDosJugadores`, `EventosEspecialesTests.EnergiaExtra_SiNadieLaTomaDesapareceConElEvento`, `EventosEspecialesTests.Partida_ConPuertas_TieneTodosLosEventosLasVecesPedidas` |
 | CA-22.2 | `ArenaVivaTiempoRealTests.Aceptacion_PartidaDeTresMinutos_TieneTodosLosElementosDeLaArenaViva`, `EventosEspecialesTests.Invasion_AparecenCincoGuardianesMasYDespuesDesaparecen`, `EventosEspecialesTests.Invasion_LosInvasoresPersiguenComoLosDemasGuardianes` |
-| CA-22.3 | `ArenaVivaTiempoRealTests.Aceptacion_PartidaDeTresMinutos_TieneTodosLosElementosDeLaArenaViva`, `EventosEspecialesTests.Calendario_NoEmpiezaEnElPrimerSegundoYNoSeAmontona`, `EventosEspecialesTests.Partida_ConPuertas_TieneTodosLosEventosLasVecesPedidas`, `EventosEspecialesTests.Sobrecarga_DesactivaElReactorYDespuesVuelveAFuncionar`, `EventosEspecialesTests.Sobrecarga_DuraDiezSegundosYOcurreAlMenosDosVecesEnMomentosDistintos`, `EventosEspecialesTests.Sobrecarga_ElMomentoCambiaSegunElAzar` |
+| CA-22.3 | `ArenaVivaTiempoRealTests.Aceptacion_PartidaDeTresMinutos_TieneTodosLosElementosDeLaArenaViva`, `EventosEspecialesTests.Calendario_NoEmpiezaEnElPrimerSegundoYNoSeAmontona`, `EventosEspecialesTests.Partida_ConPuertas_TieneTodosLosEventosLasVecesPedidas`, `EventosEspecialesTests.Sobrecarga_DesactivaElReactorYDespuesVuelveAFuncionar`, `EventosEspecialesTests.Sobrecarga_DuraDiezSegundosYOcurreAlMenosDosVecesEnMomentosDistintos`, `EventosEspecialesTests.Sobrecarga_ElMomentoCambiaSegunElAzar`, `EventosEspecialesTests.Sobrecarga_LaPrimeraCaeEntreLos20YLos45SegundosYLaOtraEnLaSegundaMitad` |
 | CA-22.4 | `ArenaVivaTiempoRealTests.Aceptacion_PartidaDeTresMinutos_TieneTodosLosElementosDeLaArenaViva`, `EventosEspecialesTests.LluviaDeEnergia_CreaVariasCeldasQueTerminanAlTomarLaUltima`, `EventosEspecialesTests.Partida_ConPuertas_TieneTodosLosEventosLasVecesPedidas`, `EventosEspecialesTests.Partida_SinPuertas_UsaLluviaDeEnergiaComoSegundoCreativo`, `EventosEspecialesTests.PuntosDobles_LaExtraccionVale_ElDobleSoloMientrasDura`, `EventosEspecialesTests.PuntosDobles_NoDuplicaLasPenalizaciones`, `EventosEspecialesTests.RutasAlternativas_DejanTodasLasPuertasAbiertasMientrasDuran` |
 | CA-22.5 | `ArenaVivaTiempoRealTests.AMensaje_Eventos_LlevanTipoDuracionYUnTextoParaMostrar`, `ArenaVivaTiempoRealTests.Reloj_CuandoEmpiezaUnEvento_LoTraeEnLasNovedadesUnaSolaVez`, `EventosEspecialesTests.CadaEventoQueEmpiezaRegistraUnaNovedadConSuDuracion` |
 | CA-22.6 | `ArenaVivaTiempoRealTests.Publicador_EnergiaRecogida_MandaMovimientoPuntajeYLuegoItemCollected` |
@@ -206,3 +227,4 @@ envía el tipo de cada obstáculo, guardián, ítem y evento para que se dibujen
 | CA-23.6 | `EscenariosCatalogoTests.Escenario_ElReactorSeAlcanzaSinDependerDeLasPuertas`, `EscenariosCatalogoTests.Escenario_ElReactorTieneSusCuatroVecinasLibresYTodoSeAlcanzaDesdeLosInicios` |
 | CA-23.7 | `ArenaVivaCasosDeUsoTests.Iniciar_DosVeces_FallaYElEscenarioNoCambia`, `EscenariosCatalogoTests.Partida_ElEscenarioNoCambiaDuranteLaPartida` |
 | CA-23.8 | `ArenaVivaCasosDeUsoTests.Configurar_ConEscenarioYObstaculosALaVez_Falla`, `ArenaVivaCasosDeUsoTests.Configurar_SinEscenario_UsaElMapaClasicoComoAntes`, `EscenariosCatalogoTests.Obtener_SinIdDevuelveElMapaClasicoYUnoDesconocidoFalla`, `EscenariosJsonTests.Aplicar_PoneElIdYLasTrampasDelEscenarioSinTocarElResto` |
+| Arma paralizadora (sin CA) | `ArenaVivaTiempoRealTests.AMensaje_ArmaDisparada_EsWeaponFiredConLosGuardianesParalizados`, `ArenaVivaTiempoRealTests.EstadoPartida_MuestraRecargaDelJugadorYGuardianesParalizados`, `ArenaVivaTiempoRealTests.Publicador_ArmaRecargando_RechazaSoloAlJugador`, `ArenaVivaTiempoRealTests.Publicador_Disparo_MandaWeaponFiredATodosSinMoverAlJugador`, `ArenaVivaTiempoRealTests.Rechazo_ArmaRecargando_TieneSuCodigo`, `ArmaParalizadoraTests.Accion_LejosDelReactor_DisparaYParalizaAlGuardianCercano`, `ArmaParalizadoraTests.Congelado_NoPuedeDisparar`, `ArmaParalizadoraTests.DisparoVacio_SeGastaIgualYEntraEnRecarga`, `ArmaParalizadoraTests.Disparo_NoAfectaJugadoresNiPuntajes`, `ArmaParalizadoraTests.DosDisparos_LaParalisisNoSeAcumula`, `ArmaParalizadoraTests.GuardianParalizado_NoSeMueveNiCongelaYDespuesVuelveAPerseguir`, `ArmaParalizadoraTests.JugadorJuntoAUnGuardianParalizado_NoQuedaCongelado`, `ArmaParalizadoraTests.JuntoAlReactor_AccionSigueExtrayendo`, `ArmaParalizadoraTests.Recarga_EsDeCadaJugador`, `ArmaParalizadoraTests.Recargando_NoDisparaHastaQuePasenQuinceSegundos`, `ArmaParalizadoraTests.Reglas_ValoresPorDefectoYValidacion`, `ArmaParalizadoraTests.SinArenaViva_LejosDelReactorSigueRechazandoComoAntes` |

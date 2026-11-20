@@ -28,5 +28,6 @@ public static class TiposMensaje
     public const string EventEnded = "event:ended";
     public const string PlayerFrozen = "player:frozen";
     public const string ItemCollected = "item:collected";
+    public const string WeaponFired = "weapon:fired";
     public const string Error = "error";
 }

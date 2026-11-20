@@ -18,9 +18,14 @@ namespace Dominio.Juego;
 ///    Después se queda quieto SegundosPausaGuardian. Alcanzar a un jugador nunca cambia su puntaje (CA-21.9).
 ///  - Las puertas cambian de estado cada SegundosCicloPuertas, cada una con un desfase distinto, y nunca se
 ///    cierran sobre alguien.
-///  - Eventos programados al azar durante toda la partida: energía extra (6), sobrecarga (2), invasión de
+///  - Eventos programados al azar durante toda la partida: energía extra (6), sobrecarga (2: la primera entre
+///    los segundos 20 y 45 de una partida de 3 minutos, la otra en la segunda mitad), invasión de
 ///    guardianes, puntos dobles y rutas alternativas (o lluvia de energía si no hay puertas).
 ///    Un evento no se activa dos veces a la vez: si ya está activo, se pospone.
+///  - Arma paralizadora (pedido del profesor en clase): ACCIÓN lejos del reactor dispara. Paraliza
+///    SegundosParalisisArma a todos los guardianes a AlcanceArma pasos o menos; paralizado no se mueve ni congela.
+///    Después el jugador espera SegundosRecargaArma para volver a disparar (se gasta aunque no le pegue a nadie).
+///    Nunca afecta a otros jugadores ni cambia puntajes.
 /// </summary>
 internal sealed class ArenaViva
 {
@@ -34,6 +39,9 @@ internal sealed class ArenaViva
     private readonly List<ItemEnergia> _items = [];
     private readonly List<EventoActivo> _eventos = [];
     private readonly List<(int Segundo, TipoEvento Tipo)> _calendario = [];
+
+    /// <summary>Arma paralizadora: segundo de partida desde el que cada jugador puede volver a disparar.</summary>
+    private readonly Dictionary<Guid, int> _armaListaEn = [];
 
     private int _proximoGuardian = 1;
     private int _proximoItem = 1;
@@ -194,28 +202,67 @@ internal sealed class ArenaViva
     /// Programa un lote de eventos repartidos en la duración de la partida, con algo de azar en el momento.
     /// Cuando se acaba el lote se programa otro, así una partida por puntos (sin tiempo límite) o con prórroga
     /// sigue teniendo eventos.
+    /// La sobrecarga del reactor tiene su propia ventana para que se vea en todas las partidas: la primera cae al
+    /// azar entre el 11 % y el 25 % de la duración (segundos 20 a 45 en una partida de 3 minutos) y las demás en la
+    /// segunda mitad (segundos 90 a 153). Nunca a menos de 2 s de otro evento.
     /// </summary>
     private void ProgramarLote(int desde)
     {
         var tipos = new List<TipoEvento>();
         tipos.AddRange(Enumerable.Repeat(TipoEvento.EnergiaExtra, _reglas.VecesEnergiaExtra));
-        tipos.AddRange(Enumerable.Repeat(TipoEvento.SobrecargaReactor, _reglas.VecesSobrecarga));
         tipos.Add(TipoEvento.InvasionGuardianes);
         tipos.Add(TipoEvento.PuntosDobles);
         tipos.Add(_partida.Arena.Puertas.Count > 0 ? TipoEvento.RutasAlternativas : TipoEvento.LluviaEnergia);
         Mezclar(tipos);
 
-        var horizonte = Math.Max(_partida.Config.DuracionSegundos, tipos.Count + 1);
+        var horizonte = Math.Max(_partida.Config.DuracionSegundos, tipos.Count + _reglas.VecesSobrecarga + 1);
         var hueco = Math.Max(2, horizonte / (tipos.Count + 1));
         var ultimo = desde;
+        var lote = new List<(int Segundo, TipoEvento Tipo)>();
 
         for (var i = 0; i < tipos.Count; i++)
         {
             var variacion = _azar.Next(-(hueco / 4), hueco / 4 + 1);
             var segundo = Math.Max(ultimo + 2, desde + hueco * (i + 1) + variacion);
-            _calendario.Add((segundo, tipos[i]));
+            lote.Add((segundo, tipos[i]));
             ultimo = segundo;
         }
+
+        // Sobrecargas: la primera temprano y el resto repartidas en la segunda mitad (CA-22.3: al menos 2, al azar).
+        var ventanas = new List<(int Desde, int Hasta)>
+        {
+            (desde + Math.Max(2, (int)Math.Round(horizonte * 0.11)), desde + Math.Max(3, (int)Math.Round(horizonte * 0.25)))
+        };
+        var resto = _reglas.VecesSobrecarga - 1;
+        var inicioMitad = horizonte / 2;
+        var largoMitad = Math.Max(resto, (int)Math.Round(horizonte * 0.85) - inicioMitad);
+        for (var k = 0; k < resto; k++)
+        {
+            var a = inicioMitad + largoMitad * k / resto;
+            var b = inicioMitad + largoMitad * (k + 1) / resto - 1;
+            ventanas.Add((desde + a, desde + Math.Max(a, b)));
+        }
+
+        foreach (var (inicio, fin) in ventanas)
+            lote.Add((ElegirSegundoLibre(lote, inicio, fin), TipoEvento.SobrecargaReactor));
+
+        _calendario.AddRange(lote.OrderBy(e => e.Segundo));
+    }
+
+    /// <summary>Un segundo al azar en [inicio, fin] que quede a 2 s o más de los eventos ya elegidos.</summary>
+    private int ElegirSegundoLibre(List<(int Segundo, TipoEvento Tipo)> elegidos, int inicio, int fin)
+    {
+        var libres = Enumerable.Range(inicio, fin - inicio + 1)
+            .Where(s => elegidos.All(e => Math.Abs(e.Segundo - s) >= 2))
+            .ToList();
+        if (libres.Count > 0)
+            return libres[_azar.Next(libres.Count)];
+
+        // Ventana llena (partidas muy cortas): el primer segundo libre después de la ventana.
+        var segundo = fin + 1;
+        while (elegidos.Any(e => Math.Abs(e.Segundo - segundo) < 2))
+            segundo++;
+        return segundo;
     }
 
     // ------------------------------------------------------------------ paso del tiempo
@@ -453,6 +500,40 @@ internal sealed class ArenaViva
         return item;
     }
 
+    // ------------------------------------------------------------------ arma paralizadora
+
+    /// <summary>
+    /// El jugador dispara el arma paralizadora en el segundo <paramref name="segundoActual"/> de la partida.
+    /// Si todavía se está recargando, no pasa nada (<see cref="ResultadoAccion.ArmaRecargando"/>). Si no, paraliza
+    /// a los guardianes a AlcanceArma pasos o menos (sin importar muros: es una onda alrededor del jugador) y el
+    /// arma entra en recarga, le haya pegado a alguien o no.
+    /// </summary>
+    public ResultadoAccion Disparar(Jugador jugador, int segundoActual)
+    {
+        if (SegundosRecargaArma(jugador.Id, segundoActual) > 0)
+            return ResultadoAccion.ArmaRecargando;
+
+        _armaListaEn[jugador.Id] = segundoActual + _reglas.SegundosRecargaArma;
+
+        var alcanzados = _guardianes
+            .Where(g => g.Posicion.DistanciaManhattan(jugador.Posicion) <= _reglas.AlcanceArma)
+            .OrderBy(g => g.Id)
+            .ToList();
+
+        // No se acumula: un segundo disparo deja la parálisis en 5 s, no en 10.
+        foreach (var guardian in alcanzados)
+            guardian.SegundosParalizado = Math.Max(guardian.SegundosParalizado, _reglas.SegundosParalisisArma);
+
+        _partida.Registrar(new ArmaDisparadaNovedad(
+            jugador.Id, alcanzados.Select(g => g.Id).ToList(), _reglas.SegundosParalisisArma, _reglas.SegundosRecargaArma));
+
+        return ResultadoAccion.ArmaDisparada;
+    }
+
+    /// <summary>Segundos que le faltan al jugador para poder volver a disparar (0 = listo).</summary>
+    public int SegundosRecargaArma(Guid jugadorId, int segundoActual) =>
+        _armaListaEn.TryGetValue(jugadorId, out var lista) ? Math.Max(0, lista - segundoActual) : 0;
+
     /// <summary>Un jugador acaba de moverse: si quedó junto a un guardián activo, este lo alcanza.</summary>
     public void RevisarContacto(Jugador jugador)
     {
@@ -460,7 +541,7 @@ internal sealed class ArenaViva
             return;
 
         var guardian = _guardianes.FirstOrDefault(g =>
-            g.SegundosPausa == 0 && g.Posicion.DistanciaManhattan(jugador.Posicion) == 1);
+            g.Activo && g.Posicion.DistanciaManhattan(jugador.Posicion) == 1);
 
         if (guardian is not null)
             Alcanzar(guardian, jugador);
@@ -491,6 +572,13 @@ internal sealed class ArenaViva
     {
         foreach (var guardian in _guardianes.OrderBy(g => g.Id).ToList())
         {
+            // Paralizado por el arma: no se mueve ni congela a nadie hasta que se le pase.
+            if (guardian.SegundosParalizado > 0)
+            {
+                guardian.SegundosParalizado--;
+                continue;
+            }
+
             if (guardian.SegundosPausa > 0)
             {
                 guardian.SegundosPausa--;

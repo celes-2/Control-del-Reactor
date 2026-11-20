@@ -287,6 +287,96 @@ public class ArenaVivaTiempoRealTests
         Assert.Equal(new[] { "player:moved", "score:changed" }, socket.Tipos().ToArray());
     }
 
+    // ---------- Arma paralizadora ----------
+
+    [Fact]
+    [Trait("Requisito", "Arma paralizadora")]
+    public void AMensaje_ArmaDisparada_EsWeaponFiredConLosGuardianesParalizados()
+    {
+        var jugador = Guid.NewGuid();
+
+        var mensaje = new ArmaDisparadaNovedad(jugador, [2, 5], 5, 15).AMensaje();
+
+        Assert.Equal(TiposMensaje.WeaponFired, mensaje!.Value.Tipo);
+        var data = Assert.IsType<ArmaDisparadaData>(mensaje.Value.Data);
+        Assert.Equal(jugador, data.UserId);
+        Assert.Equal(new[] { 2, 5 }, data.GuardianIds.ToArray());
+        Assert.Equal((5, 15), (data.StunSeconds, data.Cooldown));
+    }
+
+    [Fact]
+    [Trait("Requisito", "Arma paralizadora")]
+    public void Rechazo_ArmaRecargando_TieneSuCodigo()
+    {
+        var jugador = Guid.NewGuid();
+
+        var rechazo = Rechazos.Desde(jugador, ResultadoAccion.ArmaRecargando);
+
+        Assert.Equal("ARMA_RECARGANDO", rechazo!.Code);
+    }
+
+    [Fact]
+    [Trait("Requisito", "Arma paralizadora")]
+    public async Task Publicador_Disparo_MandaWeaponFiredATodosSinMoverAlJugador()
+    {
+        var (publicador, socket, partidaId) = PublicadorConUnJugador();
+        var beto = Guid.NewGuid();
+        var resultado = new ResultadoEjecucion(
+            partidaId, beto, ResultadoAccion.ArmaDisparada, 10, 0, 0, EstadoPartida.EnCurso, null,
+            Novedades: [new ArmaDisparadaNovedad(beto, [1], 5, 15)]);
+
+        await publicador.EnviarResultadoAsync(resultado, Accion.Extraer);
+
+        Assert.Equal(new[] { "weapon:fired" }, socket.Tipos().ToArray());
+        Assert.Contains("\"guardianIds\":[1]", socket.Enviados[0]);
+    }
+
+    [Fact]
+    [Trait("Requisito", "Arma paralizadora")]
+    public async Task Publicador_ArmaRecargando_RechazaSoloAlJugador()
+    {
+        var salas = new AdministradorSalas();
+        var partidaId = Guid.NewGuid();
+        var (beto, ana) = (Guid.NewGuid(), Guid.NewGuid());
+        var (socketBeto, socketAna) = (new SocketFalso(), new SocketFalso());
+        salas.Agregar(partidaId, new ConexionJugador(beto, socketBeto));
+        salas.Agregar(partidaId, new ConexionJugador(ana, socketAna));
+        var publicador = new PublicadorPartida(salas, new PartidaEnMemoriaRepositorio());
+        var resultado = new ResultadoEjecucion(
+            partidaId, beto, ResultadoAccion.ArmaRecargando, 10, 0, 0, EstadoPartida.EnCurso, null, Novedades: []);
+
+        await publicador.EnviarResultadoAsync(resultado, Accion.Extraer);
+
+        Assert.Equal(new[] { "player:rejected" }, socketBeto.Tipos().ToArray());
+        Assert.Contains("ARMA_RECARGANDO", socketBeto.Enviados[0]);
+        Assert.Empty(socketAna.Enviados);
+    }
+
+    [Fact]
+    [Trait("Requisito", "Arma paralizadora")]
+    public void EstadoPartida_MuestraRecargaDelJugadorYGuardianesParalizados()
+    {
+        var partida = Partida.Crear(new ConfigPartida { MaxJugadores = 2 }, Arena.DesdeFilas(
+        [
+            "SR........S",
+            "...........",
+            "...........",
+            "G.........G",
+            "...........",
+            "..........."
+        ]));
+        partida.Unirse(Guid.NewGuid(), "Ana", Guid.NewGuid());
+        var beto = partida.Unirse(Guid.NewGuid(), "Beto", Guid.NewGuid());
+        partida.Iniciar(new Random(1));
+        partida.Tick(2);   // el guardián de la derecha queda a 2 pasos de Beto
+        partida.Ejecutar(beto.Id, Accion.Extraer);
+
+        var estado = PartidaVista.Desde(partida).AEstadoPartida(partida.Config.DuracionSegundos);
+
+        Assert.Equal(15, estado.Players.Single(p => p.UserId == beto.Id).WeaponCooldown);
+        Assert.Contains(estado.Live!.Guardians, g => g.StunnedSeconds == 5);
+    }
+
     // ---------- Aceptación: una partida completa con 4 guardianes ----------
 
     private sealed class UsuariosEnMemoria : IUsuarioRepo

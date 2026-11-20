@@ -65,6 +65,7 @@ El móvil obtiene el id de su partida con `GET /api/partidas/activa` (204 si no 
 | `event:ended` | `{ eventId, kind }` |
 | `player:frozen` | `{ userId, seconds, source, trapKind }` |
 | `item:collected` | `{ itemId, userId, points }` (llega junto con `score:changed`) |
+| `weapon:fired` | `{ userId, guardianIds, stunSeconds, cooldown }` (arma paralizadora, a toda la sala) |
 
 ### `match:state`
 
@@ -161,6 +162,7 @@ Reglas completas en `Docs/arena-viva.md`. Todo lo nuevo es **aditivo**: los camp
 
 - `traps[].kind`: `QUICKSAND` (tierra movediza, 3 s) · `RISING_CELL` (celda emergente, 5 s) · `NET` (red, 2 s). Todas restan 5 puntos.
 - `guardians[].temporary`: llegó con la invasión. `paused`: acaba de congelar a alguien y está quieto.
+  `stunnedSeconds`: segundos que sigue paralizado por el arma de un jugador (0 = normal); paralizado no se mueve ni congela.
 - `events[].kind`: `EXTRA_ENERGY` · `GUARDIAN_INVASION` · `REACTOR_OVERLOAD` · `DOUBLE_POINTS` · `ALTERNATE_ROUTES` · `ENERGY_RAIN`.
 - `scoreMultiplier`: 2 durante «Puntos dobles».
 
@@ -172,6 +174,17 @@ Reglas completas en `Docs/arena-viva.md`. Todo lo nuevo es **aditivo**: los camp
 - `player:frozen` → `{ "userId": "...", "seconds": 5, "source": "TRAP", "trapKind": "RISING_CELL" }`.
   `source`: `GUARDIAN` | `TRAP`; `seconds` es el total que le queda (si ya estaba congelado, se suma).
 - `item:collected` → `{ "itemId": 3, "userId": "...", "points": 25 }`.
+- `weapon:fired` → `{ "userId": "...", "guardianIds": [2, 7], "stunSeconds": 5, "cooldown": 15 }`.
+  `guardianIds` puede venir vacío (disparó sin nadie cerca; igual entra en recarga).
+
+### Arma paralizadora
+
+- Se dispara con **ACCIÓN lejos del reactor** (el mismo `ACTION` del control y la misma tecla de extraer en Unity).
+  Junto al reactor, ACCIÓN sigue extrayendo como siempre.
+- En partidas con arena viva, ACCIÓN lejos del reactor ya **no** responde `LEJOS_DEL_REACTOR`: dispara (`weapon:fired`)
+  o, si está recargando, responde `player:rejected` con `code: "ARMA_RECARGANDO"` solo a ese jugador.
+- `match:state` agrega `players[].weaponCooldown` (segundos para volver a disparar; 0 = lista).
+- Reglas completas: `Docs/arena-viva.md`, sección «Arma paralizadora».
 
 ### Orden
 
