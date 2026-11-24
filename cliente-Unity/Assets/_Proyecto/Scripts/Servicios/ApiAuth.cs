@@ -40,8 +40,8 @@ namespace Reactor.Cliente.Servicios
                     DeviceCode = json["deviceCode"]?.ToString(),
                     UserCode = json["userCode"]?.ToString(),
                     VerificationUri = json["verificationUri"]?.ToString(),
-                    ExpiresIn = json["expiresIn"]?.Value<int>() ?? 0,
-                    Interval = json["interval"]?.Value<int>() ?? 0,
+                    ExpiresIn = Entero(json["expiresIn"]),
+                    Interval = Entero(json["interval"]),
                 };
                 if (string.IsNullOrEmpty(inicio.DeviceCode) || string.IsNullOrEmpty(inicio.UserCode))
                     throw new ApiAuthException("RESPUESTA_INVALIDA", "El servidor no devolvió el código de GitHub.");
@@ -52,7 +52,7 @@ namespace Reactor.Cliente.Servicios
             Enviar("POST", "/api/auth/github/consultar", new { deviceCode }, texto =>
             {
                 var json = JObject.Parse(texto);
-                var estado = new GitHubEstado { Interval = json["interval"]?.Value<int>() ?? 0 };
+                var estado = new GitHubEstado { Interval = Entero(json["interval"]) };
                 var login = json["login"];
                 var nombre = (json["estado"] ?? json["status"] ?? json["state"])?.ToString();
                 if (login == null || login.Type == JTokenType.Null)
@@ -66,6 +66,15 @@ namespace Reactor.Cliente.Servicios
                 estado.Sesion = LeerSesion(login);
                 return estado;
             });
+
+        /// <summary>Un número del JSON; 0 si falta, es null o no es un número (el servidor puede mandar "interval": null).</summary>
+        static int Entero(JToken token)
+        {
+            if (token == null || token.Type == JTokenType.Null) return 0;
+            return token.Type == JTokenType.Integer || token.Type == JTokenType.Float
+                ? (int)token
+                : int.TryParse(token.ToString(), out var valor) ? valor : 0;
+        }
 
         static SesionIniciada LeerSesion(JToken json)
         {
