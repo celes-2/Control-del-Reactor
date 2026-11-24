@@ -1,0 +1,30 @@
+{
+  "id": "centro-investigacion",
+  "orden": 0,
+  "nombre": "Centro de investigación",
+  "descripcion": "Cámara del reactor con tres puertas y una abertura, bancos de laboratorio y dos salas laterales.",
+  "trampasAleatorias": 3,
+  "distanciaMinimaEntreTrampas": 3,
+  "filas": [
+    "WWWWWWWWWWWWWWWWWWWWWWWWWWWWWW",
+    "WS............G.............SW",
+    "W...........T................W",
+    "W.........TE..WW..........E..W",
+    "W...EWWWW............WWWW....W",
+    "W............................W",
+    "W.T........WWWWDWWWW.........W",
+    "WE.........W.......W...T.....W",
+    "W.WWWW..W..W.T...T.W.W..WWWW.W",
+    "W.W..W...E.W.......W....W..W.W",
+    "WGW..D..T..D...R...D....D..WGW",
+    "W.W..W.....W.......W....W..W.W",
+    "W.WWWW..WT.W.T...T.W.W..WWWW.W",
+    "W......T...W.......W....E....W",
+    "W.T........WWWW.WWWW.........W",
+    "W....WWWW....E......TWWWW....W",
+    "W............................W",
+    "W......T.....................W",
+    "WS............G...E.........SW",
+    "WWWWWWWWWWWWWWWWWWWWWWWWWWWWWW"
+  ]
+}

@@ -10,7 +10,7 @@ namespace PruebasDominio;
 /// </summary>
 public class EscenariosCatalogoTests
 {
-    public static readonly string[] Ids = ["laboratorio", "estacion", "militar"];
+    public static readonly string[] Ids = ["centro-investigacion", "laboratorio", "estacion", "militar"];
 
     // ---------- Catálogo (CA-23.1, 23.2) ----------
 
@@ -24,6 +24,7 @@ public class EscenariosCatalogoTests
     }
 
     [Theory]
+    [InlineData("centro-investigacion")]
     [InlineData("laboratorio")]
     [InlineData("estacion")]
     [InlineData("militar")]
@@ -44,6 +45,7 @@ public class EscenariosCatalogoTests
     }
 
     [Theory]
+    [InlineData("centro-investigacion")]
     [InlineData("laboratorio")]
     [InlineData("estacion")]
     [InlineData("militar")]
@@ -63,6 +65,7 @@ public class EscenariosCatalogoTests
     }
 
     [Theory]
+    [InlineData("centro-investigacion")]
     [InlineData("laboratorio")]
     [InlineData("estacion")]
     [InlineData("militar")]
@@ -89,6 +92,7 @@ public class EscenariosCatalogoTests
     }
 
     [Theory]
+    [InlineData("centro-investigacion")]
     [InlineData("laboratorio")]
     [InlineData("estacion")]
     [InlineData("militar")]
@@ -152,6 +156,7 @@ public class EscenariosCatalogoTests
     }
 
     [Theory]
+    [InlineData("centro-investigacion")]
     [InlineData("laboratorio")]
     [InlineData("estacion")]
     [InlineData("militar")]
