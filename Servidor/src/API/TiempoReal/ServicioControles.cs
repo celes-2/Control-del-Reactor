@@ -1,6 +1,3 @@
-using Aplicacion;
-using Aplicacion.CasosDeUso;
-using Dominio.Comun;
 using Dominio.Juego;
 using Infraestructura.Hardware;
 
@@ -9,15 +6,13 @@ namespace API.TiempoReal;
 /// <summary>
 /// Escucha los controles mientras el servidor este encendido. Por cada boton:
 /// descarta duplicados (FiltroDuplicados), busca el jugador del control, ejecuta la accion
-/// (EjecutarAccion) y avisa a los Unity. Cuando un control se conecta, reinicia su contador de seq.
-/// EjecutarAccion es Scoped y este servicio es Singleton: por eso se crea un scope por evento.
+/// (ProcesadorAcciones) y avisa a los Unity. Cuando un control se conecta, reinicia su contador de seq.
 /// </summary>
 public sealed class ServicioControles(
     IFuenteEventosBoton fuente,
     FiltroDuplicados filtro,
     IEmparejamientoControles emparejamiento,
-    PublicadorPartida publicador,
-    IServiceScopeFactory scopes,
+    ProcesadorAcciones procesador,
     ILogger<ServicioControles> log) : BackgroundService
 {
     protected override Task ExecuteAsync(CancellationToken stoppingToken) =>
@@ -52,36 +47,6 @@ public sealed class ServicioControles(
             return;
         }
 
-        var eventoId = $"{evento.DeviceId}:{evento.Seq}";
-
-        using var scope = scopes.CreateScope();
-        var ejecutarAccion = scope.ServiceProvider.GetRequiredService<EjecutarAccion>();
-
-        ResultadoEjecucion resultado;
-        try
-        {
-            resultado = await ejecutarAccion.EjecutarAsync(
-                new EjecutarAccionComando(usuarioId.Value, evento.Accion), ct);
-        }
-        catch (NoEncontradoException ex)
-        {
-            // El jugador no esta en ninguna partida activa: no hay a quien avisarle.
-            log.LogInformation("Boton de {DeviceId} descartado: {Motivo}", evento.DeviceId, ex.Message);
-            return;
-        }
-        catch (DominioException ex)
-        {
-            log.LogInformation("Boton de {DeviceId} descartado ({Codigo}): {Motivo}", evento.DeviceId, ex.Codigo, ex.Message);
-
-            // CA-18.5: si intentaba extraer, se le explica el motivo (solo a el).
-            if (evento.Accion == Accion.Extraer && Rechazos.DesdeCodigo(usuarioId.Value, ex.Codigo) is { } rechazo)
-                await publicador.EnviarRechazoAsync(usuarioId.Value, rechazo, ct);
-            return;
-        }
-
-        log.LogInformation("{EventoId} -> {Accion}: {Resultado} en ({X},{Y}), puntaje {Puntaje} ({Puntos} puntos)",
-            eventoId, evento.Accion, resultado.Resultado, resultado.X, resultado.Y, resultado.Puntaje, resultado.PuntosGanados);
-
-        await publicador.EnviarResultadoAsync(resultado, evento.Accion, eventoId, ct);
+        await procesador.ProcesarAsync(usuarioId.Value, evento.Accion, $"{evento.DeviceId}:{evento.Seq}", ct);
     }
 }
