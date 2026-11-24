@@ -98,6 +98,8 @@ namespace Reactor.Cliente.Servicios
                         Filas = LeerLista(item["filas"]),
                         Puertas = LeerPosiciones(item["puertas"]),
                         InicioGuardianes = LeerPosiciones(item["inicioGuardianes"]),
+                        PuntosEnergia = LeerPosiciones(item["puntosEnergia"]),
+                        TrampasAleatorias = EnteroOCero(item["trampasAleatorias"]),
                         MaxJugadores = item["maxJugadores"]?.Value<int>() ?? 0,
                         MinGuardianes = item["minGuardianes"]?.Value<int>() ?? 2,
                         MaxGuardianes = item["maxGuardianes"]?.Value<int>() ?? 4,
@@ -107,6 +109,9 @@ namespace Reactor.Cliente.Servicios
                 return lista;
             });
         }
+
+        static int EnteroOCero(JToken token) =>
+            token == null || token.Type == JTokenType.Null ? 0 : token.Type == JTokenType.Integer ? (int)token : int.TryParse(token.ToString(), out var n) ? n : 0;
 
         static List<string> LeerLista(JToken token)
         {
