@@ -10,7 +10,7 @@ namespace PruebasDominio;
 /// </summary>
 public class EscenariosJsonTests
 {
-    public static readonly string[] Ids = ["laboratorio", "estacion", "militar"];
+    public static readonly string[] Ids = ["centro-investigacion", "laboratorio", "estacion", "militar"];
 
     private static readonly Direccion[] Direcciones =
         [Direccion.Arriba, Direccion.Abajo, Direccion.Izquierda, Direccion.Derecha];
@@ -46,6 +46,7 @@ public class EscenariosJsonTests
     }
 
     [Theory]
+    [InlineData("centro-investigacion")]
     [InlineData("laboratorio")]
     [InlineData("estacion")]
     [InlineData("militar")]
@@ -277,6 +278,7 @@ public class EscenariosJsonTests
     }
 
     [Theory]
+    [InlineData("centro-investigacion")]
     [InlineData("laboratorio")]
     [InlineData("estacion")]
     [InlineData("militar")]

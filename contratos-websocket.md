@@ -41,6 +41,7 @@ Nombres de campo en inglés y `camelCase`. Los ids son texto (GUID). Posiciones:
 | `match:join` | `{ "matchId": "..." }` | cualquier jugador |
 | `match:start` | `{}` | solo el anfitrión, con 2 o más jugadores |
 | `match:watch` | `{ "matchId": "..." }` | el móvil (US-30): mira sin unirse; recibe `match:state` y los mensajes de la sala, no los rechazos privados |
+| `player:input` | `{ "button": "UP" \| "DOWN" \| "LEFT" \| "RIGHT" \| "ACTION" }` | el jugador en curso: el teclado de Unity. Hace lo mismo que el botón de la Pico (mismas reglas y mismas respuestas `player:moved`, `score:changed`...) y convive con el control físico |
 
 Unity **nunca** envía movimientos: los botones llegan desde la Pico por MQTT. El servidor decide.
 

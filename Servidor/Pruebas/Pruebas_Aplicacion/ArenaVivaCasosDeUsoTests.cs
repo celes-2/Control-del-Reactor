@@ -81,6 +81,7 @@ public class ArenaVivaCasosDeUsoTests
     // ---------- Crear: escenario (US-23) ----------
 
     [Theory]
+    [InlineData("centro-investigacion")]
     [InlineData("laboratorio")]
     [InlineData("estacion")]
     [InlineData("militar")]
@@ -339,11 +340,11 @@ public class ArenaVivaCasosDeUsoTests
 
     [Fact]
     [Trait("CA", "23.1")]
-    public void ListarEscenarios_DevuelveLosTresConLoNecesarioParaElegir()
+    public void ListarEscenarios_DevuelveLosCuatroConLoNecesarioParaElegir()
     {
         var escenarios = new ListarEscenarios().Ejecutar();
 
-        Assert.Equal(new[] { "laboratorio", "estacion", "militar" }, escenarios.Select(e => e.Id).ToArray());
+        Assert.Equal(new[] { "centro-investigacion", "laboratorio", "estacion", "militar" }, escenarios.Select(e => e.Id).ToArray());
         Assert.All(escenarios, e =>
         {
             Assert.False(string.IsNullOrWhiteSpace(e.Nombre));

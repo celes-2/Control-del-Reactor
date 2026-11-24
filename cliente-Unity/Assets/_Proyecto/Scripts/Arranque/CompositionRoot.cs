@@ -83,6 +83,7 @@ namespace Reactor.Cliente.Arranque
                 Avatares = new AvatarCache(Config.Servidor);
                 AvatarImagenes.Cache = Avatares;
                 PreparadorImagen = new PreparadorImagenAvatar();
+                gameObject.AddComponent<TecladoJugador>().Iniciar(Socket);   // teclado y control físico a la vez
             }
 
             // Barra con el avatar y el nombre del jugador en todas las pantallas (CA-06.5).

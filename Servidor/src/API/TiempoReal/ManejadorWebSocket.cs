@@ -13,11 +13,12 @@ namespace API.TiempoReal;
 /// Atiende la conexion WebSocket de un Unity: ws://IP:8080/ws/partida?userId=ID
 /// Recibe match:join y match:start, y responde con match:state o error.
 /// US-30: el móvil manda match:watch para mirar una partida como espectador, sin unirse.
-/// Los movimientos NO llegan por aqui: llegan de la Pico por MQTT.
+/// Los movimientos llegan de la Pico por MQTT y, si se quiere, del teclado de Unity con player:input.
 /// </summary>
 public sealed class ManejadorWebSocket(
     AdministradorSalas salas,
     PublicadorPartida publicador,
+    ProcesadorAcciones procesador,
     IPartidaRepo partidas,
     ILogger<ManejadorWebSocket> log)
 {
@@ -112,6 +113,16 @@ public sealed class ManejadorWebSocket(
                 await iniciar.EjecutarAsync(new IniciarPartidaComando(actual, conexion.UsuarioId), ct);
                 await publicador.EnviarEstadoAsync(actual, ct);
                 return actual;
+
+            case TiposMensaje.PlayerInput:
+                // El teclado de Unity: mismo camino que el botón de la Pico (EjecutarAccion), para el jugador de esta conexión.
+                var boton = data.ValueKind == JsonValueKind.Object
+                    && data.TryGetProperty("button", out var b) && b.ValueKind == JsonValueKind.String
+                        ? b.GetString() : null;
+                var accion = Infraestructura.Hardware.TraductorEventoBoton.ConvertirBoton(boton)
+                    ?? throw new DominioException("player:input necesita data.button: UP, DOWN, LEFT, RIGHT o ACTION.");
+                await procesador.ProcesarAsync(conexion.UsuarioId, accion, $"teclado:{conexion.UsuarioId}", ct);
+                return partidaActual;
 
             default:
                 throw new DominioException($"Tipo de mensaje desconocido: '{tipo}'.");

@@ -1,9 +1,12 @@
 {
   "id": "centro-investigacion",
   "nombre": "Centro de investigación",
-  "descripcion": "Cámara del reactor con cuatro puertas, bancos de laboratorio y dos salas laterales.",
+  "descripcion": "Cámara del reactor con tres puertas y una abertura, bancos de laboratorio y dos salas laterales.",
   "tema": "investigacion",
-  "tiles": { "piso": "original", "pared": "centro-investigacion-pared.png" },
+  "tiles": {
+    "piso": "original",
+    "pared": "centro-investigacion-pared.png"
+  },
   "filas": [
     "WWWWWWWWWWWWWWWWWWWWWWWWWWWWWW",
     "WS............G.............SW",
@@ -19,7 +22,7 @@
     "W.W..W.....W.......W....W..W.W",
     "W.WWWW..WT.W.T...T.W.W..WWWW.W",
     "W......T...W.......W....E....W",
-    "W.T........WWWWDWWWW.........W",
+    "W.T........WWWW.WWWW.........W",
     "W....WWWW....E......TWWWW....W",
     "W............................W",
     "W......T.....................W",

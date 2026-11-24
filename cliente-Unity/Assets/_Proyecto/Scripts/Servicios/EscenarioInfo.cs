@@ -12,7 +12,23 @@ namespace Reactor.Cliente.Servicios
         /// <summary>El mapa clásico del servidor: no manda escenarioId.</summary>
         public static readonly EscenarioInfo Clasico = new EscenarioInfo
         {
-            Id = "", Nombre = "Centro de investigación", Descripcion = "El mapa por defecto del servidor.",
+            Id = "", Nombre = "Centro de investigación",
+            Descripcion = "Arena abierta con muros en las esquinas interiores y el reactor al centro. Sin puertas.",
+            // Es el mismo mapa que usa el servidor cuando no se elige escenario (Escenarios.Predeterminado, 15 x 11).
+            Filas = new[]
+            {
+                "WWWWWWWWWWWWWWW",
+                "WS...........SW",
+                "W..WW.....WW..W",
+                "W..W.......W..W",
+                "W.............W",
+                "W......R......W",
+                "W.............W",
+                "W..W.......W..W",
+                "W..WW.....WW..W",
+                "WS...........SW",
+                "WWWWWWWWWWWWWWW",
+            },
         };
 
         public string Id { get; set; } = "";
@@ -29,6 +45,9 @@ namespace Reactor.Cliente.Servicios
         public IReadOnlyList<(int x, int y)> Puertas { get; set; } = Array.Empty<(int, int)>();
         public IReadOnlyList<(int x, int y)> InicioGuardianes { get; set; } = Array.Empty<(int, int)>();
         public IReadOnlyList<(int x, int y)> Trampas { get; set; } = Array.Empty<(int, int)>();
+
+        /// <summary>Cuántas trampas se reparten al iniciar cuando el servidor no da sus posiciones.</summary>
+        public int TrampasAleatorias { get; set; }
         public IReadOnlyList<(int x, int y)> PuntosEnergia { get; set; } = Array.Empty<(int, int)>();
         public IReadOnlyList<(int x, int y)> Decoracion { get; set; } = Array.Empty<(int, int)>();
 

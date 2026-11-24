@@ -206,16 +206,23 @@ namespace Reactor.Cliente.Configuracion
                     sinDibujo.text = "Mapa del servidor\n(sin vista previa)";
                 }
 
-                ConstructorUI.CrearTexto(rt, "Nombre", 32, FontStyles.Bold, texto, new Vector2(0f, -85f), new Vector2(cajaAncho, 100f))
+                ConstructorUI.CrearTexto(rt, "Nombre", 32, FontStyles.Bold, texto, new Vector2(0f, -75f), new Vector2(cajaAncho, 90f))
                     .text = info.Nombre;
                 var descripcion = ConstructorUI.CrearTexto(rt, "Descripcion", 24, FontStyles.Normal, texto,
-                    new Vector2(0f, -195f), new Vector2(cajaAncho, 110f));
+                    new Vector2(0f, -183f), new Vector2(cajaAncho, 110f));
                 descripcion.alignment = TextAlignmentOptions.Top;
+                // Las descripciones largas se encogen para no pisar la línea de datos.
+                descripcion.enableAutoSizing = true;
+                descripcion.fontSizeMax = 22f;
+                descripcion.fontSizeMin = 14f;
                 descripcion.text = info.Descripcion;
 
-                if (celdasAncho > 0)
-                    ConstructorUI.CrearTexto(rt, "Datos", 22, FontStyles.Normal, texto, new Vector2(0f, -253f), new Vector2(cajaAncho, 50f))
-                        .text = $"{info.Trampas.Count} trampas  ·  {info.PuntosEnergia.Count} energías";
+                // Solo se muestra lo que se conoce: el mapa clásico no informa trampas ni energías.
+                var trampas = info.Trampas.Count > 0 ? info.Trampas.Count : info.TrampasAleatorias;
+                var energias = info.PuntosEnergia.Count;
+                if (trampas > 0 || energias > 0)
+                    ConstructorUI.CrearTexto(rt, "Datos", 22, FontStyles.Normal, texto, new Vector2(0f, -262f), new Vector2(cajaAncho, 40f))
+                        .text = $"{trampas} trampas  ·  {energias} puntos de energía";
             }
         }
 

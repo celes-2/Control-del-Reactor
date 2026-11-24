@@ -15,6 +15,7 @@ namespace Reactor.Cliente.Contratos
         // Cliente -> servidor
         public const string Unirse = "match:join";
         public const string Iniciar = "match:start";
+        public const string Entrada = "player:input";
 
         // Servidor -> cliente
         public const string Estado = "match:state";

@@ -9,6 +9,7 @@ public static class TiposMensaje
     // Cliente -> servidor
     public const string MatchJoin = "match:join";
     public const string MatchStart = "match:start";
+    public const string PlayerInput = "player:input";   // el teclado de Unity: mismo efecto que un botón del control
 
     public const string MatchWatch = "match:watch";   // US-30: el móvil mira la partida sin unirse
 
