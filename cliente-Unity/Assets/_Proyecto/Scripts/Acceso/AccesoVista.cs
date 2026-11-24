@@ -27,6 +27,8 @@ namespace Reactor.Cliente.Acceso
         public event Action<string> OlvidePulsado;
         public event Action<string, string, string> RestablecerPulsado;
         public event Action<ModoAcceso> ModoPulsado;
+        public event Action GitHubPulsado;
+        public event Action GitHubCancelado;
 
         readonly Dictionary<ModoAcceso, GameObject> grupos = new Dictionary<ModoAcceso, GameObject>();
         readonly List<Button> botones = new List<Button>();
@@ -41,6 +43,7 @@ namespace Reactor.Cliente.Acceso
         TMP_InputField verCodigo;
         TMP_InputField olvCorreo;
         TMP_InputField resCodigo, resClave, resConfirmar;
+        TextMeshProUGUI codigoGitHub, direccionGitHub;
 
         void Awake() => ConstruirInterfaz();
 
@@ -53,8 +56,15 @@ namespace Reactor.Cliente.Acceso
                 ModoAcceso.Registro => "CREAR CUENTA",
                 ModoAcceso.Verificar => "VERIFICAR CORREO",
                 ModoAcceso.Olvide => "RECUPERAR CONTRASEÑA",
+                ModoAcceso.GitHub => "ENTRAR CON GITHUB",
                 _ => "NUEVA CONTRASEÑA",
             };
+        }
+
+        public void MostrarCodigoGitHub(string codigo, string direccion)
+        {
+            codigoGitHub.text = codigo;
+            direccionGitHub.text = direccion;
         }
 
         public void MostrarAviso(string texto, bool exito)
@@ -108,6 +118,7 @@ namespace Reactor.Cliente.Acceso
             ConstruirVerificar();
             ConstruirOlvide();
             ConstruirRestablecer();
+            ConstruirGitHub();
         }
 
         RectTransform Grupo(ModoAcceso modo)
@@ -135,7 +146,9 @@ namespace Reactor.Cliente.Acceso
         }
 
         void Enlace(RectTransform grupo, string texto, float x, float y, ModoAcceso destino) =>
-            ConstructorCampos.CrearEnlace(grupo, texto, new Vector2(x, y), new Vector2(520f, 60f), () => ModoPulsado?.Invoke(destino));
+            ConstructorCampos.CrearEnlace(grupo, texto, new Vector2(x, y), new Vector2(520f, 60f),
+                // "Cancelar" de GitHub no cambia de pantalla por sí solo: avisa para detener la espera.
+                () => { if (destino == ModoAcceso.GitHub) GitHubCancelado?.Invoke(); else ModoPulsado?.Invoke(destino); });
 
         void ConstruirLogin()
         {
@@ -143,8 +156,23 @@ namespace Reactor.Cliente.Acceso
             loginUsuario = Campo(g, "Usuario", "Usuario o correo", 200f);
             loginClave = Campo(g, "Clave", "Contraseña", 90f, true);
             Accion(g, "Entrar", -50f, ConstructorUI.Verde, () => LoginPulsado?.Invoke(loginUsuario.text, loginClave.text));
-            Enlace(g, "Crear cuenta", -250f, -190f, ModoAcceso.Registro);
-            Enlace(g, "Olvidé mi contraseña", 250f, -190f, ModoAcceso.Olvide);
+            Accion(g, "Entrar con GitHub", -170f, ConstructorUI.Azul, () => GitHubPulsado?.Invoke());
+            Enlace(g, "Crear cuenta", -250f, -290f, ModoAcceso.Registro);
+            Enlace(g, "Olvidé mi contraseña", 250f, -290f, ModoAcceso.Olvide);
+        }
+
+        void ConstruirGitHub()
+        {
+            var g = Grupo(ModoAcceso.GitHub);
+            ConstructorUI.CrearTexto(g, "Info", 34, FontStyles.Normal, Color.white,
+                new Vector2(0f, 270f), new Vector2(1000f, 110f)).text = "Se abrió GitHub en tu navegador. Escribe este código y pulsa Authorize:";
+            codigoGitHub = ConstructorUI.CrearTexto(g, "Codigo GitHub", 120, FontStyles.Bold, ConstructorUI.Dorado,
+                new Vector2(0f, 130f), new Vector2(1000f, 160f));
+            direccionGitHub = ConstructorUI.CrearTexto(g, "Direccion GitHub", 30, FontStyles.Normal, ConstructorUI.Gris,
+                new Vector2(0f, 20f), new Vector2(1000f, 60f));
+            ConstructorUI.CrearTexto(g, "Espera", 34, FontStyles.Italic, ConstructorUI.Gris,
+                new Vector2(0f, -80f), new Vector2(1000f, 60f)).text = "Esperando que autorices...";
+            Enlace(g, "Cancelar", 0f, -190f, ModoAcceso.GitHub);
         }
 
         void ConstruirRegistro()

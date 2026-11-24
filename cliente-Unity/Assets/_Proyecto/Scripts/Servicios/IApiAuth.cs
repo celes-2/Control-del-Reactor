@@ -20,6 +20,28 @@ namespace Reactor.Cliente.Servicios
         public string AvatarId;
     }
 
+    /// <summary>Respuesta de POST /api/auth/github/iniciar (flujo de dispositivo de GitHub).</summary>
+    public sealed class GitHubInicio
+    {
+        public string DeviceCode;
+        /// <summary>Código que el jugador escribe en GitHub (por ejemplo ABCD-1234).</summary>
+        public string UserCode;
+        /// <summary>Página donde se escribe el código.</summary>
+        public string VerificationUri;
+        public int ExpiresIn;
+        /// <summary>Segundos entre una consulta y la siguiente.</summary>
+        public int Interval;
+    }
+
+    /// <summary>Respuesta de POST /api/auth/github/consultar: pendiente (Sesion = null) o completado.</summary>
+    public sealed class GitHubEstado
+    {
+        public bool Completado;
+        /// <summary>Si viene, la próxima consulta usa este intervalo (en segundos). 0 = el mismo.</summary>
+        public int Interval;
+        public SesionIniciada Sesion;
+    }
+
     public sealed class AvatarInfo
     {
         public string Id;
@@ -43,6 +65,12 @@ namespace Reactor.Cliente.Servicios
         Task RegistrarAsync(string usuario, string correo, string clave, string confirmar);
         Task VerificarCorreoAsync(string codigo);
         Task<SesionIniciada> LoginAsync(string usuarioOCorreo, string clave);
+
+        /// <summary>Empieza el login con GitHub (US-29). Los fallos llegan como ApiAuthException con codigo LOGIN_SOCIAL_*.</summary>
+        Task<GitHubInicio> IniciarGitHubAsync();
+
+        /// <summary>Pregunta si el jugador ya autorizó el código en GitHub.</summary>
+        Task<GitHubEstado> ConsultarGitHubAsync(string deviceCode);
         Task SolicitarRecuperacionAsync(string correo);
         Task RestablecerAsync(string codigo, string clave, string confirmar);
 

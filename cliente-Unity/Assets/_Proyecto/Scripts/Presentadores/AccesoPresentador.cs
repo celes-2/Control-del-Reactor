@@ -1,4 +1,5 @@
 using System;
+using System.Threading.Tasks;
 using Reactor.Cliente.Servicios;
 
 namespace Reactor.Cliente.Presentadores
@@ -13,12 +14,21 @@ namespace Reactor.Cliente.Presentadores
         readonly IApiAuth api;
         readonly Action<SesionIniciada> alIniciarSesion;
 
+        readonly Action<string> abrirDireccion;
+
+        // Segundos de espera entre consultas si el servidor no dice otra cosa.
+        const int IntervaloPorDefecto = 5;
+
         bool ocupado;
         bool liberado;
         string usuarioPendiente;
+        int intentoGitHub; // sube al cancelar: la espera anterior se da por terminada
 
-        public AccesoPresentador(IAccesoVista vista, IApiAuth api, Action<SesionIniciada> alIniciarSesion)
+        /// <param name="abrirDireccion">Abre una dirección en el navegador (Application.OpenURL). Opcional.</param>
+        public AccesoPresentador(IAccesoVista vista, IApiAuth api, Action<SesionIniciada> alIniciarSesion,
+            Action<string> abrirDireccion = null)
         {
+            this.abrirDireccion = abrirDireccion;
             this.vista = vista ?? throw new ArgumentNullException(nameof(vista));
             this.api = api ?? throw new ArgumentNullException(nameof(api));
             this.alIniciarSesion = alIniciarSesion ?? throw new ArgumentNullException(nameof(alIniciarSesion));
@@ -29,6 +39,8 @@ namespace Reactor.Cliente.Presentadores
             vista.OlvidePulsado += AlOlvide;
             vista.RestablecerPulsado += AlRestablecer;
             vista.ModoPulsado += AlCambiarModo;
+            vista.GitHubPulsado += AlGitHub;
+            vista.GitHubCancelado += AlCancelarGitHub;
         }
 
         public void Iniciar() => vista.MostrarModo(ModoAcceso.Login);
@@ -42,6 +54,8 @@ namespace Reactor.Cliente.Presentadores
             vista.OlvidePulsado -= AlOlvide;
             vista.RestablecerPulsado -= AlRestablecer;
             vista.ModoPulsado -= AlCambiarModo;
+            vista.GitHubPulsado -= AlGitHub;
+            vista.GitHubCancelado -= AlCancelarGitHub;
         }
 
         void AlCambiarModo(ModoAcceso modo)
@@ -76,6 +90,74 @@ namespace Reactor.Cliente.Presentadores
                     vista.MostrarAviso("Tu correo aún no está verificado. Escribe el código que te enviamos.", false);
                 }
             });
+        }
+
+        /// <summary>
+        /// Login con GitHub (US-29): pide el código al servidor, abre la página de GitHub, y pregunta cada "interval"
+        /// segundos hasta que el jugador autoriza. Cancelar, expirar o fallar vuelve al login con un mensaje.
+        /// </summary>
+        async void AlGitHub()
+        {
+            if (ocupado) return;
+            ocupado = true;
+            var intento = ++intentoGitHub;
+            vista.Bloquear(true);
+            vista.MostrarAviso("", true);
+            try
+            {
+                var inicio = await api.IniciarGitHubAsync();
+                if (liberado || intento != intentoGitHub) return;
+
+                vista.MostrarModo(ModoAcceso.GitHub);
+                vista.MostrarCodigoGitHub(inicio.UserCode, inicio.VerificationUri);
+                abrirDireccion?.Invoke(inicio.VerificationUri);
+
+                var espera = inicio.Interval > 0 ? inicio.Interval : IntervaloPorDefecto;
+                var limite = DateTime.UtcNow.AddSeconds(inicio.ExpiresIn > 0 ? inicio.ExpiresIn + 30 : 900);
+                while (true)
+                {
+                    await Task.Delay(espera * 1000);
+                    if (liberado || intento != intentoGitHub) return;
+                    if (DateTime.UtcNow > limite)
+                        throw new ApiAuthException("LOGIN_SOCIAL_EXPIRADO", "El código de GitHub expiró. Inténtalo de nuevo.");
+
+                    var estado = await api.ConsultarGitHubAsync(inicio.DeviceCode);
+                    if (liberado || intento != intentoGitHub) return;
+
+                    if (estado.Completado)
+                    {
+                        vista.LimpiarClaves();
+                        alIniciarSesion(estado.Sesion);
+                        return;
+                    }
+                    if (estado.Interval > 0) espera = estado.Interval; // "PENDIENTE": seguir esperando
+                }
+            }
+            catch (Exception e) when (!liberado && intento == intentoGitHub)
+            {
+                // LOGIN_SOCIAL_CANCELADO / EXPIRADO / SIN_CORREO / FALLO / NO_CONFIGURADO traen su mensaje para mostrar.
+                if (!(e is ApiAuthException) && !(e is ApiException)) UnityEngine.Debug.LogException(e);
+                vista.MostrarModo(ModoAcceso.Login);
+                vista.MostrarAviso(e is ApiAuthException || e is ApiException ? e.Message : "No se pudo entrar con GitHub: " + e.Message, false);
+            }
+            finally
+            {
+                if (!liberado && intento == intentoGitHub)
+                {
+                    ocupado = false;
+                    vista.Bloquear(false);
+                }
+            }
+        }
+
+        void AlCancelarGitHub()
+        {
+            // Sube el intento: la espera que sigue corriendo se descarta sin tocar la pantalla.
+            intentoGitHub++;
+            ocupado = false;
+            vista.Bloquear(false);
+            vista.MostrarModo(ModoAcceso.Login);
+            vista.MostrarAviso("Entrada con GitHub cancelada.", false);
         }
 
         async void AlRegistro(string usuario, string correo, string clave, string confirmar)

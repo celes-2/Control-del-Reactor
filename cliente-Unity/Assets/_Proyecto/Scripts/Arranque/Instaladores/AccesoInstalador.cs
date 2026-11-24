@@ -35,7 +35,9 @@ namespace Reactor.Cliente.Arranque
                     raiz.Sesion.Iniciar(sesion.Token, sesion.UsuarioId, sesion.Nombre);
                     raiz.Sesion.CambiarAvatar(sesion.AvatarId);
                     SceneManager.LoadScene(Escenas.Inicio);
-                });
+                },
+                // Con el servidor falso no se abre GitHub: el código es de mentira y se "autoriza" solo.
+                direccion => { if (!raiz.UsaServidorFalso) Application.OpenURL(direccion); });
             presentador.Iniciar();
         }
 
