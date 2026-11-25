@@ -35,6 +35,7 @@ namespace Reactor.Cliente.Servicios
         public event Action<EventoTerminadoMsg> EventoTerminado;
         public event Action<JugadorCongeladoMsg> JugadorCongelado;
         public event Action<ItemRecogidoMsg> ItemRecogido;
+        public event Action<ArmaDisparadaMsg> ArmaDisparada;
         public event Action<string> ControlVinculado;
         public event Action<string> Error;
 
@@ -155,6 +156,7 @@ namespace Reactor.Cliente.Servicios
                     case TiposMensaje.EventoTerminado: EventoTerminado?.Invoke(datos.ToObject<EventoTerminadoMsg>()); break;
                     case TiposMensaje.JugadorCongelado: JugadorCongelado?.Invoke(datos.ToObject<JugadorCongeladoMsg>()); break;
                     case TiposMensaje.ItemRecogido: ItemRecogido?.Invoke(datos.ToObject<ItemRecogidoMsg>()); break;
+                    case TiposMensaje.ArmaDisparada: ArmaDisparada?.Invoke(datos.ToObject<ArmaDisparadaMsg>()); break;
                     case TiposMensaje.ControlVinculado: ControlVinculado?.Invoke(datos.ToObject<ControlVinculadoMsg>()?.DeviceId); break;
                     case TiposMensaje.Error: Error?.Invoke(datos.ToObject<ErrorMsg>()?.Mensaje ?? "Error del servidor."); break;
                     default: Debug.LogWarning($"Tipo de mensaje desconocido: {tipo}"); break;

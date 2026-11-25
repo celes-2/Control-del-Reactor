@@ -95,6 +95,7 @@ namespace Reactor.Cliente.Servicios.Falsos
         public event Action<EventoTerminadoMsg> EventoTerminado;
         public event Action<JugadorCongeladoMsg> JugadorCongelado;
         public event Action<ItemRecogidoMsg> ItemRecogido;
+        public event Action<ArmaDisparadaMsg> ArmaDisparada;   // el servidor falso no simula el arma
         public event Action<string> Error;
 
         public void Conectar(string partidaId)
