@@ -80,6 +80,7 @@ namespace Reactor.Cliente.Servicios.Falsos
         public event Action Conectado;
         public event Action<EstadoPartidaMsg> EstadoRecibido;
         public event Action<JugadorMovidoMsg> JugadorMovido;
+        public event Action<string> ControlVinculado;
 #pragma warning disable CS0067 // el servidor real ya no envía player:acted; se conserva por la interfaz
         public event Action<JugadorActuoMsg> JugadorActuo;
 #pragma warning restore CS0067
@@ -234,6 +235,13 @@ namespace Reactor.Cliente.Servicios.Falsos
                 IniciarPartida();
                 return;
             }
+            if (tipo == TiposMensaje.Vincular)
+            {
+                ControlVinculado?.Invoke("pico-falso");   // en desarrollo el "control" se vincula al instante
+                return;
+            }
+            if (tipo == TiposMensaje.CancelarVinculo) return;
+            if (tipo == TiposMensaje.Abandonar) return;
             Debug.Log($"[SocketFalso] Mensaje ignorado: {tipo}");
         }
 

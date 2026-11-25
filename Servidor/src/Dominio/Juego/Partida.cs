@@ -149,6 +149,23 @@ public sealed class Partida
     }
 
     /// <summary>
+    /// Un jugador sale antes de que comience la partida. Los que se quedan recuperan puntos de inicio
+    /// consecutivos para que el próximo en entrar no caiga sobre uno ocupado.
+    /// </summary>
+    public void Salir(Guid usuarioId)
+    {
+        if (Estado != EstadoPartida.Espera)
+            throw new DominioException("Solo se puede salir de una partida que no ha comenzado.");
+
+        var jugador = _jugadores.FirstOrDefault(j => j.Id == usuarioId)
+            ?? throw new DominioException("El usuario no está en la partida.");
+
+        _jugadores.Remove(jugador);
+        for (var i = 0; i < _jugadores.Count; i++)
+            _jugadores[i].MoverA(Arena.PuntoDeAparicion(i));
+    }
+
+    /// <summary>
     /// Empieza la partida. Con <paramref name="azarArenaViva"/> la arena queda viva: se colocan las trampas al
     /// azar, se crean los guardianes (Config.CantidadGuardianes) y se programan los eventos especiales.
     /// Sin él la partida es la de siempre, sin elementos aleatorios.

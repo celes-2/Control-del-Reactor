@@ -15,10 +15,14 @@ namespace Reactor.Cliente.Contratos
         // Cliente -> servidor
         public const string Unirse = "match:join";
         public const string Iniciar = "match:start";
+        public const string Abandonar = "match:leave";
         public const string Entrada = "player:input";
+        public const string Vincular = "device:pair";
+        public const string CancelarVinculo = "device:pair-cancel";
 
         // Servidor -> cliente
         public const string Estado = "match:state";
+        public const string ControlVinculado = "device:paired";
         public const string JugadorMovido = "player:moved";
         public const string JugadorActuo = "player:acted"; // ya no lo envia el servidor desde el Sprint 3 (ACTION ahora es Extraer)
         public const string JugadorExtrajo = "player:extracted";
@@ -344,6 +348,11 @@ namespace Reactor.Cliente.Contratos
         [JsonProperty("itemId")] public int ItemId { get; set; }
         [JsonProperty("userId")] public string JugadorId { get; set; }
         [JsonProperty("points")] public int Puntos { get; set; }
+    }
+
+    public class ControlVinculadoMsg
+    {
+        [JsonProperty("deviceId")] public string DeviceId { get; set; }
     }
 
     public class ErrorMsg

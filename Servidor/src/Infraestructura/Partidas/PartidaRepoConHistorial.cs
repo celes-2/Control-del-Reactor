@@ -19,6 +19,8 @@ public sealed class PartidaRepoConHistorial(
 
     public Task AgregarAsync(Partida partida, CancellationToken ct = default) => interno.AgregarAsync(partida, ct);
 
+    public Task EliminarAsync(Guid partidaId, CancellationToken ct = default) => interno.EliminarAsync(partidaId, ct);
+
     public Task<Guid?> BuscarPartidaDeJugadorAsync(Guid usuarioId, CancellationToken ct = default) =>
         interno.BuscarPartidaDeJugadorAsync(usuarioId, ct);
 

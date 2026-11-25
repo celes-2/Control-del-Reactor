@@ -17,6 +17,7 @@ public static class PartidasServicios
 
         servicios.AddScoped<ConfigurarPartida>();
         servicios.AddScoped<UnirsePartida>();
+        servicios.AddScoped<AbandonarPartida>();
         servicios.AddScoped<IniciarPartida>();
         servicios.AddScoped<ObtenerPartida>();
         servicios.AddScoped<ListarPartidasEnEspera>();
