@@ -133,10 +133,13 @@ namespace Reactor.Cliente.Arena
                 var sr = guardianes[i];
                 if (!sr.gameObject.activeSelf || sr.transform.position == Vector3.zero) sr.transform.position = destino;
                 Escalar(sr, g.Temporal ? tamanoGuardian * 0.75f : tamanoGuardian);
-                var tinte = g.Pausado ? new Color(0.45f, 0.4f, 0.55f, 0.8f)
+                var paralizado = g.SegundosParalizado > 0;   // arma paralizadora: no se mueve ni congela
+                var tinte = paralizado ? new Color(0.35f, 0.85f, 1f, 0.95f)
+                    : g.Pausado ? new Color(0.45f, 0.4f, 0.55f, 0.8f)
                     : g.Temporal ? new Color(1f, 0.45f, 0.75f, 0.95f) : new Color(0.7f, 0.3f, 0.95f, 1f);
                 // Con imagen propia solo se atenúa al pausado y se tiñe levemente al temporal.
                 sr.color = spriteGuardian == null ? tinte
+                    : paralizado ? new Color(0.5f, 0.85f, 1f, 1f)
                     : g.Pausado ? new Color(0.6f, 0.6f, 0.7f, 0.8f) : g.Temporal ? new Color(1f, 0.8f, 0.9f, 1f) : Color.white;
                 sr.gameObject.SetActive(true);
             }

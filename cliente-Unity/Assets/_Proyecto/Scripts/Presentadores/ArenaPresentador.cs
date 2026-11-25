@@ -17,6 +17,9 @@ namespace Reactor.Cliente.Presentadores
         readonly Dictionary<string, JugadorMsg> jugadores = new Dictionary<string, JugadorMsg>();
         string modoFin = ModosFin.Tiempo;
         int capacidadReactor;
+        int energiaReactor;
+        string estadoReactor = EstadosReactor.Disponible;
+        bool sobrecargaActiva;   // el servidor avisa la sobrecarga con event:started / event:ended, no con match:state
         readonly string jugadorPropioId;
         readonly Dictionary<string, int> extracciones = new Dictionary<string, int>();
         readonly HashSet<string> congelados = new HashSet<string>();
@@ -53,6 +56,7 @@ namespace Reactor.Cliente.Presentadores
             socket.EventoTerminado += AlTerminarEvento;
             socket.JugadorCongelado += AlCongelar;
             socket.ItemRecogido += AlRecogerItem;
+            socket.ArmaDisparada += AlDispararArma;
             socket.Error += AlError;
         }
 
@@ -84,6 +88,7 @@ namespace Reactor.Cliente.Presentadores
             socket.EventoTerminado -= AlTerminarEvento;
             socket.JugadorCongelado -= AlCongelar;
             socket.ItemRecogido -= AlRecogerItem;
+            socket.ArmaDisparada -= AlDispararArma;
             socket.Error -= AlError;
         }
 
@@ -116,7 +121,7 @@ namespace Reactor.Cliente.Presentadores
             if (e.Reactor != null)
             {
                 capacidadReactor = e.Reactor.Capacidad;
-                vista.MostrarReactor(e.Reactor.Energia, e.Reactor.Capacidad, e.Reactor.Estado);
+                ActualizarReactor(e.Reactor.Energia, e.Reactor.Estado);
             }
             vista.ActualizarMarcador(jugadores.Values);
 
@@ -152,7 +157,7 @@ namespace Reactor.Cliente.Presentadores
             vista.OcultarRechazo(); // una extracción válida borra el "Espera un momento" anterior
             vista.MostrarExtraccion(m.JugadorId);
             if (m.Puntos > 0) vista.MostrarAccion(m.JugadorId, $"+{m.Puntos}");
-            vista.MostrarReactor(m.EnergiaReactor, capacidadReactor, m.EstadoReactor);
+            ActualizarReactor(m.EnergiaReactor, m.EstadoReactor);
         }
 
         // El servidor envía player:rejected SOLO al jugador que lo causó, así que no hace falta comparar ids.
@@ -226,12 +231,46 @@ namespace Reactor.Cliente.Presentadores
         {
             if (m == null || string.IsNullOrEmpty(m.IdEvento)) return;
             vista.MostrarEvento(m.IdEvento, string.IsNullOrWhiteSpace(m.Mensaje) ? m.Tipo : m.Mensaje);
+
+            if (m.Tipo == TiposEvento.Sobrecarga)
+            {
+                sobrecargaActiva = true;
+                MostrarReactorActual();
+            }
         }
 
         void AlTerminarEvento(EventoTerminadoMsg m)
         {
             if (m == null || string.IsNullOrEmpty(m.IdEvento)) return;
             vista.OcultarEvento(m.IdEvento);
+
+            if (m.Tipo == TiposEvento.Sobrecarga)
+            {
+                sobrecargaActiva = false;
+                // Al terminar la sobrecarga el reactor vuelve a su estado normal según la energía que le queda.
+                estadoReactor = energiaReactor <= 0 ? EstadosReactor.Vacio : EstadosReactor.Disponible;
+                MostrarReactorActual();
+            }
+        }
+
+        /// <summary>Guarda lo último que dijo el servidor del reactor y lo dibuja (en sobrecarga se ve desactivado).</summary>
+        void ActualizarReactor(int energia, string estado)
+        {
+            energiaReactor = energia;
+            estadoReactor = string.IsNullOrEmpty(estado) ? EstadosReactor.Disponible : estado;
+            MostrarReactorActual();
+        }
+
+        void MostrarReactorActual() =>
+            vista.MostrarReactor(energiaReactor, capacidadReactor, sobrecargaActiva ? EstadosReactor.Desactivado : estadoReactor);
+
+        // Arma paralizadora: ACCIÓN lejos del reactor. Los guardianes paralizados se ven en arena:update (stunnedSeconds).
+        void AlDispararArma(ArmaDisparadaMsg m)
+        {
+            if (m == null || !jugadores.ContainsKey(m.JugadorId ?? "")) return;
+            var n = m.IdsGuardianes?.Count ?? 0;
+            vista.MostrarAccion(m.JugadorId,
+                n == 0 ? "¡Disparo! Sin guardianes cerca" : n == 1 ? "¡Guardián paralizado!" : $"¡{n} guardianes paralizados!");
         }
 
         void AlCongelar(JugadorCongeladoMsg m)

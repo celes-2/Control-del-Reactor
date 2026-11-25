@@ -38,6 +38,7 @@ namespace Reactor.Cliente.Contratos
         public const string EventoTerminado = "event:ended";
         public const string JugadorCongelado = "player:frozen";
         public const string ItemRecogido = "item:collected";
+        public const string ArmaDisparada = "weapon:fired";
         public const string Error = "error";
     }
 
@@ -162,6 +163,7 @@ namespace Reactor.Cliente.Contratos
         [JsonProperty("y")] public int Y { get; set; }
         [JsonProperty("score")] public int Puntaje { get; set; }
         [JsonProperty("frozenSeconds")] public int SegundosCongelado { get; set; } // 0 = normal
+        [JsonProperty("weaponCooldown")] public int SegundosRecargaArma { get; set; } // arma paralizadora: 0 = lista
     }
 
     public class JugadorMovidoMsg
@@ -215,6 +217,7 @@ namespace Reactor.Cliente.Contratos
                 case "LEJOS_DEL_REACTOR": return "Acércate al reactor";
                 case "JUGADOR_CONGELADO": return "Estás congelado";
                 case "ENFRIAMIENTO": return "Espera un momento";
+                case "ARMA_RECARGANDO": return "Tu arma se está recargando";
                 case "REACTOR_VACIO": return "El reactor está vacío";
                 case "REACTOR_DESACTIVADO": return "El reactor está en sobrecarga";
                 case "PARTIDA_NO_ACTIVA": return "La partida no está en curso";
@@ -276,6 +279,7 @@ namespace Reactor.Cliente.Contratos
         [JsonProperty("y")] public int Y { get; set; }
         [JsonProperty("temporary")] public bool Temporal { get; set; } // llegó con la invasión
         [JsonProperty("paused")] public bool Pausado { get; set; }     // acaba de congelar a alguien
+        [JsonProperty("stunnedSeconds")] public int SegundosParalizado { get; set; } // paralizado por el arma de un jugador; 0 = normal
     }
 
     public class TrampaMsg
@@ -348,6 +352,15 @@ namespace Reactor.Cliente.Contratos
         [JsonProperty("itemId")] public int ItemId { get; set; }
         [JsonProperty("userId")] public string JugadorId { get; set; }
         [JsonProperty("points")] public int Puntos { get; set; }
+    }
+
+    /// <summary>"weapon:fired": un jugador disparó el arma paralizadora (ACCIÓN lejos del reactor).</summary>
+    public class ArmaDisparadaMsg
+    {
+        [JsonProperty("userId")] public string JugadorId { get; set; }
+        [JsonProperty("guardianIds")] public List<int> IdsGuardianes { get; set; } = new List<int>(); // vacía si no había ninguno cerca
+        [JsonProperty("stunSeconds")] public int SegundosParalisis { get; set; }
+        [JsonProperty("cooldown")] public int SegundosRecarga { get; set; }  // hasta que ese jugador pueda volver a disparar
     }
 
     public class ControlVinculadoMsg
