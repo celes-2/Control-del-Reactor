@@ -7,21 +7,31 @@ namespace Dominio.Juego;
 /// Es una clase pura: no usa reloj, archivos, red ni base de datos. El tiempo avanza
 /// cuando la capa de aplicación llama a <see cref="Tick"/>, lo que la hace fácil de probar.
 ///
-/// Reglas:
+/// Reglas (Sprint 3, ver docs/reglas.md):
 ///  - Los jugadores aparecen en las esquinas. Hay entre 2 y 4.
 ///  - Los movimientos son de una celda. Muros, bordes, el reactor y otros jugadores bloquean.
-///  - Cada movimiento efectivo suma 1 punto (US-15).
+///  - Moverse NO da puntos. Los puntos salen de extraer energía del reactor (1 punto por unidad extraída).
+///  - Extraer exige: partida en curso, jugador vivo y no congelado, celda vecina al reactor,
+///    reactor activo y con energía, y haber esperado el enfriamiento desde la última extracción.
+///  - Una trampa congela al jugador y le resta puntos (nunca baja de cero); no quita vida.
 ///  - El fin se elige en la configuración (US-08): por TIEMPO o por PUNTOS.
 ///      Tiempo: al llegar a cero gana quien tenga más puntos.
 ///      Puntos: gana el primero que llegue a PuntosObjetivo.
 ///  - Empate al acabarse el tiempo: se suman 2 minutos y la partida sigue con los mismos puntajes (CA-16.4).
 ///  - Un jugador congelado no puede actuar hasta que pase su tiempo de congelamiento.
 ///  - "Especial" (quinto botón) no cambia el estado: solo avisa que el jugador hizo una acción (US-14).
-///  - Extras del Sprint 3 ya implementados: trampas (quitan vida; el último vivo gana) y extracción de energía.
+///  - Una sobrecarga desactiva el reactor unos segundos (<see cref="DesactivarReactor"/>).
+///  - Arena viva (Paquete B): si se inicia con un <see cref="Random"/> (<see cref="Iniciar"/>), la arena
+///    trae trampas al azar, puertas automáticas, guardianes y eventos especiales. Ver <see cref="ArenaViva"/>
+///    y Docs/arena-viva.md. Una puerta cerrada o un guardián bloquean el paso. Pisar una energía adicional
+///    da sus puntos. Mientras dura "puntos dobles", extraer y recoger energía valen el doble (las penalizaciones no).
+///    Los puntos solo cambian aquí, en la Partida: la arena viva nunca toca el puntaje.
 /// </summary>
 public sealed class Partida
 {
     private readonly List<Jugador> _jugadores = [];
+    private readonly List<Novedad> _novedades = [];
+    private ArenaViva? _viva;
 
     public Guid Id { get; }
     public ConfigPartida Config { get; }
@@ -43,6 +53,35 @@ public sealed class Partida
     public Guid? GanadorId { get; private set; }
 
     public IReadOnlyList<Jugador> Jugadores => _jugadores;
+
+    /// <summary>Si la partida se inició con arena viva (guardianes, eventos, trampas al azar).</summary>
+    public bool ArenaVivaActiva => _viva is not null;
+
+    public IReadOnlyList<Guardian> Guardianes => _viva?.Guardianes ?? [];
+    public IReadOnlyList<ItemEnergia> Items => _viva?.Items ?? [];
+    public IReadOnlyList<EventoActivo> EventosActivos => _viva?.Eventos ?? [];
+
+    /// <summary>Por cuánto se multiplican los puntos que se ganan ahora.</summary>
+    public int MultiplicadorPuntos => _viva?.Multiplicador ?? 1;
+
+    /// <summary>Arma paralizadora: segundos que le faltan al jugador para volver a disparar (0 = lista).</summary>
+    public int SegundosRecargaArma(Guid jugadorId) => _viva?.SegundosRecargaArma(jugadorId, SegundosTranscurridos) ?? 0;
+
+    /// <summary>Eventos programados que todavía no ocurren (para pruebas y diagnóstico).</summary>
+    public IReadOnlyList<(int Segundo, TipoEvento Tipo)> EventosProgramados => _viva?.Calendario ?? [];
+
+    /// <summary>
+    /// Devuelve lo que pasó desde la última vez (congelamientos, eventos, energía recogida) y lo borra de la lista.
+    /// La capa de aplicación lo usa para avisar a los clientes.
+    /// </summary>
+    public IReadOnlyList<Novedad> TomarNovedades()
+    {
+        var novedades = _novedades.ToArray();
+        _novedades.Clear();
+        return novedades;
+    }
+
+    internal void Registrar(Novedad novedad) => _novedades.Add(novedad);
 
     public Partida(Guid id, ConfigPartida config, IEnumerable<Obstaculo>? obstaculos = null)
     {
@@ -109,12 +148,41 @@ public sealed class Partida
         return jugador;
     }
 
-    public void Iniciar()
+    /// <summary>
+    /// Un jugador sale antes de que comience la partida. Los que se quedan recuperan puntos de inicio
+    /// consecutivos para que el próximo en entrar no caiga sobre uno ocupado.
+    /// </summary>
+    public void Salir(Guid usuarioId)
+    {
+        if (Estado != EstadoPartida.Espera)
+            throw new DominioException("Solo se puede salir de una partida que no ha comenzado.");
+
+        var jugador = _jugadores.FirstOrDefault(j => j.Id == usuarioId)
+            ?? throw new DominioException("El usuario no está en la partida.");
+
+        _jugadores.Remove(jugador);
+        for (var i = 0; i < _jugadores.Count; i++)
+            _jugadores[i].MoverA(Arena.PuntoDeAparicion(i));
+    }
+
+    /// <summary>
+    /// Empieza la partida. Con <paramref name="azarArenaViva"/> la arena queda viva: se colocan las trampas al
+    /// azar, se crean los guardianes (Config.CantidadGuardianes) y se programan los eventos especiales.
+    /// Sin él la partida es la de siempre, sin elementos aleatorios.
+    /// </summary>
+    public void Iniciar(Random? azarArenaViva = null)
     {
         if (Estado != EstadoPartida.Espera)
             throw new DominioException("La partida ya comenzó.");
         if (_jugadores.Count < 2)
             throw new DominioException("Se necesitan al menos 2 jugadores para comenzar.");
+
+        if (azarArenaViva is not null)
+        {
+            var viva = new ArenaViva(this, azarArenaViva);
+            viva.Activar();   // si no hay lugar para las trampas, falla antes de cambiar el estado
+            _viva = viva;
+        }
 
         Estado = EstadoPartida.EnCurso;
     }
@@ -122,13 +190,13 @@ public sealed class Partida
     public ResultadoAccion Ejecutar(Guid jugadorId, Accion accion)
     {
         if (Estado != EstadoPartida.EnCurso)
-            throw new DominioException("La partida no está en curso.");
+            throw new DominioException("La partida no está en curso.", CodigosRechazo.PartidaNoActiva);
 
         var jugador = _jugadores.FirstOrDefault(j => j.Id == jugadorId)
-            ?? throw new DominioException("El jugador no pertenece a esta partida.");
+            ?? throw new DominioException("El jugador no pertenece a esta partida.", CodigosRechazo.JugadorAjeno);
 
         if (jugador.Eliminado)
-            throw new DominioException("El jugador está eliminado.");
+            throw new DominioException("El jugador está eliminado.", CodigosRechazo.JugadorEliminado);
 
         if (jugador.Congelado)
             return ResultadoAccion.Congelado;
@@ -145,12 +213,21 @@ public sealed class Partida
     public void Congelar(Guid jugadorId)
     {
         if (Estado != EstadoPartida.EnCurso)
-            throw new DominioException("La partida no está en curso.");
+            throw new DominioException("La partida no está en curso.", CodigosRechazo.PartidaNoActiva);
 
         var jugador = _jugadores.FirstOrDefault(j => j.Id == jugadorId)
-            ?? throw new DominioException("El jugador no pertenece a esta partida.");
+            ?? throw new DominioException("El jugador no pertenece a esta partida.", CodigosRechazo.JugadorAjeno);
 
         jugador.Congelar(Config.SegundosCongelamiento);
+    }
+
+    /// <summary>Sobrecarga del reactor (US-22): lo desactiva durante <paramref name="segundos"/>. Nadie puede extraer mientras tanto.</summary>
+    public void DesactivarReactor(int segundos)
+    {
+        if (Estado != EstadoPartida.EnCurso)
+            throw new DominioException("La partida no está en curso.", CodigosRechazo.PartidaNoActiva);
+
+        Reactor.Desactivar(segundos);
     }
 
     /// <summary>Avanza el tiempo: recarga el reactor, descongela jugadores y revisa si terminó por tiempo.</summary>
@@ -163,8 +240,13 @@ public sealed class Partida
 
         SegundosTranscurridos += segundos;
         Reactor.Recargar(Config.RegeneracionPorSegundo * segundos);
+        Reactor.AvanzarTiempo(segundos);
         foreach (var jugador in _jugadores)
             jugador.AvanzarTiempo(segundos);
+
+        // La arena viva se mueve de a un segundo, aunque el Tick sea de varios.
+        for (var i = segundos - 1; i >= 0 && Estado == EstadoPartida.EnCurso; i--)
+            _viva?.AvanzarUnSegundo(SegundosTranscurridos - i);
 
         if (Config.ModoFin != ModoFin.Tiempo)
             return;
@@ -185,37 +267,74 @@ public sealed class Partida
         if (_jugadores.Any(j => !j.Eliminado && j.Id != jugador.Id && j.Posicion == destino))
             return ResultadoAccion.Bloqueado;
 
+        if (_viva?.HayGuardianEn(destino) == true)
+            return ResultadoAccion.Bloqueado;
+
         var obstaculo = Arena.ObstaculoEn(destino);
         if (obstaculo?.Tipo == TipoObstaculo.Muro)
             return ResultadoAccion.Bloqueado;
 
+        // Una puerta cerrada bloquea como un muro; abierta se cruza.
+        if (obstaculo?.Tipo == TipoObstaculo.Puerta && Arena.PuertaEn(destino)?.Abierta != true)
+            return ResultadoAccion.Bloqueado;
+
+        // Moverse no da puntos: solo extraer energía del reactor (o recoger energía adicional) los da.
         jugador.MoverA(destino);
-        jugador.SumarPunto();
 
         if (obstaculo?.Tipo == TipoObstaculo.Trampa)
         {
-            jugador.RecibirDano(Config.DanoTrampa);
-            if (jugador.Eliminado)
-                Reactor.Recargar(jugador.VaciarEnergia());
-
-            EvaluarFin();
+            // La trampa resta puntos (nunca baja de cero) e inmoviliza; no quita vida. Cada variante tiene su efecto.
+            var segundos = EfectoTrampa.Segundos(obstaculo.Variante, Config);
+            jugador.RestarPuntos(EfectoTrampa.Penalizacion(obstaculo.Variante, Config));
+            jugador.Congelar(segundos);
+            _novedades.Add(new JugadorCongeladoNovedad(
+                jugador.Id, jugador.SegundosCongelado, OrigenCongelamiento.Trampa, obstaculo.Variante));
+            _viva?.RevisarContacto(jugador);
             return ResultadoAccion.DanoPorTrampa;
         }
 
-        EvaluarFin();
+        if (_viva?.TomarItem(jugador) is { } item)
+        {
+            // Energía adicional (US-22): el primero que la toca gana sus puntos (x2 durante "puntos dobles").
+            var puntos = item.Puntos * MultiplicadorPuntos;
+            jugador.SumarPuntos(puntos);
+            _novedades.Add(new ItemRecogidoNovedad(item.Id, jugador.Id, puntos));
+
+            // Los puntos acaban de cambiar: puede que alguien llegue a la meta.
+            EvaluarFin();
+            if (Estado == EstadoPartida.EnCurso)
+                _viva.RevisarContacto(jugador);
+            return ResultadoAccion.EnergiaRecogida;
+        }
+
+        _viva?.RevisarContacto(jugador);
         return ResultadoAccion.Movido;
     }
 
     private ResultadoAccion Extraer(Jugador jugador)
     {
+        // Arma paralizadora (Paquete B): con arena viva, ACCIÓN lejos del reactor dispara en vez de rechazarse.
+        // Sin arena viva todo sigue como antes (LejosDelReactor).
         if (!Reactor.EstaAdyacente(jugador.Posicion))
-            return ResultadoAccion.LejosDelReactor;
+            return _viva?.Disparar(jugador, SegundosTranscurridos) ?? ResultadoAccion.LejosDelReactor;
 
-        var energia = Reactor.Extraer(Config.EnergiaPorExtraccion);
-        if (energia == 0)
+        if (Reactor.Desactivado)
+            return ResultadoAccion.ReactorDesactivado;
+
+        if (Reactor.EnergiaDisponible == 0)
             return ResultadoAccion.ReactorVacio;
 
+        if (SegundosTranscurridos - jugador.UltimaExtraccionSegundo < Config.SegundosEnfriamiento)
+            return ResultadoAccion.Enfriamiento;
+
+        var energia = Reactor.Extraer(Config.EnergiaPorExtraccion);
+
         jugador.GanarEnergia(energia);
+        jugador.SumarPuntos(energia * Config.PuntosPorEnergia * MultiplicadorPuntos);
+        jugador.MarcarExtraccion(SegundosTranscurridos);
+
+        // Los puntos acaban de cambiar: puede que alguien llegue a la meta.
+        EvaluarFin();
         return ResultadoAccion.EnergiaExtraida;
     }
 
@@ -267,5 +386,6 @@ public sealed class Partida
     {
         Estado = EstadoPartida.Finalizada;
         GanadorId = ganadorId;
+        _viva?.Finalizar();   // ningún evento sigue afectando una partida terminada (CA-22.8)
     }
 }

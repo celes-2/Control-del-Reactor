@@ -25,7 +25,9 @@ internal static class PartidaMapeo
             DanoTrampa = s.DanoTrampa ?? porDefecto.DanoTrampa,
             ModoFin = AModoFin(s.ModoFin) ?? porDefecto.ModoFin,
             PuntosObjetivo = s.PuntosObjetivo ?? porDefecto.PuntosObjetivo,
-            SegundosCongelamiento = s.SegundosCongelamiento ?? porDefecto.SegundosCongelamiento
+            SegundosCongelamiento = s.SegundosCongelamiento ?? porDefecto.SegundosCongelamiento,
+            EscenarioId = string.IsNullOrWhiteSpace(s.EscenarioId) ? null : s.EscenarioId.Trim(),
+            CantidadGuardianes = s.CantidadGuardianes ?? porDefecto.CantidadGuardianes   // 2 a 4: lo valida el dominio
         };
     }
 
@@ -48,7 +50,7 @@ internal static class PartidaMapeo
         return solicitud.Select(o =>
         {
             if (!Enum.TryParse<TipoObstaculo>(o.Tipo, ignoreCase: true, out var tipo) || !Enum.IsDefined(tipo))
-                throw new DominioException($"Tipo de obstáculo desconocido: '{o.Tipo}'. Use Muro o Trampa.");
+                throw new DominioException($"Tipo de obstáculo desconocido: '{o.Tipo}'. Use Muro, Trampa o Puerta.");
 
             return new Obstaculo(new Posicion(o.X, o.Y), tipo);
         }).ToList();
@@ -73,7 +75,25 @@ internal static class PartidaMapeo
         v.Obstaculos
             .Select(o => new ObstaculoRespuesta(o.X, o.Y, o.Tipo.ToString()))
             .ToList(),
-        v.Escenario);
+        v.Escenario,
+        v.EscenarioId,
+        v.CantidadGuardianes);
+
+    public static EscenarioRespuesta ARespuesta(this EscenarioVista e) => new(
+        e.Id,
+        e.Nombre,
+        e.Descripcion,
+        e.Ancho,
+        e.Alto,
+        e.Filas,
+        e.Puertas.Select(p => new PosicionRespuesta(p.X, p.Y)).ToList(),
+        e.InicioGuardianes.Select(p => new PosicionRespuesta(p.X, p.Y)).ToList(),
+        e.MaxJugadores,
+        e.MinGuardianes,
+        e.MaxGuardianes,
+        e.GuardianesPorDefecto,
+        e.TrampasAleatorias,
+        e.PuntosEnergia.Select(p => new PosicionRespuesta(p.X, p.Y)).ToList());
 
     public static PartidaResumenRespuesta ARespuesta(this PartidaResumen r) =>
         new(r.Id, r.Jugadores, r.MaxJugadores, r.Anfitrion);

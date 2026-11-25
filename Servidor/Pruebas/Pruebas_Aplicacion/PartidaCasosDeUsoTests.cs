@@ -39,20 +39,24 @@ public class PartidaCasosDeUsoTests
 
         public ConfigurarPartida Configurar { get; }
         public UnirsePartida Unirse { get; }
+        public AbandonarPartida Abandonar { get; }
         public IniciarPartida Iniciar { get; }
         public ObtenerPartida Obtener { get; }
         public ListarPartidasEnEspera Listar { get; }
         public EjecutarAccion Ejecutar { get; }
+        public BuscarPartidaActiva BuscarActiva { get; }
 
         public Contexto()
         {
             IPartidaRepo partidas = new PartidaEnMemoriaRepositorio();
             Configurar = new ConfigurarPartida(_usuarios, partidas);
             Unirse = new UnirsePartida(_usuarios, partidas);
+            Abandonar = new AbandonarPartida(partidas);
             Iniciar = new IniciarPartida(partidas);
             Obtener = new ObtenerPartida(partidas);
             Listar = new ListarPartidasEnEspera(partidas);
             Ejecutar = new EjecutarAccion(partidas);
+            BuscarActiva = new BuscarPartidaActiva(partidas);
         }
 
         public async Task<Usuario> CrearUsuarioAsync(
@@ -69,6 +73,114 @@ public class PartidaCasosDeUsoTests
 
         public async Task<PartidaVista> CrearPartidaAsync(Usuario anfitrion, ConfigPartida? config = null) =>
             await Configurar.EjecutarAsync(new CrearPartidaComando(anfitrion.Id, config ?? new ConfigPartida()));
+    }
+
+    // ---------- US-30: partida activa (móvil) ----------
+
+    [Fact]
+    public async Task BuscarActiva_JugadorEnUnaPartida_DevuelveEsaPartida()
+    {
+        var ctx = new Contexto();
+        var ana = await ctx.CrearUsuarioAsync("Ana");
+        var vista = await ctx.CrearPartidaAsync(ana);
+
+        var activa = await ctx.BuscarActiva.EjecutarAsync(ana.Id);
+
+        Assert.Equal(vista.Id, activa);
+    }
+
+    [Fact]
+    public async Task BuscarActiva_JugadorSinPartida_DevuelveNull()
+    {
+        var ctx = new Contexto();
+        var ana = await ctx.CrearUsuarioAsync("Ana");
+        var beto = await ctx.CrearUsuarioAsync("Beto");
+        await ctx.CrearPartidaAsync(ana);
+
+        var activa = await ctx.BuscarActiva.EjecutarAsync(beto.Id);
+
+        Assert.Null(activa);
+    }
+
+    // ---------- Salir de la sala de espera ("Volver al perfil") ----------
+
+    [Fact]
+    public async Task Abandonar_ElAnfitrion_EliminaLaPartida()
+    {
+        var ctx = new Contexto();
+        var ana = await ctx.CrearUsuarioAsync("Ana");
+        var beto = await ctx.CrearUsuarioAsync("Beto");
+        var partida = await ctx.CrearPartidaAsync(ana);
+        await ctx.Unirse.EjecutarAsync(new UnirsePartidaComando(partida.Id, beto.Id));
+
+        var resultado = await ctx.Abandonar.EjecutarAsync(new AbandonarPartidaComando(partida.Id, ana.Id));
+
+        Assert.Equal(ResultadoAbandono.Cerrada, resultado);
+        Assert.Empty(await ctx.Listar.EjecutarAsync());
+        await Assert.ThrowsAsync<NoEncontradoException>(() => ctx.Obtener.EjecutarAsync(partida.Id));
+    }
+
+    [Fact]
+    public async Task Abandonar_SoloEnLaSala_EliminaLaPartida()
+    {
+        var ctx = new Contexto();
+        var ana = await ctx.CrearUsuarioAsync("Ana");
+        var partida = await ctx.CrearPartidaAsync(ana);
+
+        var resultado = await ctx.Abandonar.EjecutarAsync(new AbandonarPartidaComando(partida.Id, ana.Id));
+
+        Assert.Equal(ResultadoAbandono.Cerrada, resultado);
+        Assert.Empty(await ctx.Listar.EjecutarAsync());
+    }
+
+    [Fact]
+    public async Task Abandonar_UnInvitado_LaPartidaSigueAbiertaSinEl()
+    {
+        var ctx = new Contexto();
+        var ana = await ctx.CrearUsuarioAsync("Ana");
+        var beto = await ctx.CrearUsuarioAsync("Beto");
+        var partida = await ctx.CrearPartidaAsync(ana);
+        await ctx.Unirse.EjecutarAsync(new UnirsePartidaComando(partida.Id, beto.Id));
+
+        var resultado = await ctx.Abandonar.EjecutarAsync(new AbandonarPartidaComando(partida.Id, beto.Id));
+
+        Assert.Equal(ResultadoAbandono.SigueAbierta, resultado);
+        var vista = await ctx.Obtener.EjecutarAsync(partida.Id);
+        Assert.Equal(ana.Id, Assert.Single(vista.Jugadores).Id);
+        Assert.Single(await ctx.Listar.EjecutarAsync());
+    }
+
+    [Fact]
+    public async Task Abandonar_UnoDeLosInvitados_LosQueQuedanRecuperanSuPuntoDeInicio()
+    {
+        var ctx = new Contexto();
+        var ana = await ctx.CrearUsuarioAsync("Ana");
+        var beto = await ctx.CrearUsuarioAsync("Beto");
+        var carla = await ctx.CrearUsuarioAsync("Carla");
+        var partida = await ctx.CrearPartidaAsync(ana, new ConfigPartida { MaxJugadores = 3 });
+        await ctx.Unirse.EjecutarAsync(new UnirsePartidaComando(partida.Id, beto.Id));
+        await ctx.Unirse.EjecutarAsync(new UnirsePartidaComando(partida.Id, carla.Id));
+        var inicioDeBeto = (await ctx.Obtener.EjecutarAsync(partida.Id)).Jugadores[1].X;
+
+        await ctx.Abandonar.EjecutarAsync(new AbandonarPartidaComando(partida.Id, beto.Id));
+
+        var jugadores = (await ctx.Obtener.EjecutarAsync(partida.Id)).Jugadores;
+        Assert.Equal([ana.Id, carla.Id], jugadores.Select(j => j.Id));
+        Assert.Equal(inicioDeBeto, jugadores[1].X);   // Carla ocupa el lugar que dejó Beto
+    }
+
+    [Fact]
+    public async Task Abandonar_PartidaYaIniciada_LoRechaza()
+    {
+        var ctx = new Contexto();
+        var ana = await ctx.CrearUsuarioAsync("Ana");
+        var beto = await ctx.CrearUsuarioAsync("Beto");
+        var partida = await ctx.CrearPartidaAsync(ana);
+        await ctx.Unirse.EjecutarAsync(new UnirsePartidaComando(partida.Id, beto.Id));
+        await ctx.Iniciar.EjecutarAsync(new IniciarPartidaComando(partida.Id, ana.Id));
+
+        await Assert.ThrowsAsync<DominioException>(() =>
+            ctx.Abandonar.EjecutarAsync(new AbandonarPartidaComando(partida.Id, ana.Id)));
     }
 
     // ---------- Crear / configurar ----------
@@ -307,7 +419,8 @@ public class PartidaCasosDeUsoTests
     }
 
     [Fact]
-    public async Task Ejecutar_UnMovimientoValido_DevuelvePosicionYPuntaje()
+    [Trait("CA", "19.4")]
+    public async Task Ejecutar_UnMovimientoValido_DevuelvePosicionYNoSumaPuntos()
     {
         var (ctx, ana, _, partida) = await PartidaEnCursoAsync();
 
@@ -317,12 +430,13 @@ public class PartidaCasosDeUsoTests
         Assert.Equal(partida.Id, resultado.PartidaId);
         Assert.Equal(ResultadoAccion.Movido, resultado.Resultado);
         Assert.Equal((1, 2), (resultado.X, resultado.Y));
-        Assert.Equal(1, resultado.Puntaje);
+        Assert.Equal(0, resultado.Puntaje);   // mover ya no da puntos (Sprint 3)
         Assert.Equal(EstadoPartida.EnCurso, resultado.Estado);
         Assert.Null(resultado.GanadorId);
     }
 
     [Fact]
+    [Trait("CA", "19.4")]
     public async Task Ejecutar_HaciaUnMuro_EsBloqueadoYNoSumaPuntos()
     {
         var (ctx, ana, _, _) = await PartidaEnCursoAsync();
@@ -336,6 +450,7 @@ public class PartidaCasosDeUsoTests
     }
 
     [Fact]
+    [Trait("CA", "19.7")]
     public async Task Ejecutar_CadaJugadorMueveSoloSuAvatar()
     {
         var (ctx, ana, beto, _) = await PartidaEnCursoAsync();
@@ -417,3 +532,4 @@ public class PartidaCasosDeUsoTests
         await Assert.ThrowsAsync<NoEncontradoException>(() => ctx.Obtener.EjecutarAsync(Guid.NewGuid()));
     }
 }
+

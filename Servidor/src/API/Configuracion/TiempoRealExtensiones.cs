@@ -12,9 +12,13 @@ public static class TiempoRealExtensiones
 
         services.AddSingleton(opciones);
         services.AddSingleton<IFuenteEventosBoton, SuscriptorMqtt>();
+        services.AddSingleton<FiltroDuplicados>();
         services.AddSingleton<AdministradorSalas>();
-        services.AddSingleton<IEmparejamientoControles, EmparejamientoPorOrden>();
+        services.AddSingleton<EmparejamientoPorOrden>();
+        services.AddSingleton<IEmparejamientoControles, EmparejamientoPorDispositivo>();
         services.AddSingleton<PublicadorPartida>();
+        services.AddSingleton<ProcesadorAcciones>();
+        services.AddSingleton<VinculadorControles>();
         services.AddSingleton<ManejadorWebSocket>();
         services.AddHostedService<ServicioControles>();
         services.AddHostedService<ServicioReloj>();

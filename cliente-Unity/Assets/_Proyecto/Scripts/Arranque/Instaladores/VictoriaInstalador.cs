@@ -60,7 +60,10 @@ namespace Reactor.Cliente.Arranque
                     new PuntajeFinalMsg { JugadorId = "jugador-1", Nombre = "Ana", Puntaje = 14 },
                 },
             };
-            return ResultadoPartida.Crear(mensaje, jugadores);
+            var demo = ResultadoPartida.Crear(mensaje, jugadores);
+            demo.DuracionSegundos = 150; // solo para ver la ceremonia sin jugar una partida
+            foreach (var j in demo.Jugadores) j.Extracciones = j.Puntaje / 10 + 1;
+            return demo;
         }
     }
 }

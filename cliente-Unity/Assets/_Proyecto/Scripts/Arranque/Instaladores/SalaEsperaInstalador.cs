@@ -1,3 +1,4 @@
+using System.Collections;
 using Reactor.Cliente.Presentadores;
 using Reactor.Cliente.SalaEspera;
 using Reactor.Cliente.Servicios;
@@ -33,8 +34,17 @@ namespace Reactor.Cliente.Arranque
             if (string.IsNullOrEmpty(sesion.PartidaActualId)) sesion.PartidaActualId = partidaIdDemo;
 
             presentador = new SalaEsperaPresentador(
-                GetComponent<SalaEsperaVista>(), raiz.Socket, sesion.UsuarioId, () => SceneManager.LoadScene(Escenas.Arena));
+                GetComponent<SalaEsperaVista>(), raiz.Socket, sesion.UsuarioId, () => SceneManager.LoadScene(Escenas.Arena),
+                () => StartCoroutine(VolverAlPerfil(raiz.Socket)));
             presentador.Iniciar(sesion.PartidaActualId);
+        }
+
+        IEnumerator VolverAlPerfil(IGameSocket socket)
+        {
+            // Da tiempo a que "match:leave" salga antes de cerrar la conexión.
+            yield return new WaitForSecondsRealtime(0.3f);
+            socket.Cerrar();
+            SceneManager.LoadScene(Escenas.Inicio);
         }
 
         void OnDestroy() => presentador?.Dispose();

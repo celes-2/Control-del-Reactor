@@ -36,7 +36,7 @@ namespace Reactor.Cliente.Arranque
 
             raiz.Audio.Reproducir(Pista.Arena);
 
-            presentador = new ArenaPresentador(GetComponent<ArenaVista>(), raiz.Socket);
+            presentador = new ArenaPresentador(GetComponent<ArenaVista>(), raiz.Socket, raiz.Sesion.UsuarioId);
             presentador.PartidaTerminada += AlTerminarPartida;
 
             var partidaId = string.IsNullOrEmpty(raiz.Sesion.PartidaActualId) ? partidaIdDemo : raiz.Sesion.PartidaActualId;
@@ -45,7 +45,11 @@ namespace Reactor.Cliente.Arranque
 
         void AlTerminarPartida(PartidaFinalizadaMsg mensaje)
         {
-            raiz.Sesion.UltimoResultado = ResultadoPartida.Crear(mensaje, presentador.Jugadores);
+            var resultado = ResultadoPartida.Crear(mensaje, presentador.Jugadores);
+            resultado.DuracionSegundos = presentador.SegundosTranscurridos;
+            foreach (var j in resultado.Jugadores)
+                j.Extracciones = presentador.ExtraccionesDe(j.Id);
+            raiz.Sesion.UltimoResultado = resultado;
             StartCoroutine(IrAVictoria());
         }
 

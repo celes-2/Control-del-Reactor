@@ -24,10 +24,18 @@ namespace Reactor.Cliente.Servicios
         public event Action<EstadoPartidaMsg> EstadoRecibido;
         public event Action<JugadorMovidoMsg> JugadorMovido;
         public event Action<JugadorActuoMsg> JugadorActuo;
+        public event Action<JugadorExtrajoMsg> JugadorExtrajo;
+        public event Action<JugadorRechazadoMsg> JugadorRechazado;
         public event Action<PuntajeMsg> PuntajeCambiado;
         public event Action<TickMsg> Tick;
         public event Action<TiempoExtraMsg> TiempoExtra;
         public event Action<PartidaFinalizadaMsg> PartidaFinalizada;
+        public event Action<ArenaActualizadaMsg> ArenaActualizada;
+        public event Action<EventoIniciadoMsg> EventoIniciado;
+        public event Action<EventoTerminadoMsg> EventoTerminado;
+        public event Action<JugadorCongeladoMsg> JugadorCongelado;
+        public event Action<ItemRecogidoMsg> ItemRecogido;
+        public event Action<string> ControlVinculado;
         public event Action<string> Error;
 
         public GameSocket(string url, SessionStore sesion)
@@ -136,10 +144,18 @@ namespace Reactor.Cliente.Servicios
                     case TiposMensaje.Estado: EstadoRecibido?.Invoke(datos.ToObject<EstadoPartidaMsg>()); break;
                     case TiposMensaje.JugadorMovido: JugadorMovido?.Invoke(datos.ToObject<JugadorMovidoMsg>()); break;
                     case TiposMensaje.JugadorActuo: JugadorActuo?.Invoke(datos.ToObject<JugadorActuoMsg>()); break;
+                    case TiposMensaje.JugadorExtrajo: JugadorExtrajo?.Invoke(datos.ToObject<JugadorExtrajoMsg>()); break;
+                    case TiposMensaje.JugadorRechazado: JugadorRechazado?.Invoke(datos.ToObject<JugadorRechazadoMsg>()); break;
                     case TiposMensaje.PuntajeCambiado: PuntajeCambiado?.Invoke(datos.ToObject<PuntajeMsg>()); break;
                     case TiposMensaje.Tick: Tick?.Invoke(datos.ToObject<TickMsg>()); break;
                     case TiposMensaje.TiempoExtra: TiempoExtra?.Invoke(datos.ToObject<TiempoExtraMsg>()); break;
                     case TiposMensaje.PartidaFinalizada: PartidaFinalizada?.Invoke(datos.ToObject<PartidaFinalizadaMsg>()); break;
+                    case TiposMensaje.ArenaActualizada: ArenaActualizada?.Invoke(datos.ToObject<ArenaActualizadaMsg>()); break;
+                    case TiposMensaje.EventoIniciado: EventoIniciado?.Invoke(datos.ToObject<EventoIniciadoMsg>()); break;
+                    case TiposMensaje.EventoTerminado: EventoTerminado?.Invoke(datos.ToObject<EventoTerminadoMsg>()); break;
+                    case TiposMensaje.JugadorCongelado: JugadorCongelado?.Invoke(datos.ToObject<JugadorCongeladoMsg>()); break;
+                    case TiposMensaje.ItemRecogido: ItemRecogido?.Invoke(datos.ToObject<ItemRecogidoMsg>()); break;
+                    case TiposMensaje.ControlVinculado: ControlVinculado?.Invoke(datos.ToObject<ControlVinculadoMsg>()?.DeviceId); break;
                     case TiposMensaje.Error: Error?.Invoke(datos.ToObject<ErrorMsg>()?.Mensaje ?? "Error del servidor."); break;
                     default: Debug.LogWarning($"Tipo de mensaje desconocido: {tipo}"); break;
                 }

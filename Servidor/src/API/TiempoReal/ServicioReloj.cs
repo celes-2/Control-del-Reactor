@@ -1,29 +1,40 @@
 using Aplicacion;
+using Aplicacion.CasosDeUso;
 using Aplicacion.Puertos;
 using Contratos.TiempoReal;
 using Dominio.Juego;
 
 namespace API.TiempoReal;
 
-/// <summary>Lo que cambio en una partida al pasar un segundo.</summary>
-public sealed record CambioReloj(int? TimeLeft, int TimeElapsed, bool HuboProrroga, int SegundosRestantes, bool Termino);
+/// <summary>
+/// Lo que cambio en una partida al pasar un segundo.
+/// Novedades y Arena son de la arena viva (Paquete B): lo que paso en ese segundo (eventos, congelamientos)
+/// y la foto de guardianes, puertas, trampas y energia. Arena es null si la partida no tiene arena viva.
+/// </summary>
+public sealed record CambioReloj(
+    int? TimeLeft, int TimeElapsed, bool HuboProrroga, int SegundosRestantes, bool Termino,
+    IReadOnlyList<Novedad>? Novedades = null, ArenaActualizadaData? Arena = null);
 
 /// <summary>
 /// El reloj de las partidas del servidor real. La Partida no tiene reloj propio (es dominio puro):
 /// cada segundo este servicio le llama Tick(1) y avisa a los Unity con
 /// match:tick (siempre), match:overtime (empate: +2 min) y match:finished (se acabo el tiempo).
+/// Con arena viva tambien manda event:started / event:ended / player:frozen y arena:update (cada segundo).
+/// El reloj es inyectable (<see cref="TimeProvider"/>): en pruebas se puede usar uno falso; si no se inyecta,
+/// se usa el del sistema. Las reglas miden el tiempo con Partida.SegundosTranscurridos, nunca con la hora real.
 /// </summary>
 public sealed class ServicioReloj(
     IPartidaRepo partidas,
     AdministradorSalas salas,
     PublicadorPartida publicador,
-    ILogger<ServicioReloj> log) : BackgroundService
+    ILogger<ServicioReloj> log,
+    TimeProvider? tiempo = null) : BackgroundService
 {
     private static readonly TimeSpan Intervalo = TimeSpan.FromSeconds(1);
 
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
     {
-        using var reloj = new PeriodicTimer(Intervalo);
+        using var reloj = new PeriodicTimer(Intervalo, tiempo ?? TimeProvider.System);
         try
         {
             while (await reloj.WaitForNextTickAsync(stoppingToken))
@@ -66,6 +77,11 @@ public sealed class ServicioReloj(
         await salas.EnviarATodosAsync(partidaId, TiposMensaje.MatchTick,
             new TickData(cambio.TimeLeft, cambio.TimeElapsed), ct);
 
+        // Arena viva: primero lo que paso en este segundo, despues la foto completa.
+        await publicador.EnviarNovedadesAsync(partidaId, cambio.Novedades, ct);
+        if (cambio.Arena is not null)
+            await publicador.EnviarArenaAsync(partidaId, cambio.Arena, ct);
+
         if (cambio.HuboProrroga)
         {
             log.LogInformation("Empate en la partida {PartidaId}: se suman {Segundos} s", partidaId, Partida.SegundosPorEmpate);
@@ -93,11 +109,17 @@ public sealed class ServicioReloj(
         partida.Tick(1);
 
         var porTiempo = partida.Config.ModoFin == ModoFin.Tiempo;
+        var arena = partida.ArenaVivaActiva && partida.Estado == EstadoPartida.EnCurso
+            ? PartidaVista.Desde(partida).AArenaViva()
+            : null;
+
         return new CambioReloj(
             porTiempo ? partida.SegundosRestantes : null,   // en modo POINTS no hay tiempo limite
             partida.SegundosTranscurridos,
             partida.Prorrogas > prorrogasAntes,
             partida.SegundosRestantes,
-            partida.Estado == EstadoPartida.Finalizada);
+            partida.Estado == EstadoPartida.Finalizada,
+            partida.TomarNovedades(),
+            arena is null ? null : new ArenaActualizadaData(partida.SegundosTranscurridos, arena));
     }
 }

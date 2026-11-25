@@ -1,4 +1,6 @@
 using System;
+using System.Collections.Generic;
+using System.Threading.Tasks;
 using Reactor.Cliente.Servicios;
 
 namespace Reactor.Cliente.Presentadores
@@ -18,6 +20,8 @@ namespace Reactor.Cliente.Presentadores
         readonly Action<string> alCrear;
         readonly Action alUnirse;
 
+        // Mientras no llegue el catálogo del servidor solo está el mapa clásico.
+        IReadOnlyList<EscenarioInfo> escenarios = new[] { EscenarioInfo.Clasico };
         AjustesPartida ajustes;
         bool creando;
         bool liberado;
@@ -37,6 +41,8 @@ namespace Reactor.Cliente.Presentadores
             vista.ModoElegido += AlElegirModo;
             vista.CrearPulsado += AlPulsarCrear;
             vista.UnirsePulsado += AlPulsarUnirse;
+            vista.EscenarioElegido += AlElegirEscenario;
+            vista.VolverAEscenariosPulsado += AlVolverAEscenarios;
         }
 
         public AjustesPartida Ajustes => ajustes;
@@ -46,6 +52,9 @@ namespace Reactor.Cliente.Presentadores
             ajustes = almacen.Cargar();
             ajustes.Normalizar();
             Refrescar();
+            vista.MostrarPaso(true); // primero se elige el escenario
+            vista.MostrarSelectorEscenarios(escenarios, ajustes.EscenarioId);
+            _ = CargarEscenariosAsync();
         }
 
         public void Dispose()
@@ -55,6 +64,8 @@ namespace Reactor.Cliente.Presentadores
             vista.ModoElegido -= AlElegirModo;
             vista.CrearPulsado -= AlPulsarCrear;
             vista.UnirsePulsado -= AlPulsarUnirse;
+            vista.EscenarioElegido -= AlElegirEscenario;
+            vista.VolverAEscenariosPulsado -= AlVolverAEscenarios;
         }
 
         void AlCambiarAjuste(CampoAjuste campo, int direccion)
@@ -65,8 +76,25 @@ namespace Reactor.Cliente.Presentadores
                 case CampoAjuste.Valor: ajustes.CambiarValor(direccion); break;
                 case CampoAjuste.Congelamiento: ajustes.CambiarCongelamiento(direccion); break;
                 case CampoAjuste.Jugadores: ajustes.CambiarJugadores(direccion); break;
+                case CampoAjuste.Escenario: ajustes.CambiarEscenario(direccion, escenarios); break;
+                case CampoAjuste.Guardianes: ajustes.CambiarGuardianes(direccion); break;
             }
             Refrescar();
+        }
+
+        void AlVolverAEscenarios()
+        {
+            if (creando) return;
+            vista.MostrarSelectorEscenarios(escenarios, ajustes.EscenarioId);
+            vista.MostrarPaso(true);
+        }
+
+        void AlElegirEscenario(string id)
+        {
+            if (creando) return;
+            ajustes.EscenarioId = id ?? "";
+            Refrescar();
+            vista.MostrarPaso(false);
         }
 
         void AlElegirModo(ModoFin modo)
@@ -124,6 +152,7 @@ namespace Reactor.Cliente.Presentadores
 
         void Refrescar()
         {
+            ajustes.AjustarA(escenarios);
             vista.MostrarModo(ajustes.Modo);
             if (ajustes.Modo == ModoFin.Tiempo)
                 vista.MostrarValor("Duración", FormatoTiempo(ajustes.DuracionSegundos));
@@ -131,6 +160,33 @@ namespace Reactor.Cliente.Presentadores
                 vista.MostrarValor("Puntos para ganar", ajustes.PuntosObjetivo + " puntos");
             vista.MostrarCongelamiento(ajustes.SegundosCongelamiento + (ajustes.SegundosCongelamiento == 1 ? " segundo" : " segundos"));
             vista.MostrarJugadores(ajustes.MaxJugadores + " jugadores");
+            vista.MostrarGuardianes(ajustes.CantidadGuardianes + " guardianes");
+            foreach (var escenario in escenarios)
+                if (escenario.Id == ajustes.EscenarioId) { vista.MostrarEscenario(escenario); break; }
+        }
+
+        async Task CargarEscenariosAsync()
+        {
+            try
+            {
+                var lista = await api.ListarEscenariosAsync();
+                if (liberado) return;
+                var todos = new List<EscenarioInfo>();
+                // El mapa clásico solo se ofrece si el catálogo no trae ya uno con ese nombre (el servidor falso sí lo trae).
+                var yaEsta = false;
+                foreach (var e in lista) if (e.Nombre == EscenarioInfo.Clasico.Nombre) yaEsta = true;
+                if (!yaEsta) todos.Add(EscenarioInfo.Clasico);
+                todos.AddRange(lista);
+                escenarios = todos;
+            }
+            catch (Exception)
+            {
+                if (liberado) return;
+                vista.MostrarAviso("No se pudo cargar los escenarios. Se usará el mapa clásico.");
+            }
+            ajustes.AjustarA(escenarios); // si el guardado ya no existe, vuelve al clásico
+            Refrescar();
+            vista.MostrarSelectorEscenarios(escenarios, ajustes.EscenarioId);
         }
 
         public static string FormatoTiempo(int segundos) => $"{segundos / 60}:{segundos % 60:00}";

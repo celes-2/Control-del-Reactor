@@ -1,0 +1,30 @@
+{
+  "id": "militar",
+  "orden": 3,
+  "nombre": "Complejo militar futurista",
+  "descripcion": "Terreno abierto con pilares sueltos, muchas trampas y solo dos puertas en la barrera frente al reactor.",
+  "trampasAleatorias": 24,
+  "distanciaMinimaEntreTrampas": 3,
+  "filas": [
+    "WWWWWWWWWWWWWWWWWWWWWWWWWWWWWW",
+    "WS.............G............SW",
+    "W............................W",
+    "W............................W",
+    "W....WW....WW..E..WW....WW...W",
+    "W............................W",
+    "W............................W",
+    "W..E........DWWWWWD.......E..W",
+    "W............................W",
+    "W.......WW...........WW......W",
+    "WG..WW.........R.........WW.GW",
+    "W............................W",
+    "W.........E.........E........W",
+    "W..E......................E..W",
+    "W............................W",
+    "W....WW....WW..E..WW....WW...W",
+    "W............................W",
+    "W............................W",
+    "WS.............G............SW",
+    "WWWWWWWWWWWWWWWWWWWWWWWWWWWWWW"
+  ]
+}

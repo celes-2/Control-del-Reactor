@@ -17,6 +17,9 @@ namespace Reactor.Cliente.Arranque
         [Tooltip("Activado: usa el servidor falso y el teclado. Desactivar para conectarse al servidor real.")]
         [SerializeField] bool usarServidorFalso = true;
 
+        /// <summary>true cuando se juega con los servicios falsos (sin servidor real).</summary>
+        public bool UsaServidorFalso => usarServidorFalso;
+
         [Tooltip("SOLO con el servidor falso: empezar en la pantalla de Acceso (login con cuentas falsas) en vez de entrar directo como Ana.")]
         [SerializeField] bool iniciarEnAcceso;
 
@@ -57,7 +60,7 @@ namespace Reactor.Cliente.Arranque
                 if (!iniciarEnAcceso)
                     Sesion.Iniciar("token-falso", SocketFalso.Jugador1, "Ana"); // en modo falso, el jugador local es Ana (anfitriona)
                 Socket = falso;
-                Api = new ApiPartidasFalsa();
+                Api = new ApiPartidasFalsa(falso);
                 Auth = new ApiAuthFalsa(SocketFalso.Jugador1);
                 PerfilApi = new ApiPerfilFalsa(SocketFalso.Jugador1);
                 Avatares = new AvatarCacheFalsa();
@@ -80,6 +83,7 @@ namespace Reactor.Cliente.Arranque
                 Avatares = new AvatarCache(Config.Servidor);
                 AvatarImagenes.Cache = Avatares;
                 PreparadorImagen = new PreparadorImagenAvatar();
+                gameObject.AddComponent<TecladoJugador>().Iniciar(Socket);   // teclado y control físico a la vez
             }
 
             // Barra con el avatar y el nombre del jugador en todas las pantallas (CA-06.5).

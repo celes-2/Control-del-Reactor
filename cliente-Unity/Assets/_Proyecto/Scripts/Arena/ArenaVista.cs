@@ -30,6 +30,7 @@ namespace Reactor.Cliente.Arena
         ArenaRenderer mapa;
         ArenaHud hud;
         Transform contenedorAvatares;
+        string jugadorPropioId;
 
         void Awake()
         {
@@ -40,9 +41,9 @@ namespace Reactor.Cliente.Arena
             contenedorAvatares.SetParent(transform, false);
         }
 
-        public void DibujarEscenario(EscenarioMsg escenario)
+        public void DibujarEscenario(EscenarioMsg escenario, string escenarioId)
         {
-            if (!mapa.Dibujar(escenario)) hud.MostrarAviso("No se pudo dibujar la arena.");
+            if (!mapa.Dibujar(escenario, escenarioId)) hud.MostrarAviso("No se pudo dibujar la arena.");
         }
 
         public void LimpiarJugadores()
@@ -93,7 +94,10 @@ public void MostrarJugador(JugadorMsg jugador)
         {
             var texto = new StringBuilder();
             foreach (var j in jugadores.OrderByDescending(x => x.Puntaje))
-                texto.AppendLine($"<color={Colores.HexSeguro(j.Color)}>{j.Nombre}</color>   {j.Puntaje} pts");
+            {
+                var etiqueta = j.Id == jugadorPropioId ? $"<b>{j.Nombre} (tú)</b>" : j.Nombre;
+                texto.AppendLine($"<color={Colores.HexSeguro(j.Color)}>{etiqueta}</color>   {j.Puntaje} pts");
+            }
             hud.MostrarMarcador(texto.ToString());
         }
 
@@ -107,5 +111,46 @@ public void MostrarJugador(JugadorMsg jugador)
         public void MostrarEstado(string texto) => hud.MostrarEstado(texto);
 
         public void MostrarAviso(string texto) => hud.MostrarAviso(texto);
+
+        public void MostrarRechazo(string texto) => hud.MostrarRechazo(texto);
+
+        public void OcultarRechazo() => hud.OcultarRechazo();
+
+        public void MostrarReactor(int energia, int capacidad, string estado)
+        {
+            hud.MostrarReactor(energia, capacidad, estado);
+            mapa.ActualizarReactor(energia, capacidad, estado);
+        }
+
+        public void MarcarJugadorPropio(string jugadorId)
+        {
+            jugadorPropioId = jugadorId;
+            if (avatares.TryGetValue(jugadorId ?? "", out var avatar))
+            {
+                avatar.MarcarComoPropio();
+                mapa.SeguirA(avatar.transform); // si el mapa es grande, la cámara lo acompaña
+            }
+        }
+
+        public void ActualizarArenaViva(ArenaVivaMsg vivo)
+        {
+            mapa.ActualizarArenaViva(vivo);
+            hud.MostrarMultiplicador(vivo != null ? vivo.MultiplicadorPuntos : 1);
+        }
+
+        public void MostrarEvento(string eventoId, string texto) => hud.MostrarEvento(eventoId, texto);
+
+        public void OcultarEvento(string eventoId) => hud.OcultarEvento(eventoId);
+
+        public void MostrarCongelado(string jugadorId, int segundos)
+        {
+            if (avatares.TryGetValue(jugadorId ?? "", out var avatar)) avatar.PonerCongelado(segundos);
+        }
+
+        public void MostrarExtraccion(string jugadorId)
+        {
+            mapa.Destello();
+            if (avatares.TryGetValue(jugadorId ?? "", out var avatar)) mapa.LanzarRayo(avatar.transform.position);
+        }
     }
 }

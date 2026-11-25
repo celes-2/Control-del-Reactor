@@ -17,10 +17,13 @@ public static class PartidasServicios
 
         servicios.AddScoped<ConfigurarPartida>();
         servicios.AddScoped<UnirsePartida>();
+        servicios.AddScoped<AbandonarPartida>();
         servicios.AddScoped<IniciarPartida>();
         servicios.AddScoped<ObtenerPartida>();
         servicios.AddScoped<ListarPartidasEnEspera>();
+        servicios.AddScoped<BuscarPartidaActiva>();      // US-30: el móvil pregunta en qué partida está el jugador
         servicios.AddScoped<EjecutarAccion>();
+        servicios.AddSingleton<ListarEscenarios>();   // US-23: catálogo fijo, sin estado
 
         return servicios;
     }

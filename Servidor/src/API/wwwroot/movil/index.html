@@ -1,0 +1,77 @@
+<!DOCTYPE html>
+<html lang="es">
+
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Control del Reactor · Móvil</title>
+    <link rel="stylesheet" href="estilos.css">
+</head>
+
+<body>
+    <header class="barra">
+        <h1>⚛ Control del Reactor</h1>
+        <button type="button" id="btn-salir" class="enlace" hidden>Salir</button>
+    </header>
+
+    <!-- US-30: login normal o con GitHub -->
+    <main id="pantalla-login" class="pantalla" hidden>
+        <form id="form-login" class="tarjeta">
+            <h2>Iniciar sesión</h2>
+            <label>Usuario o correo
+                <input id="login-usuario" autocomplete="username" autocapitalize="none" required>
+            </label>
+            <label>Contraseña
+                <input id="login-clave" type="password" autocomplete="current-password" required>
+            </label>
+            <button type="submit">Entrar</button>
+
+            <p class="separador">o</p>
+            <button type="button" id="btn-github" class="secundario">Entrar con GitHub</button>
+
+            <div id="github-paso" class="aviso" hidden>
+                <p>1. Abrí <a id="github-link" target="_blank" rel="noopener">github.com/login/device</a></p>
+                <p>2. Escribí este código y autorizá:</p>
+                <p id="github-codigo" class="codigo"></p>
+                <p class="pequeno">Esperando autorización…</p>
+                <button type="button" id="btn-github-cancelar" class="enlace">Cancelar</button>
+            </div>
+
+            <p id="login-error" class="error" role="alert"></p>
+        </form>
+    </main>
+
+    <!-- US-30: perfil, ranking, historial y partida en vivo (solo ver) -->
+    <main id="pantalla-app" class="pantalla" hidden>
+        <nav class="pestanas">
+            <button type="button" data-seccion="perfil" class="activa">Perfil</button>
+            <button type="button" data-seccion="ranking">Ranking</button>
+            <button type="button" data-seccion="historial">Historial</button>
+            <button type="button" data-seccion="vivo">En vivo</button>
+        </nav>
+
+        <section id="seccion-perfil"></section>
+
+        <section id="seccion-ranking" hidden>
+            <div class="selector">
+                <button type="button" data-criterio="victorias" class="activa">Por victorias</button>
+                <button type="button" data-criterio="puntos">Por puntos</button>
+            </div>
+            <ul id="lista-ranking" class="lista"></ul>
+        </section>
+
+        <section id="seccion-historial" hidden>
+            <ul id="lista-historial" class="lista"></ul>
+        </section>
+
+        <section id="seccion-vivo" hidden>
+            <div id="vivo-contenido"></div>
+        </section>
+
+        <p id="app-error" class="error" role="alert"></p>
+    </main>
+
+    <script src="app.js"></script>
+</body>
+
+</html>

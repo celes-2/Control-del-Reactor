@@ -74,6 +74,34 @@ namespace Reactor.Cliente.Servicios.Falsos
             return new SesionIniciada { Token = "token-falso-" + cuenta.Id, UsuarioId = cuenta.Id, Nombre = cuenta.Nombre, AvatarId = cuenta.AvatarId };
         }
 
+        int consultasGitHub;
+
+        /// <summary>Simula el flujo de dispositivo: el código "se autoriza" solo a la quinta consulta (unos 10 s) para poder verlo.</summary>
+        public async Task<GitHubInicio> IniciarGitHubAsync()
+        {
+            await Task.Yield();
+            consultasGitHub = 0;
+            return new GitHubInicio
+            {
+                DeviceCode = "device-falso", UserCode = "ABCD-1234", VerificationUri = "https://github.com/login/device",
+                ExpiresIn = 300, Interval = 2,
+            };
+        }
+
+        public async Task<GitHubEstado> ConsultarGitHubAsync(string deviceCode)
+        {
+            await Task.Yield();
+            if (deviceCode != "device-falso") throw Error("LOGIN_SOCIAL_EXPIRADO", "El código de GitHub expiró. Inténtalo de nuevo.");
+            if (++consultasGitHub < 5) return new GitHubEstado();
+
+            actual = cuentas[0];
+            return new GitHubEstado
+            {
+                Completado = true,
+                Sesion = new SesionIniciada { Token = "token-falso-" + actual.Id, UsuarioId = actual.Id, Nombre = actual.Nombre, AvatarId = actual.AvatarId },
+            };
+        }
+
         public async Task SolicitarRecuperacionAsync(string correo) => await Task.Yield();
 
         public async Task RestablecerAsync(string codigo, string clave, string confirmar)

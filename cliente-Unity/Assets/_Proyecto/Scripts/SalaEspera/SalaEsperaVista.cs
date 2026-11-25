@@ -20,12 +20,17 @@ namespace Reactor.Cliente.SalaEspera
         [SerializeField, Tooltip("Segundos que se ve un aviso antes de borrarse.")] float segundosAviso = 4f;
 
         public event Action IniciarPulsado;
+        public event Action VincularPulsado;
+        public event Action VolverPulsado;
 
         RectTransform raiz;
         TextMeshProUGUI codigo;
         TextMeshProUGUI estado;
         TextMeshProUGUI aviso;
         Button botonIniciar;
+        Button botonVincular;
+        TextMeshProUGUI textoVincular;
+        TextMeshProUGUI textoControl;
         RectTransform contenedorFilas;
         Coroutine borrarAviso;
 
@@ -67,7 +72,13 @@ namespace Reactor.Cliente.SalaEspera
         public void ConfigurarBotonIniciar(bool visible, bool habilitado)
         {
             botonIniciar.gameObject.SetActive(visible);
-            botonIniciar.interactable = habilitado;
+            ConstructorUI.Habilitar(botonIniciar, habilitado);
+        }
+
+        public void MostrarControl(string texto, bool esperando)
+        {
+            textoControl.text = texto;
+            textoVincular.text = esperando ? "Cancelar" : "Vincular mi control";
         }
 
         public void MostrarAviso(string texto)
@@ -109,6 +120,18 @@ namespace Reactor.Cliente.SalaEspera
 
             botonIniciar = ConstructorUI.CrearBoton(raiz, "Iniciar partida", new Vector2(0f, -330f), new Vector2(520f, 100f),
                 ConstructorUI.Verde, () => IniciarPulsado?.Invoke());
+
+            // Vincular el control: el primer botón que pulse el jugador queda como suyo, sea el control que sea.
+            botonVincular = ConstructorUI.CrearBoton(raiz, "Vincular mi control", new Vector2(-640f, -330f), new Vector2(460f, 100f),
+                ConstructorUI.Azul, () => VincularPulsado?.Invoke());
+            textoVincular = botonVincular.GetComponentInChildren<TextMeshProUGUI>();
+
+            textoControl = ConstructorUI.CrearTexto(raiz, "Control", 30, FontStyles.Normal, ConstructorUI.Gris,
+                new Vector2(-640f, -405f), new Vector2(560f, 50f));
+
+            // Salir sin jugar (por ejemplo, si nadie se une y no se puede iniciar).
+            ConstructorUI.CrearBoton(raiz, "Volver al perfil", new Vector2(640f, -330f), new Vector2(460f, 100f),
+                ConstructorUI.Gris, () => VolverPulsado?.Invoke());
 
             aviso = ConstructorUI.CrearTexto(raiz, "Aviso", 40, FontStyles.Bold, new Color(1f, 0.55f, 0.45f),
                 new Vector2(0f, -450f), new Vector2(1500f, 70f));

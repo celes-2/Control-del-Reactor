@@ -1,0 +1,360 @@
+/* US-30: página móvil. Pensada primero para pantallas de celular. */
+:root {
+    --fondo: #0f1420;
+    --tarjeta: #1a2233;
+    --borde: #2a3550;
+    --texto: #e8edf7;
+    --suave: #93a0b8;
+    --acento: #36d399;
+    --error: #ff6b6b;
+    --oro: #f5c542;
+    color-scheme: dark;
+}
+
+* {
+    box-sizing: border-box;
+}
+
+[hidden] {
+    display: none !important;
+}
+
+body {
+    margin: 0;
+    font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+    background: var(--fondo);
+    color: var(--texto);
+}
+
+.barra {
+    position: sticky;
+    top: 0;
+    z-index: 1;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 12px 16px;
+    background: #0b0f18;
+    border-bottom: 1px solid var(--borde);
+}
+
+.barra h1 {
+    margin: 0;
+    font-size: 1.1rem;
+}
+
+.pantalla {
+    max-width: 520px;
+    margin: 0 auto;
+    padding: 16px;
+}
+
+.tarjeta {
+    background: var(--tarjeta);
+    border: 1px solid var(--borde);
+    border-radius: 12px;
+    padding: 16px;
+    margin-bottom: 12px;
+}
+
+h2 {
+    margin: 0 0 12px;
+    font-size: 1.2rem;
+}
+
+h3 {
+    margin: 20px 0 8px;
+    font-size: 1rem;
+    color: var(--suave);
+}
+
+label {
+    display: block;
+    margin-bottom: 12px;
+    font-size: .9rem;
+    color: var(--suave);
+}
+
+input {
+    display: block;
+    width: 100%;
+    margin-top: 4px;
+    padding: 12px;
+    font-size: 1rem;
+    color: var(--texto);
+    background: var(--fondo);
+    border: 1px solid var(--borde);
+    border-radius: 8px;
+}
+
+button {
+    width: 100%;
+    padding: 12px;
+    font-size: 1rem;
+    font-weight: 600;
+    border: 0;
+    border-radius: 8px;
+    background: var(--acento);
+    color: #08130e;
+    cursor: pointer;
+}
+
+button:disabled {
+    opacity: .5;
+}
+
+button.secundario {
+    background: transparent;
+    color: var(--texto);
+    border: 1px solid var(--borde);
+}
+
+button.enlace {
+    width: auto;
+    padding: 4px 8px;
+    background: none;
+    color: var(--suave);
+    font-weight: 400;
+    text-decoration: underline;
+}
+
+.separador {
+    text-align: center;
+    color: var(--suave);
+    margin: 12px 0;
+}
+
+.aviso {
+    margin-top: 12px;
+    padding: 12px;
+    border-radius: 8px;
+    background: var(--fondo);
+    text-align: center;
+}
+
+.aviso a {
+    color: var(--acento);
+}
+
+.codigo {
+    font-family: ui-monospace, monospace;
+    font-size: 1.8rem;
+    letter-spacing: .15em;
+    margin: 8px 0;
+}
+
+.error {
+    color: var(--error);
+    min-height: 1.2em;
+    margin: 8px 0 0;
+}
+
+.pequeno {
+    font-size: .85rem;
+    color: var(--suave);
+}
+
+.centro {
+    text-align: center;
+}
+
+.vacio {
+    color: var(--suave);
+    text-align: center;
+    padding: 16px;
+}
+
+.pestanas {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 4px;
+    margin-bottom: 16px;
+}
+
+.selector {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 4px;
+    margin-bottom: 12px;
+}
+
+.pestanas button,
+.selector button {
+    padding: 10px 4px;
+    font-size: .9rem;
+    background: var(--tarjeta);
+    color: var(--suave);
+    border: 1px solid var(--borde);
+}
+
+.pestanas button.activa,
+.selector button.activa {
+    background: var(--acento);
+    color: #08130e;
+    border-color: var(--acento);
+}
+
+.perfil {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+}
+
+.perfil h2 {
+    margin: 0;
+}
+
+.avatar {
+    position: relative;
+    flex: none;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 36px;
+    height: 36px;
+    border-radius: 50%;
+    overflow: hidden;
+    background: var(--borde);
+    font-weight: 700;
+}
+
+.avatar img {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+}
+
+.avatar.grande {
+    width: 64px;
+    height: 64px;
+    font-size: 1.5rem;
+}
+
+.cuadricula {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 8px;
+}
+
+.dato {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    padding: 12px 4px;
+    text-align: center;
+    background: var(--tarjeta);
+    border: 1px solid var(--borde);
+    border-radius: 10px;
+}
+
+.dato .valor {
+    font-size: 1.3rem;
+    font-weight: 700;
+}
+
+.lista {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+}
+
+.fila {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 10px 12px;
+    margin-bottom: 6px;
+    background: var(--tarjeta);
+    border: 1px solid var(--borde);
+    border-radius: 10px;
+}
+
+.fila.yo {
+    border-color: var(--acento);
+}
+
+.fila .posicion {
+    width: 2em;
+    text-align: center;
+    font-weight: 700;
+}
+
+.fila .puntos {
+    font-weight: 700;
+}
+
+.columna {
+    flex: 1;
+    min-width: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+}
+
+.nombre {
+    font-weight: 600;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.logro {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    padding: 10px 12px;
+    margin-bottom: 6px;
+    background: var(--tarjeta);
+    border: 1px solid var(--borde);
+    border-radius: 10px;
+}
+
+.logro.obtenido {
+    border-color: var(--oro);
+}
+
+progress {
+    width: 100%;
+    height: 8px;
+    accent-color: var(--acento);
+}
+
+.historial.victoria {
+    border-left: 4px solid var(--acento);
+}
+
+.historial.derrota {
+    border-left: 4px solid var(--error);
+}
+
+.fila-estado {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    font-weight: 600;
+}
+
+.tiempo {
+    font-family: ui-monospace, monospace;
+    font-size: 1.4rem;
+}
+
+.reactor {
+    margin-top: 12px;
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+}
+
+.evento {
+    border-color: var(--oro);
+    text-align: center;
+}
+
+.final {
+    text-align: center;
+    font-size: 1.2rem;
+    border-color: var(--oro);
+}

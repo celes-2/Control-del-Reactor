@@ -14,10 +14,18 @@ namespace Reactor.Cliente.Servicios
         event Action<EstadoPartidaMsg> EstadoRecibido;
         event Action<JugadorMovidoMsg> JugadorMovido;
         event Action<JugadorActuoMsg> JugadorActuo;
+        event Action<JugadorExtrajoMsg> JugadorExtrajo;
+        event Action<JugadorRechazadoMsg> JugadorRechazado;
         event Action<PuntajeMsg> PuntajeCambiado;
         event Action<TickMsg> Tick;
         event Action<TiempoExtraMsg> TiempoExtra;
         event Action<PartidaFinalizadaMsg> PartidaFinalizada;
+        event Action<ArenaActualizadaMsg> ArenaActualizada;
+        event Action<EventoIniciadoMsg> EventoIniciado;
+        event Action<EventoTerminadoMsg> EventoTerminado;
+        event Action<JugadorCongeladoMsg> JugadorCongelado;
+        event Action<ItemRecogidoMsg> ItemRecogido;
+        event Action<string> ControlVinculado;
         event Action<string> Error;
 
         void Conectar(string partidaId);

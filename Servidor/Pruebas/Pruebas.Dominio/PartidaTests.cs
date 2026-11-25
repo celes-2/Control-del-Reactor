@@ -42,6 +42,14 @@ public class PartidaTests
         Repetir(partida, beto, Accion.Abajo, 5);
     }
 
+    /// <summary>Ana camina de (0,0) a (4,5), la celda vecina al reactor por la izquierda, y extrae una vez (+10 puntos).</summary>
+    private static void AnaExtraeUnaVez(Partida partida, Jugador ana)
+    {
+        Repetir(partida, ana, Accion.Derecha, 4);
+        Repetir(partida, ana, Accion.Abajo, 5);
+        Assert.Equal(ResultadoAccion.EnergiaExtraida, partida.Ejecutar(ana.Id, Accion.Extraer));
+    }
+
     // ---------- Unirse e iniciar ----------
 
     [Fact]
@@ -178,51 +186,10 @@ public class PartidaTests
         Assert.Equal(new Posicion(4, 5), ana.Posicion);
     }
 
-    [Fact]
-    public void Mover_ATrampa_QuitaVida()
-    {
-        var trampa = new Obstaculo(new Posicion(0, 1), TipoObstaculo.Trampa);
-        var (partida, ana, _) = CrearPartida(obstaculos: [trampa]);
-
-        var resultado = partida.Ejecutar(ana.Id, Accion.Abajo);
-
-        Assert.Equal(ResultadoAccion.DanoPorTrampa, resultado);
-        Assert.Equal(new Posicion(0, 1), ana.Posicion);
-        Assert.Equal(80, ana.Vida);
-        Assert.Equal(EstadoPartida.EnCurso, partida.Estado);
-    }
-
-    [Fact]
-    public void Trampa_QueEliminaAUnJugador_TerminaLaPartidaConElOtroComoGanador()
-    {
-        var trampa = new Obstaculo(new Posicion(0, 1), TipoObstaculo.Trampa);
-        var (partida, ana, beto) = CrearPartida(new ConfigPartida { DanoTrampa = 100 }, [trampa]);
-
-        partida.Ejecutar(ana.Id, Accion.Abajo);
-
-        Assert.True(ana.Eliminado);
-        Assert.Equal(EstadoPartida.Finalizada, partida.Estado);
-        Assert.Equal(beto.Id, partida.GanadorId);
-    }
-
-    [Fact]
-    public void Ejecutar_ConUnJugadorEliminado_Falla()
-    {
-        var trampa = new Obstaculo(new Posicion(0, 1), TipoObstaculo.Trampa);
-        var config = new ConfigPartida { DanoTrampa = 100, MaxJugadores = 3 };
-        var (partida, ana, _) = CrearPartida(config, [trampa], iniciar: false);
-        partida.Unirse(Guid.NewGuid(), "Carla", Guid.NewGuid());
-        partida.Iniciar();
-
-        partida.Ejecutar(ana.Id, Accion.Abajo); // Ana muere, pero quedan dos jugadores vivos
-
-        Assert.Equal(EstadoPartida.EnCurso, partida.Estado);
-        Assert.Throws<DominioException>(() => partida.Ejecutar(ana.Id, Accion.Abajo));
-    }
-
     // ---------- Extracción de energía ----------
 
     [Fact]
+    [Trait("CA", "18.3")]
     public void Extraer_LejosDelReactor_NoHaceNada()
     {
         var (partida, ana, _) = CrearPartida();
@@ -235,6 +202,7 @@ public class PartidaTests
     }
 
     [Fact]
+    [Trait("CA", "18.3")]
     public void Extraer_JuntoAlReactor_PasaEnergiaAlJugador()
     {
         var (partida, ana, _) = CrearPartida();
@@ -248,6 +216,7 @@ public class PartidaTests
     }
 
     [Fact]
+    [Trait("CA", "18.3")]
     public void Extraer_ConElReactorVacio_DevuelveReactorVacio()
     {
         var config = new ConfigPartida { CapacidadReactor = 10, EnergiaPorExtraccion = 10, EnergiaObjetivo = 100 };
@@ -287,10 +256,13 @@ public class PartidaTests
     }
 
     [Fact]
+    [Trait("CA", "25.1")]
+    [Trait("CA", "25.2")]
+    [Trait("CA", "25.5")]
     public void Tick_AlAgotarseElTiempo_GanaQuienTengaMasPuntos()
     {
         var (partida, ana, _) = CrearPartida(new ConfigPartida { DuracionSegundos = 60 });
-        partida.Ejecutar(ana.Id, Accion.Abajo);
+        AnaExtraeUnaVez(partida, ana);
 
         partida.Tick(60);
 
@@ -299,10 +271,11 @@ public class PartidaTests
     }
 
     [Fact]
+    [Trait("CA", "25.7")]
     public void Tick_DespuesDeFinalizar_NoCambiaNada()
     {
         var (partida, ana, _) = CrearPartida(new ConfigPartida { DuracionSegundos = 30 });
-        partida.Ejecutar(ana.Id, Accion.Abajo);
+        AnaExtraeUnaVez(partida, ana);
         partida.Tick(30);
 
         partida.Tick(5);
@@ -314,18 +287,7 @@ public class PartidaTests
     // ---------- Puntaje (US-15) ----------
 
     [Fact]
-    public void Mover_SumaUnPunto()
-    {
-        var (partida, ana, beto) = CrearPartida();
-
-        partida.Ejecutar(ana.Id, Accion.Abajo);
-        partida.Ejecutar(ana.Id, Accion.Abajo);
-
-        Assert.Equal(2, ana.Puntaje);
-        Assert.Equal(0, beto.Puntaje);
-    }
-
-    [Fact]
+    [Trait("CA", "19.4")]
     public void Mover_Bloqueado_NoSumaPuntos()
     {
         var (partida, ana, _) = CrearPartida();
@@ -335,33 +297,31 @@ public class PartidaTests
         Assert.Equal(0, ana.Puntaje);
     }
 
-    [Fact]
-    public void Mover_ATrampa_SumaElPunto()
-    {
-        var trampa = new Obstaculo(new Posicion(0, 1), TipoObstaculo.Trampa);
-        var (partida, ana, _) = CrearPartida(obstaculos: [trampa]);
-
-        partida.Ejecutar(ana.Id, Accion.Abajo);
-
-        Assert.Equal(1, ana.Puntaje);
-    }
-
     // ---------- Fin por puntos (US-08, US-16) ----------
 
     [Fact]
+    [Trait("CA", "25.1")]
+    [Trait("CA", "25.2")]
     public void FinPorPuntos_GanaElPrimeroEnLlegarALaMeta()
     {
-        var config = new ConfigPartida { ModoFin = ModoFin.Puntos, PuntosObjetivo = 3 };
+        var config = new ConfigPartida { ModoFin = ModoFin.Puntos, PuntosObjetivo = 20 };
         var (partida, ana, beto) = CrearPartida(config);
 
-        partida.Ejecutar(beto.Id, Accion.Abajo);
-        Repetir(partida, ana, Accion.Abajo, 3);
+        AnaExtraeUnaVez(partida, ana);                    // Ana 10
+        for (var i = 0; i < 4; i++) partida.Ejecutar(beto.Id, Accion.Izquierda);
+        for (var i = 0; i < 5; i++) partida.Ejecutar(beto.Id, Accion.Abajo);
+        partida.Ejecutar(beto.Id, Accion.Extraer);        // Beto 10
+
+        Assert.Equal(EstadoPartida.EnCurso, partida.Estado);
+        partida.Tick(1);                                  // pasa el enfriamiento
+        partida.Ejecutar(ana.Id, Accion.Extraer);         // Ana 20: llega primero a la meta
 
         Assert.Equal(EstadoPartida.Finalizada, partida.Estado);
         Assert.Equal(ana.Id, partida.GanadorId);
     }
 
     [Fact]
+    [Trait("CA", "25.1")]
     public void FinPorPuntos_ElTiempoNoTerminaLaPartida()
     {
         var config = new ConfigPartida { ModoFin = ModoFin.Puntos, PuntosObjetivo = 5, DuracionSegundos = 10 };
@@ -373,6 +333,7 @@ public class PartidaTests
     }
 
     [Fact]
+    [Trait("CA", "25.1")]
     public void FinPorTiempo_LosPuntosNoTerminanLaPartida()
     {
         var config = new ConfigPartida { ModoFin = ModoFin.Tiempo, PuntosObjetivo = 2 };
@@ -386,6 +347,7 @@ public class PartidaTests
     // ---------- Empate (CA-16.4) ----------
 
     [Fact]
+    [Trait("CA", "25.6")]
     public void Empate_AlAcabarseElTiempo_SumaDosMinutosYSigueConLosMismosPuntos()
     {
         var (partida, ana, beto) = CrearPartida(new ConfigPartida { DuracionSegundos = 30 });
@@ -398,16 +360,17 @@ public class PartidaTests
         Assert.Null(partida.GanadorId);
         Assert.Equal(Partida.SegundosPorEmpate, partida.SegundosRestantes);
         Assert.Equal(1, partida.Prorrogas);
-        Assert.Equal(1, ana.Puntaje);
-        Assert.Equal(1, beto.Puntaje);
+        Assert.Equal(0, ana.Puntaje);
+        Assert.Equal(0, beto.Puntaje);
     }
 
     [Fact]
+    [Trait("CA", "25.6")]
     public void Empate_ElDesempateSeResuelveEnLaProrroga()
     {
         var (partida, ana, _) = CrearPartida(new ConfigPartida { DuracionSegundos = 30 });
         partida.Tick(30); // 0 a 0: prórroga
-        partida.Ejecutar(ana.Id, Accion.Abajo);
+        AnaExtraeUnaVez(partida, ana);
 
         partida.Tick(Partida.SegundosPorEmpate);
 

@@ -15,6 +15,9 @@ namespace Reactor.Cliente.Servicios
         public string AvatarId { get; set; }
         public int Puntaje { get; set; }
 
+        /// <summary>Extracciones válidas que hizo en la partida (estadística de la ceremonia).</summary>
+        public int Extracciones { get; set; }
+
         /// <summary>Posición en que llegó a la partida; sirve para elegir su imagen igual que en la arena.</summary>
         public int OrdenLlegada { get; set; }
 
@@ -29,6 +32,9 @@ namespace Reactor.Cliente.Servicios
     public sealed class ResultadoPartida
     {
         public IReadOnlyList<JugadorResultado> Jugadores { get; }
+
+        /// <summary>Duración de la partida en segundos (0 si no se conoce).</summary>
+        public int DuracionSegundos { get; set; }
 
         public ResultadoPartida(IEnumerable<JugadorResultado> jugadores)
         {

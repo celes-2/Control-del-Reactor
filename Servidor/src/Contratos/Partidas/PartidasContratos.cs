@@ -3,7 +3,7 @@ namespace Contratos.Partidas;
 // Contratos HTTP de las partidas: solo tipos simples (números, texto, Guid), sin entidades del dominio.
 // Son los mismos nombres que leerá el cliente de Unity.
 
-public sealed record ObstaculoSolicitud(int X, int Y, string Tipo); // Tipo: "Muro" o "Trampa"
+public sealed record ObstaculoSolicitud(int X, int Y, string Tipo); // Tipo: "Muro", "Trampa" o "Puerta"
 
 /// <summary>
 /// Todos los parámetros de la partida son opcionales: lo que no se envíe usa el valor por defecto.
@@ -25,7 +25,9 @@ public sealed record CrearPartidaSolicitud(
     IReadOnlyList<ObstaculoSolicitud>? Obstaculos = null,
     string? ModoFin = null,                 // "Tiempo" o "Puntos" (US-08)
     int? PuntosObjetivo = null,             // meta del modo "Puntos"
-    int? SegundosCongelamiento = null);     // CA-08.5
+    int? SegundosCongelamiento = null,      // CA-08.5
+    string? EscenarioId = null,             // US-23: "laboratorio", "estacion" o "militar" (GET /api/escenarios). Null: mapa clásico
+    int? CantidadGuardianes = null);        // US-21: de 2 a 4. Null: 4
 
 public sealed record UnirsePartidaSolicitud(Guid UsuarioId);
 
@@ -51,6 +53,35 @@ public sealed record PartidaRespuesta(
     int EnergiaObjetivo,
     IReadOnlyList<JugadorRespuesta> Jugadores,
     IReadOnlyList<ObstaculoRespuesta> Obstaculos,
-    IReadOnlyList<string> Escenario); // filas de texto: W muro, . piso, S inicio, R reactor, T trampa
+    IReadOnlyList<string> Escenario,  // filas de texto: W muro, . piso, S inicio, R reactor, T trampa
+    string? EscenarioId = null,       // null: mapa clásico
+    int CantidadGuardianes = 4);
 
 public sealed record PartidaResumenRespuesta(Guid Id, int Jugadores, int MaxJugadores, string Anfitrion);
+
+
+/// <summary>US-30: "GET /api/partidas/activa". Si el jugador no está en ninguna partida, el servidor responde 204 sin cuerpo.</summary>
+public sealed record PartidaActivaRespuesta(Guid Id);
+
+public sealed record PosicionRespuesta(int X, int Y);
+
+/// <summary>
+/// GET /api/escenarios. Filas usa solo W . S R T (las puertas salen con su estado inicial).
+/// Puertas, InicioGuardianes y PuntosEnergia van aparte para dibujarlos en la vista previa.
+/// TrampasAleatorias: cuántas trampas se reparten al iniciar (las posiciones llegan en match:state).
+/// </summary>
+public sealed record EscenarioRespuesta(
+    string Id,
+    string Nombre,
+    string Descripcion,
+    int Ancho,
+    int Alto,
+    IReadOnlyList<string> Filas,
+    IReadOnlyList<PosicionRespuesta> Puertas,
+    IReadOnlyList<PosicionRespuesta> InicioGuardianes,
+    int MaxJugadores,
+    int MinGuardianes,
+    int MaxGuardianes,
+    int GuardianesPorDefecto,
+    int TrampasAleatorias,
+    IReadOnlyList<PosicionRespuesta> PuntosEnergia);
