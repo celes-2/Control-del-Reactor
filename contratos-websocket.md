@@ -40,8 +40,11 @@ Nombres de campo en inglés y `camelCase`. Los ids son texto (GUID). Posiciones:
 |---|---|---|
 | `match:join` | `{ "matchId": "..." }` | cualquier jugador |
 | `match:start` | `{}` | solo el anfitrión, con 2 o más jugadores |
+| `match:leave` | `{}` | cualquier jugador, solo en la sala de espera ("Volver al perfil"). Si sale el anfitrión (o no queda nadie) la partida se elimina y los demás reciben un `error` "La partida se cerró"; si sale otro jugador, la sala recibe `match:state` sin él |
 | `match:watch` | `{ "matchId": "..." }` | el móvil (US-30): mira sin unirse; recibe `match:state` y los mensajes de la sala, no los rechazos privados |
 | `player:input` | `{ "button": "UP" \| "DOWN" \| "LEFT" \| "RIGHT" \| "ACTION" }` | el jugador en curso: el teclado de Unity. Hace lo mismo que el botón de la Pico (mismas reglas y mismas respuestas `player:moved`, `score:changed`...) y convive con el control físico |
+| `device:pair` | `{}` | cualquier jugador conectado: "vincular mi control". El PRIMER botón que llegue de cualquier control (en los próximos 60 s) queda asociado a este jugador y no mueve a nadie. Responde `device:paired`. Sirve sin importar el número del control ni el orden de entrada |
+| `device:pair-cancel` | `{}` | cancela la petición anterior |
 
 Unity **nunca** envía movimientos: los botones llegan desde la Pico por MQTT. El servidor decide.
 
@@ -54,6 +57,7 @@ El móvil obtiene el id de su partida con `GET /api/partidas/activa` (204 si no 
 | type | data |
 |---|---|
 | `match:state` | `{ matchId, hostId, status, endMode, endValue, timeLeft, timeElapsed, scenario, players }` |
+| `device:paired` | `{ "deviceId": "pico-02" }` | solo al jugador que pidió vincular; el control quedó asignado a él (se guarda en dispositivos.json) |
 | `player:moved` | `{ userId, x, y, score }` |
 | `player:acted` | `{ userId, message }` (message opcional) |
 | `score:changed` | `{ userId, score }` |

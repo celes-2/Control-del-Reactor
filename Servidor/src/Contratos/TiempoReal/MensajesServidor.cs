@@ -54,6 +54,9 @@ public sealed record PartidaFinalizadaData(Guid? WinnerId, IReadOnlyList<Puntaje
 /// <summary>"error": solo se envía al jugador que lo causó.</summary>
 public sealed record ErrorData(string Message);
 
+/// <summary>"device:paired": el control con ese id quedó vinculado al jugador. Solo se envía a quien lo pidió.</summary>
+public sealed record DispositivoVinculadoData(string DeviceId);
+
 // ---------------------------------------------------------------- Arena viva (Sprint 3, Paquete B)
 
 /// <summary>

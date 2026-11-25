@@ -19,6 +19,7 @@ public sealed class ManejadorWebSocket(
     AdministradorSalas salas,
     PublicadorPartida publicador,
     ProcesadorAcciones procesador,
+    VinculadorControles vinculador,
     IPartidaRepo partidas,
     ILogger<ManejadorWebSocket> log)
 {
@@ -88,6 +89,7 @@ public sealed class ManejadorWebSocket(
                 salas.Quitar(id, conexion);
             if (partidaMirada is { } mirada)
                 salas.QuitarEspectador(mirada, conexion);
+            vinculador.Cancelar(conexion);
             await CerrarAsync(socket);
             log.LogInformation("WebSocket cerrado: jugador {UsuarioId}", usuarioId);
         }
@@ -113,6 +115,31 @@ public sealed class ManejadorWebSocket(
                 await iniciar.EjecutarAsync(new IniciarPartidaComando(actual, conexion.UsuarioId), ct);
                 await publicador.EnviarEstadoAsync(actual, ct);
                 return actual;
+
+            case TiposMensaje.MatchLeave:
+                // "Volver al perfil" desde la sala de espera.
+                if (partidaActual is not { } saliente)
+                    return partidaActual;   // no estaba en ninguna sala: nada que hacer
+
+                var abandonar = servicios.GetRequiredService<AbandonarPartida>();
+                var abandono = await abandonar.EjecutarAsync(new AbandonarPartidaComando(saliente, conexion.UsuarioId), ct);
+                salas.Quitar(saliente, conexion);
+
+                if (abandono == ResultadoAbandono.Cerrada)
+                    await salas.EnviarATodosAsync(saliente, TiposMensaje.Error,
+                        new ErrorData("El anfitrión salió y la partida se cerró."), ct);
+                else
+                    await publicador.EnviarEstadoAsync(saliente, ct);
+                return null;
+
+            case TiposMensaje.DevicePair:
+                // "Vincular mi control": el próximo botón de cualquier control queda de este jugador.
+                vinculador.Solicitar(conexion);
+                return partidaActual;
+
+            case TiposMensaje.DevicePairCancel:
+                vinculador.Cancelar(conexion);
+                return partidaActual;
 
             case TiposMensaje.PlayerInput:
                 // El teclado de Unity: mismo camino que el botón de la Pico (EjecutarAccion), para el jugador de esta conexión.

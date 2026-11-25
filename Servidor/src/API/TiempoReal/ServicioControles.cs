@@ -13,6 +13,7 @@ public sealed class ServicioControles(
     FiltroDuplicados filtro,
     IEmparejamientoControles emparejamiento,
     ProcesadorAcciones procesador,
+    VinculadorControles vinculador,
     ILogger<ServicioControles> log) : BackgroundService
 {
     protected override Task ExecuteAsync(CancellationToken stoppingToken) =>
@@ -36,6 +37,13 @@ public sealed class ServicioControles(
         {
             log.LogInformation("Boton {Accion} de {DeviceId} descartado: seq {Seq} repetido o viejo.",
                 evento.Accion, evento.DeviceId, evento.Seq);
+            return;
+        }
+
+        // Un jugador pidió "vincular mi control": este botón solo sirve para eso y no mueve a nadie.
+        if (await vinculador.IntentarVincularAsync(evento.DeviceId, ct))
+        {
+            log.LogInformation("Boton de {DeviceId} usado para vincular el control a un jugador.", evento.DeviceId);
             return;
         }
 

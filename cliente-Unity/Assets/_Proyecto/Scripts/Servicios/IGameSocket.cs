@@ -25,6 +25,7 @@ namespace Reactor.Cliente.Servicios
         event Action<EventoTerminadoMsg> EventoTerminado;
         event Action<JugadorCongeladoMsg> JugadorCongelado;
         event Action<ItemRecogidoMsg> ItemRecogido;
+        event Action<string> ControlVinculado;
         event Action<string> Error;
 
         void Conectar(string partidaId);

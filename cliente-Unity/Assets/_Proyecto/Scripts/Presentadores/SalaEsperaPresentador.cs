@@ -19,21 +19,28 @@ namespace Reactor.Cliente.Presentadores
         readonly IGameSocket socket;
         readonly string usuarioId;
         readonly Action alEmpezar;
+        readonly Action alVolver;
 
         string anfitrionId;
         int cantidadJugadores;
         bool yaEmpezo;
+        bool vinculando;
 
-        public SalaEsperaPresentador(ISalaEsperaVista vista, IGameSocket socket, string usuarioId, Action alEmpezar)
+        public SalaEsperaPresentador(ISalaEsperaVista vista, IGameSocket socket, string usuarioId, Action alEmpezar, Action alVolver = null)
         {
             this.vista = vista ?? throw new ArgumentNullException(nameof(vista));
             this.socket = socket ?? throw new ArgumentNullException(nameof(socket));
             this.alEmpezar = alEmpezar ?? throw new ArgumentNullException(nameof(alEmpezar));
+            this.alVolver = alVolver;
             this.usuarioId = usuarioId;
 
             socket.EstadoRecibido += AlRecibirEstado;
+            socket.ControlVinculado += AlVincularseElControl;
             socket.Error += AlError;
             vista.IniciarPulsado += AlPulsarIniciar;
+            vista.VincularPulsado += AlPulsarVincular;
+            vista.VolverPulsado += AlPulsarVolver;
+            vista.MostrarControl("Control sin vincular", false);
         }
 
         public void Iniciar(string partidaId)
@@ -55,8 +62,11 @@ namespace Reactor.Cliente.Presentadores
         {
             // Sin esto, al cambiar de escena los eventos llamarían a objetos destruidos.
             socket.EstadoRecibido -= AlRecibirEstado;
+            socket.ControlVinculado -= AlVincularseElControl;
             socket.Error -= AlError;
             vista.IniciarPulsado -= AlPulsarIniciar;
+            vista.VincularPulsado -= AlPulsarVincular;
+            vista.VolverPulsado -= AlPulsarVolver;
         }
 
         bool EsAnfitrion => !string.IsNullOrEmpty(usuarioId) && usuarioId == anfitrionId;
@@ -105,7 +115,55 @@ namespace Reactor.Cliente.Presentadores
             socket.Enviar(TiposMensaje.Iniciar, new object());
         }
 
-        void AlError(string mensaje) => vista.MostrarAviso(mensaje);
+        /// <summary>
+        /// "Vincular mi control": el servidor asocia a este jugador el primer botón que llegue de cualquier control,
+        /// sin importar el número del control ni el orden de entrada. Pulsarlo otra vez mientras espera cancela.
+        /// </summary>
+        void AlPulsarVincular()
+        {
+            if (vinculando)
+            {
+                vinculando = false;
+                socket.Enviar(TiposMensaje.CancelarVinculo, new object());
+                vista.MostrarControl("Control sin vincular", false);
+                return;
+            }
+
+            vinculando = true;
+            socket.Enviar(TiposMensaje.Vincular, new object());
+            vista.MostrarControl("Pulsa cualquier botón de tu control...", true);
+        }
+
+        void AlVincularseElControl(string deviceId)
+        {
+            vinculando = false;
+            vista.MostrarControl($"Control vinculado ({deviceId})", false);
+        }
+
+        /// <summary>Salir de la sala sin jugar (por ejemplo, si nadie se une): vuelve al perfil.</summary>
+        void AlPulsarVolver()
+        {
+            if (vinculando)
+            {
+                vinculando = false;
+                socket.Enviar(TiposMensaje.CancelarVinculo, new object());
+            }
+            // Le avisa al servidor para que saque al jugador (y elimine la partida si era el anfitrión).
+            // El socket lo cierra quien maneja el regreso, un instante después, para que el mensaje alcance a salir.
+            socket.Enviar(TiposMensaje.Abandonar, new object());
+            alVolver?.Invoke();
+        }
+
+        void AlError(string mensaje)
+        {
+            // Un error mientras se espera el control (por ejemplo, no se pudo guardar) cancela la espera.
+            if (vinculando)
+            {
+                vinculando = false;
+                vista.MostrarControl("Control sin vincular", false);
+            }
+            vista.MostrarAviso(mensaje);
+        }
 
         string TextoEstado()
         {

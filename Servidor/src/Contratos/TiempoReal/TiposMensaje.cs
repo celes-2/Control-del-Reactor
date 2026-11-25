@@ -9,11 +9,15 @@ public static class TiposMensaje
     // Cliente -> servidor
     public const string MatchJoin = "match:join";
     public const string MatchStart = "match:start";
+    public const string MatchLeave = "match:leave";   // salir de la sala de espera: si sale el anfitrión, la partida se elimina
+    public const string DevicePair = "device:pair";               // "vincular mi control": el próximo botón que llegue de un control queda de este jugador
+    public const string DevicePairCancel = "device:pair-cancel";
     public const string PlayerInput = "player:input";   // el teclado de Unity: mismo efecto que un botón del control
 
     public const string MatchWatch = "match:watch";   // US-30: el móvil mira la partida sin unirse
 
     // Servidor -> cliente
+    public const string DevicePaired = "device:paired";           // un control quedó vinculado a este jugador
     public const string MatchState = "match:state";
     public const string PlayerMoved = "player:moved";
     public const string PlayerExtracted = "player:extracted";

@@ -50,6 +50,23 @@ public sealed class PartidaEnMemoriaRepositorio : IPartidaRepo
         }
     }
 
+    public async Task EliminarAsync(Guid partidaId, CancellationToken ct = default)
+    {
+        if (!_partidas.TryGetValue(partidaId, out var entrada))
+            return;
+
+        // Se espera el candado para no quitarla en medio de otra operación sobre la misma partida.
+        await entrada.Candado.WaitAsync(ct);
+        try
+        {
+            _partidas.TryRemove(partidaId, out _);
+        }
+        finally
+        {
+            entrada.Candado.Release();
+        }
+    }
+
     public async Task<Guid?> BuscarPartidaDeJugadorAsync(Guid usuarioId, CancellationToken ct = default)
     {
         Guid? enEspera = null;

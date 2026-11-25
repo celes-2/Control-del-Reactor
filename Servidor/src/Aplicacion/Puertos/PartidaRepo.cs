@@ -26,6 +26,9 @@ public interface IPartidaRepo
     /// </summary>
     Task<Guid?> BuscarPartidaDeJugadorAsync(Guid usuarioId, CancellationToken ct = default);
 
+    /// <summary>Borra la partida del repositorio (por ejemplo, cuando el anfitrión sale de la sala de espera). Si no existe, no hace nada.</summary>
+    Task EliminarAsync(Guid partidaId, CancellationToken ct = default);
+
     /// <summary>Recorre las partidas que cumplen el filtro y devuelve una proyección de cada una.</summary>
     Task<IReadOnlyList<TResultado>> ConsultarAsync<TResultado>(
         Func<Partida, bool> filtro, Func<Partida, TResultado> proyeccion, CancellationToken ct = default);
