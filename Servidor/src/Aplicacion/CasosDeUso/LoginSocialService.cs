@@ -79,7 +79,8 @@ public sealed class LoginSocialService(
     /// <summary>
     /// CA-29.6, una sola cuenta por persona:
     /// 1) la cuenta de GitHub ya estaba vinculada: se usa esa cuenta;
-    /// 2) existe una cuenta interna con el mismo correo verificado: se vincula a ella;
+    /// 2) existe una cuenta interna con el mismo correo: se vincula a ella. Si esa cuenta NO estaba
+    ///    verificada, se anula su contraseña (pudo crearla otra persona con este correo) - defecto D-09;
     /// 3) si no, se crea una cuenta nueva y se vincula.
     /// </summary>
     private async Task<Usuario> BuscarOCrearAsync(IdentidadExterna identidad, CancellationToken ct)
@@ -101,6 +102,14 @@ public sealed class LoginSocialService(
             usuario = new Usuario(Guid.NewGuid(), await NombreLibreAsync(identidad.Login, ct), correo,
                 contrasenas.Hash(jwt.GenerarTokenSeguro()));
             await AsignarAvatarPorDefectoAsync(usuario, ct);
+        }
+        else if (!usuario.Verificado)
+        {
+            // D-09 (revisión de Faby): nadie probó que este correo fuera suyo, así que la cuenta pudo
+            // crearla otra persona. GitHub sí lo prueba para quien entra ahora: se anula la contraseña
+            // anterior para que quien la creó no conserve el acceso. Puede crear una nueva con
+            // "olvidé mi contraseña".
+            usuario.CambiarContrasena(contrasenas.Hash(jwt.GenerarTokenSeguro()));
         }
 
         // GitHub ya verificó ese correo, así que la cuenta puede jugar (CA-29.7: mismas reglas que el login normal).

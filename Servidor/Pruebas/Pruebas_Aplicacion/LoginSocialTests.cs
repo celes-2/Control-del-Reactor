@@ -94,9 +94,10 @@ public sealed class LoginSocialTests
 
     [Fact]
     [Trait("CA", "29.6")]
-    public async Task CorreoYaRegistrado_SeVinculaALaCuentaExistenteSinDuplicar()
+    public async Task CorreoYaRegistradoYVerificado_SeVinculaALaCuentaExistenteSinDuplicar()
     {
         var existente = new Usuario(Guid.NewGuid(), "palmita", "palma@correo.com", "hash-real");
+        existente.MarcarVerificado();                      // la dueña ya probó que el correo es suyo
         await usuarios.GuardarAsync(existente);
         github.Resultado = new ResultadoAutorizacion(EstadoAutorizacion.Autorizado, Palma());
 
@@ -106,6 +107,23 @@ public sealed class LoginSocialTests
         Assert.Equal(existente.Id, r.Login!.User.Id);
         Assert.Equal("palmita", r.Login.User.Username);              // conserva su nombre
         Assert.Equal("hash-real", usuarios.Todos[0].HashContrasena); // y su contraseña
+    }
+
+    [Fact]
+    [Trait("CA", "29.6")]
+    public async Task CorreoRegistradoSinVerificar_SeVinculaYAnulaLaContrasenaAnterior()
+    {
+        // D-09: otra persona registró el correo de Palma con su propia contraseña y nunca pudo verificarlo.
+        var impostor = new Usuario(Guid.NewGuid(), "impostor", "palma@correo.com", "hash:clave-del-impostor");
+        await usuarios.GuardarAsync(impostor);
+        github.Resultado = new ResultadoAutorizacion(EstadoAutorizacion.Autorizado, Palma());
+
+        var r = await Servicio().ConsultarAsync("dev-1");
+
+        Assert.Single(usuarios.Todos);                                // no duplica la cuenta
+        Assert.Equal(impostor.Id, r.Login!.User.Id);
+        Assert.True(usuarios.Todos[0].Verificado);
+        Assert.False(new HashFalso().Verificar("clave-del-impostor", usuarios.Todos[0].HashContrasena)); // ya no entra
     }
 
     [Fact]
